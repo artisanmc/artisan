@@ -1,3 +1,4 @@
+import { PALETTE_FILE, type Palette, paletteOf } from "@/lib/pack/palette";
 import {
   type KitTheme,
   type ThemeFiles,
@@ -63,4 +64,36 @@ export function activeKitTheme(binary: Binary): ThemeLook | null {
       ),
     };
   return last.look;
+}
+
+/**
+ * The colours a tint names (`lib/pack/palette.ts`) in the themes `names` (the lowest first) of
+ * the server as published, then in its library: what the pack reads for those themes.
+ */
+export function serverPalette(
+  read: KitRead | undefined,
+  own: Own,
+  names: readonly string[],
+): Palette {
+  return paletteOf([
+    ...[...names].reverse().map((name) => own[name]?.files[PALETTE_FILE]),
+    read?.files[PALETTE_FILE],
+  ]);
+}
+
+let lastPalette:
+  | { read: KitRead | undefined; own: Own; names: readonly string[]; palette: Palette }
+  | undefined;
+
+/** The palette of the themes in place on the server, as published: what the editor tints a layer with, like the game. */
+export function activePalette(): Palette {
+  const { read, own, themes: names } = useKitStore.getState();
+  if (
+    !lastPalette ||
+    lastPalette.read !== read ||
+    lastPalette.own !== own ||
+    lastPalette.names !== names
+  )
+    lastPalette = { read, own, names, palette: serverPalette(read, own, names) };
+  return lastPalette.palette;
 }

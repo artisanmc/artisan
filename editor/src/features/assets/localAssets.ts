@@ -38,7 +38,7 @@ import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { parse, stringify } from "yaml";
 import { type ComposedView, composedView } from "./composedAssets";
-import { activeKitTheme } from "./kitTheme";
+import { activeKitTheme, activePalette } from "./kitTheme";
 import { moduleImageDescriptorPath, moduleImageId, themeModuleAssets } from "./themeModuleImages";
 
 /**
@@ -220,9 +220,16 @@ async function composedViews(
   const inKit = useKitStore.getState().read?.projectId === projectId;
   for (const asset of disk) {
     if (!asset.compose) continue;
-    const view = await composedView(asset, disk, read, kit, theme, inKit, kitSlice).catch(
-      () => null,
-    );
+    const view = await composedView(
+      asset,
+      disk,
+      read,
+      kit,
+      theme,
+      inKit,
+      kitSlice,
+      activePalette(),
+    ).catch(() => null);
     if (view) out.set(asset, view);
   }
   return out;

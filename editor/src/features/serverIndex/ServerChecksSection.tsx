@@ -64,6 +64,8 @@ function issueKey(issue: ServerIssue): string {
       return `${issue.kind}:${issue.ref}`;
     case "layer_missing":
       return `layer:${issue.image}`;
+    case "tint_unknown":
+      return `tint:${issue.image}`;
   }
 }
 
@@ -114,6 +116,12 @@ function describe(issue: ServerIssue, t: (key: string, opts?: Record<string, unk
         count: issue.refs.length,
         image: issue.image,
         refs: issue.refs.join(", "),
+      });
+    case "tint_unknown":
+      return t("deploy.checks.tintUnknown", {
+        count: issue.tints.length,
+        image: issue.image,
+        tints: issue.tints.join(", "),
       });
   }
 }

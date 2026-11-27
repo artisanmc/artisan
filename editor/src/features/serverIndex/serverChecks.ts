@@ -3,6 +3,7 @@ import type { Project } from "@/domain/types";
 import { deriveServerGraph } from "@/features/canvas/serverGraph";
 import { type ElsewhereWhere, isWrittenName, reachOf } from "@/lib/pack/elsewhere";
 import { imageRefsIn, kitNameOf } from "@/lib/pack/kit";
+import { type Palette, tintOf } from "@/lib/pack/palette";
 import { namespaceOf } from "./serverIndex";
 
 export interface IssueOwner {
@@ -37,14 +38,19 @@ export type ServerIssue =
    * Layers of a composed image of the edited project name what no layer can take: a layer is
    * a PNG of the module or a common image, and is left out without one.
    */
-  | { kind: "layer_missing"; image: string; refs: string[] };
+  | { kind: "layer_missing"; image: string; refs: string[] }
+  /**
+   * Layers of a composed image of the edited project are tinted with what is no colour: a
+   * name no palette of the server gives (ADR `component-colours`). They are left as drawn.
+   */
+  | { kind: "tint_unknown"; image: string; tints: string[] };
 
 /** What names images in the edited module beside its menus, as its draft holds it. */
 export interface ImageWriters {
   /** The files of its kinds that ask the pack for images: their names are read as a menu's. */
   files: readonly { name: string; refs: readonly string[] }[];
   /** Its composed images, with the names their layers write. */
-  composed: readonly { name: string; refs: readonly string[] }[];
+  composed: readonly { name: string; refs: readonly string[]; tints?: readonly string[] }[];
   /** Whether the module holds a PNG of that name: what a layer takes when it names no common image. */
   png: (name: string) => boolean;
 }
@@ -75,6 +81,8 @@ export function serverChecksFor(
   images?: ElsewhereWhere | null,
   /** What else names images in the edited module; absent: its menus alone are checked. */
   writers?: ImageWriters,
+  /** The colours a tint names on the server; absent: the tints are not checked. */
+  palette?: Palette,
 ): ServerChecks {
   switch (index.status) {
     case "ready":
@@ -82,7 +90,9 @@ export function serverChecksFor(
         status: "ready",
         issues: [
           ...checkServerIssues(edited, index.projects),
-          ...(images && index.failed.length === 0 ? checkImageIssues(edited, images, writers) : []),
+          ...(images && index.failed.length === 0
+            ? checkImageIssues(edited, images, writers, palette)
+            : []),
         ],
         unreadable: index.failed,
       };
@@ -208,12 +218,14 @@ function brokenLinks(edited: Project, all: Project[]): ServerIssue[] {
  * (`image_elsewhere`), by the rule the pack reads a name with (`reachOf`). One issue per name,
  * with the menus and the files that write it. Then the layers of its composed images that
  * take nothing (`layer_missing`), one issue per composed image: a layer is read by another
- * rule (`renderComposed`), a common image by its whole name or a PNG of the module.
+ * rule (`renderComposed`), a common image by its whole name or a PNG of the module. And the
+ * tints of those layers that are no colour and no name of `palette` (`tint_unknown`).
  */
 export function checkImageIssues(
   edited: Project,
   where: ElsewhereWhere,
   writers?: ImageWriters,
+  palette?: Palette,
 ): ServerIssue[] {
   type Writers = { menus: Set<string>; files: Set<string> };
   const none = (): Writers => ({ menus: new Set(), files: new Set() });
@@ -247,6 +259,10 @@ export function checkImageIssues(
       return common === null ? !writers?.png(ref) : !where.base(common) && !where.common(common);
     });
     if (refs.length > 0) layers.push({ kind: "layer_missing", image: image.name, refs });
+    const tints = palette
+      ? [...new Set(image.tints ?? [])].filter((tint) => tintOf(tint, palette) === undefined)
+      : [];
+    if (tints.length > 0) layers.push({ kind: "tint_unknown", image: image.name, tints });
   }
   return [
     ...[...missing.entries()]

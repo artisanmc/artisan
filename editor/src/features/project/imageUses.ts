@@ -69,7 +69,7 @@ export function imageWriters(
   binaries: Record<string, { hash: string }>,
 ): {
   files: { name: string; refs: string[] }[];
-  composed: { name: string; refs: string[] }[];
+  composed: { name: string; refs: string[]; tints: string[] }[];
   png: (name: string) => boolean;
 } {
   const held: Held = {
@@ -78,17 +78,27 @@ export function imageWriters(
   };
   const list = Object.entries(files).map(([path, content]) => ({ path, content }));
   const pngs = new Set<string>();
+  const tints = new Map<string, string[]>();
   for (const asset of diskAssetsFromTree(
     "",
     list,
     held.binaries.map((b) => ({ ...b, size: 0 })),
     { originals: true },
-  ))
-    if (!asset.compose && (asset.row.type === "glyph" || asset.row.type === "texture"))
-      pngs.add(asset.row.name);
+  )) {
+    if (asset.compose)
+      tints.set(
+        asset.row.name,
+        asset.compose.layers.flatMap((layer) => (layer.tint ? [layer.tint] : [])),
+      );
+    else if (asset.row.type === "glyph" || asset.row.type === "texture") pngs.add(asset.row.name);
+  }
   return {
     files: filesNaming(held).map(({ name, refs }) => ({ name, refs })),
-    composed: composedNaming(held).map(({ name, refs }) => ({ name, refs })),
+    composed: composedNaming(held).map(({ name, refs }) => ({
+      name,
+      refs,
+      tints: tints.get(name) ?? [],
+    })),
     png: (name) => pngs.has(name),
   };
 }

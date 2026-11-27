@@ -130,7 +130,7 @@ it("reads from a module's tree what names images beside its menus, and the PNGs 
     {
       "conversation_modes/hud.yml": "box: frame\n",
       "assets/textures/banner.yml":
-        "width: 32\nheight: 16\ncompose:\n  - { use: kit:frame }\n  - { image: gold }\n",
+        "width: 32\nheight: 16\ncompose:\n  - { use: kit:frame }\n  - { image: gold, tint: primary }\n",
     },
     {
       "assets/textures/gold.png": { hash: "g" },
@@ -138,7 +138,9 @@ it("reads from a module's tree what names images beside its menus, and the PNGs 
     },
   );
   expect(written.files).toEqual([{ name: "conversation_modes/hud.yml", refs: ["frame"] }]);
-  expect(written.composed).toEqual([{ name: "banner", refs: ["kit:frame", "gold"] }]);
+  expect(written.composed).toEqual([
+    { name: "banner", refs: ["kit:frame", "gold"], tints: ["primary"] },
+  ]);
   // Its own PNG and the one it ships; a composed image is no layer of another.
   expect(["gold", "coin", "banner", "frame"].map(written.png)).toEqual([true, true, false, false]);
 });

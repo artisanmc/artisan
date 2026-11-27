@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { assetBytes } from "./assetBytes";
 import { composedView } from "./composedAssets";
 import { kitAssetsOf, themedKitAssets } from "./kitAssets";
-import { activeKitTheme, serverTheme, serverThemeNames } from "./kitTheme";
+import {
+  activeKitTheme,
+  activePalette,
+  serverPalette,
+  serverTheme,
+  serverThemeNames,
+} from "./kitTheme";
 
 const GREEN = [0x3c, 0x85, 0x27];
 const RED = [0xb3, 0x26, 0x1e];
@@ -179,5 +185,50 @@ describe("the kit in the server's theme", () => {
     // A server whose themes are all of their own folder needs no theme kept by the common images.
     useKitStore.setState({ read: undefined, themes: ["noel"] });
     expect(activeKitTheme(binary)).not.toBeNull();
+  });
+
+  test("a tint's name is a colour of the themes in place, the highest first, then of the library", async () => {
+    const kit = (files: Record<string, string>) => ({ projectId: "k", files, binaries: [] });
+    const read = kit({ "palette.yml": 'gold: "#d4a017"\nprimary: "#000001"\n' });
+    const own = {
+      nuit: kit({ "palette.yml": 'primary: "#101820"\ndanger: "#600000"\n' }),
+      noel: kit({ "palette.yml": 'primary: "#ffffff"\n' }),
+    };
+    const stacked = serverPalette(read, own, ["nuit", "noel", "gone"]);
+    expect(stacked("primary")).toBe("#ffffff");
+    expect(stacked("danger")).toBe("#600000");
+    expect(stacked("gold")).toBe("#d4a017");
+    // One theme alone, as its page judges it; none: the library, then the default palette.
+    expect(serverPalette(read, own, ["nuit"])("primary")).toBe("#101820");
+    expect(serverPalette(read, own, [])("primary")).toBe("#000001");
+    expect(serverPalette(undefined, {}, [])("primary")).toBe("#3b82f6");
+
+    // The editor shows a named tint as the pack draws it.
+    useKitStore.setState({ read, own, themes: ["nuit", "noel"] });
+    const palette = activePalette();
+    expect(activePalette()).toBe(palette);
+    const disk = diskAssetsFromTree(
+      "p",
+      [
+        {
+          path: "assets/textures/card.yml",
+          content: "compose:\n  - image: icon\n    tint: danger\n",
+        },
+      ],
+      [{ path: "assets/textures/icon.png", hash: "h", size: 0 }],
+    );
+    const card = disk.find((asset) => asset.compose)!;
+    const pixel = async (view: Awaited<ReturnType<typeof composedView>>) => {
+      const image = decodePng(
+        await assetBytes({ id: "card", previewUrl: view?.previewUrl } as never),
+      );
+      return [...image.data.slice(0, 3)];
+    };
+    const white = () => solid(4, 4, [255, 255, 255]);
+    const none = () => undefined;
+    expect(
+      await pixel(await composedView(card, disk, white, none, null, false, undefined, palette)),
+    ).toEqual([0x60, 0, 0]);
+    expect(await pixel(await composedView(card, disk, white, none))).toEqual([255, 255, 255]);
   });
 });

@@ -21,6 +21,7 @@ import {
   moduleImageKey,
 } from "@/lib/pack/kit";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
+import type { Palette } from "@/lib/pack/palette";
 import { type Slice, sliceOf } from "@/lib/pack/slice";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";
@@ -32,7 +33,7 @@ import { create } from "zustand";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { composedView, toDataUrl } from "./composedAssets";
-import { activeKitTheme, serverTheme } from "./kitTheme";
+import { activeKitTheme, activePalette, serverPalette, serverTheme } from "./kitTheme";
 import { readPublishedBinary } from "./localAssets";
 import { type ModuleDrawings, drawnInModule, useModuleDrawings } from "./moduleDrawings";
 
@@ -162,6 +163,7 @@ function kitAsset(
 export async function composedKitImages(
   read: KitRead,
   theme: ThemeLook | null = null,
+  palette?: Palette,
 ): Promise<Map<string, OwnImage>> {
   const files = Object.entries(read.files).map(([path, content]) => ({ path, content }));
   const disk = diskAssetsFromTree(
@@ -193,6 +195,7 @@ export async function composedKitImages(
       true,
       (name) =>
         disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name)?.row.slice,
+      palette,
     ).catch(() => null);
     if (view?.previewUrl)
       out.set(asset.row.name, {
@@ -336,7 +339,7 @@ export function useKitAssets(): Asset[] {
     const mine = { read, themes, own };
     showing = mine;
     const inTheme = activeKitTheme(readPublishedBinary);
-    void composedKitImages(read, inTheme)
+    void composedKitImages(read, inTheme, activePalette())
       .then(async (images) => ({
         images,
         themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), inTheme) : null,
@@ -387,7 +390,7 @@ export function useKitAssetsIn(name: string | null): Asset[] {
     if (!read) return;
     let cancelled = false;
     const theme = name === null ? null : publishedKitTheme(read, name, own);
-    void composedKitImages(read, theme)
+    void composedKitImages(read, theme, serverPalette(read, own, name === null ? [] : [name]))
       .then((images) => {
         const plain = kitAssetsOf(read, images);
         return theme ? themedKitAssets(plain, theme) : plain;

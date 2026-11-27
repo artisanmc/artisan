@@ -2571,6 +2571,10 @@ const fr: typeof en = {
         "L'image composée {{image}} a un calque qui nomme {{refs}} : un calque prend un PNG de ce module ou une image commune (artisan:nom), et aucun des deux ne l'a. Le calque est laissé de côté.",
       layerMissing_other:
         "L'image composée {{image}} a des calques qui nomment {{refs}} : un calque prend un PNG de ce module ou une image commune (artisan:nom), et aucun des deux ne les a. Ces calques sont laissés de côté.",
+      tintUnknown_one:
+        "L'image composée {{image}} a un calque teinté {{tints}} : aucune palette du serveur ne donne ce nom (palette.yml d'un thème ou de la bibliothèque), et ce n'est pas une couleur #rrggbb. Le calque reste tel qu'il est dessiné.",
+      tintUnknown_other:
+        "L'image composée {{image}} a des calques teintés {{tints}} : aucune palette du serveur ne donne ces noms (palette.yml d'un thème ou de la bibliothèque), et ce ne sont pas des couleurs #rrggbb. Ces calques restent tels qu'ils sont dessinés.",
       by: { menu: "le menu {{name}}", file: "le fichier {{name}}" },
       kind: { menu: "Menu", command: "Commande", dialog: "Dialogue" },
     },
