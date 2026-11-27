@@ -2,6 +2,7 @@ import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { Badge } from "@/components/ui/badge";
 import { BreadcrumbSwitcher } from "@/components/ui/breadcrumb";
 import { listChanges } from "@/components/ui/change-list";
+import { ScopeHeader } from "@/components/ui/scope-header";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
 import { DeployReviewDialog } from "@/features/project/DeployReviewDialog";
 import { type ProjectRenamed, onProjectRenamed } from "@/features/project/onProjectRenamed";
@@ -82,7 +83,6 @@ export default function ServerDetailPage() {
   const summary = servers.find((k) => k.id === serverId) ?? null;
   const [accessDenied, setAccessDenied] = useState(false);
   const childMatches = useChildMatches();
-  const navigationPinned = useSidebarStore((s) => s.pinned);
 
   // Anonymous visitor → bounce to login, preserving the current URL (incl.
   // deep-linked child routes) so they land back here after signing in.
@@ -144,45 +144,45 @@ export default function ServerDetailPage() {
   return (
     <ServerFrameContext.Provider value={frame}>
       <div className="flex h-full min-h-0 flex-col">
-        {/* One row, as tall as the sidebar's logo row, on the sidebar's surface; clear of the navigation toggle while the
-            sidebar is not pinned, as the project top bar. */}
-        <header
-          className={cx(
-            "flex shrink-0 flex-wrap items-stretch gap-x-6 bg-[var(--surface)] pr-6 pl-16 lg:h-16 lg:flex-nowrap lg:pl-24",
-            navigationPinned && "lg:pl-6",
-          )}
-        >
-          <div className="flex min-h-14 min-w-0 items-center gap-2.5">
-            {/* The name is the server switcher, as in a project's breadcrumb. */}
-            <h1 className="min-w-0">
-              <BreadcrumbSwitcher
-                current={serverId}
-                title={summary ? displayServerLabel(summary) : serverId}
-                searchPlaceholder={t("breadcrumb.searchServers")}
-                className="text-[17px] font-semibold tracking-tight text-[var(--text)]"
-                items={servers.map((k) => ({
-                  id: k.id,
-                  label: displayServerLabel(k),
-                  leading: (
-                    <span
-                      aria-hidden
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{ background: k.online ? "var(--success)" : "var(--text-faint)" }}
-                    />
-                  ),
-                }))}
-                onSelect={(id) => navigate({ to: "/servers/$serverId", params: { serverId: id } })}
-              />
-            </h1>
-            {summary && <ServerStateBadge summary={summary} />}
-          </div>
-          <ServerTabs
-            serverId={serverId}
-            active={tab ?? "/servers/$serverId"}
-            permissions={currentUser?.permissions ?? NO_PERMISSIONS}
-          />
-          {summary && <ServerVersions summary={summary} />}
-        </header>
+        {/* The same header as a module's: where you are, its views, then the versions. */}
+        <ScopeHeader
+          title={
+            <>
+              {/* The name is the server switcher, as in a module's breadcrumb. */}
+              <h1 className="min-w-0">
+                <BreadcrumbSwitcher
+                  current={serverId}
+                  title={summary ? displayServerLabel(summary) : serverId}
+                  searchPlaceholder={t("breadcrumb.searchServers")}
+                  className="text-[17px] font-semibold tracking-tight text-[var(--text)]"
+                  items={servers.map((k) => ({
+                    id: k.id,
+                    label: displayServerLabel(k),
+                    leading: (
+                      <span
+                        aria-hidden
+                        className="size-1.5 shrink-0 rounded-full"
+                        style={{ background: k.online ? "var(--success)" : "var(--text-faint)" }}
+                      />
+                    ),
+                  }))}
+                  onSelect={(id) =>
+                    navigate({ to: "/servers/$serverId", params: { serverId: id } })
+                  }
+                />
+              </h1>
+              {summary && <ServerStateBadge summary={summary} />}
+            </>
+          }
+          nav={
+            <ServerTabs
+              serverId={serverId}
+              active={tab ?? "/servers/$serverId"}
+              permissions={currentUser?.permissions ?? NO_PERMISSIONS}
+            />
+          }
+          end={summary && <ServerVersions summary={summary} />}
+        />
         {/* The concave top-left corner and hairline of the project page: the sidebar and this
             header read as one L-shaped frame around the tab's content. */}
         <div className="min-h-0 flex-1 overflow-hidden max-lg:border-t max-lg:border-[var(--border)] lg:rounded-tl-[var(--r-lg)] lg:border-t lg:border-l lg:border-[var(--border-soft)]">
@@ -230,7 +230,7 @@ function ServerVersions({ summary }: { summary: ServerSummary }) {
   if (versions.length === 0) return null;
   return (
     <span
-      className="ml-auto hidden shrink-0 items-center text-[11.5px] text-[var(--text-faint)] xl:flex"
+      className="hidden shrink-0 items-center text-[11.5px] text-[var(--text-faint)] xl:flex"
       style={{ fontFamily: "var(--font-mono)" }}
     >
       {versions.join(" · ")}

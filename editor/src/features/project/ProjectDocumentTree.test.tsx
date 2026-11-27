@@ -115,12 +115,9 @@ describe("ProjectDocumentTree", () => {
     expect(onOpen).toHaveBeenCalledWith("command/c1");
   });
 
-  it("the root row opens the project settings without selecting anything", () => {
-    useSelectionStore.getState().set(["m1" as never]);
+  it("leaves the project settings to the module's header", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("project-settings"));
-    expect(useUiStore.getState().projectSettingsOpen).toBe(true);
-    expect(useSelectionStore.getState().ids.size).toBe(0);
+    expect(screen.queryByTestId("project-settings")).toBeNull();
   });
 
   it("offers to create a menu, a command and a dialog", async () => {

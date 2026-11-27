@@ -9,6 +9,7 @@ import type { Project } from "@/domain/types";
 import { useResourcesView } from "@/features/assets/AssetsTab";
 import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
+import { moduleScreensOf } from "@/features/project/moduleScreens";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
@@ -89,12 +90,7 @@ export function ModuleHome({
   const folderCount = listFolders(project).filter((p) => !p.includes("/")).length;
 
   // A collection shows its own settings screen at the top of its page: not twice.
-  const collectionScreens = new Set(collections.flatMap((c) => c.collection?.screen ?? []));
-  const ns = projectNamespace(project);
-  const moduleScreens = screens.filter(
-    (s) =>
-      !collectionScreens.has(s.id) && (s.projectId === ns || (!!owner && s.moduleId === owner)),
-  );
+  const moduleScreens = moduleScreensOf(project, screens);
   const dataSources = listedDataSources(project, screens);
 
   const goToTab = useGoToWorkspaceTab();

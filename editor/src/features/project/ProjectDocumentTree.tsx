@@ -47,15 +47,7 @@ import {
 import { useDraggable } from "@dnd-kit/core";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
-import {
-  ChevronDown,
-  ChevronRight,
-  Folder,
-  FolderOpen,
-  Plus,
-  Puzzle,
-  Settings,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Plus, Puzzle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -68,7 +60,6 @@ import {
   useGlidingRows,
   withDropPreview,
 } from "./documentDrag";
-import { useOpenProjectSettings } from "./projectSettings";
 import { adoptDiskIntoProject } from "./saveProjectToDisk";
 import {
   type DocumentType,
@@ -106,8 +97,8 @@ function KindGlyph({ kind }: { kind: DocumentType }) {
 }
 
 /**
- * A project's settings and creation: two icon buttons, to the right of the
- * project name (left bar row, or tree header).
+ * What can be created in a project: one icon button, to the right of the project name
+ * (left bar row, or tree header). Its settings are a view of the module, in its header.
  */
 export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
@@ -118,7 +109,6 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
   const [newKind, setNewKind] = useState<string | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const openProjectSettings = useOpenProjectSettings();
   const templates = useProjectTemplates(projectId);
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const navigate = useNavigate();
@@ -136,16 +126,6 @@ export function ProjectActions({ projectId }: { projectId: ProjectId }) {
     "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]";
   return (
     <div className="flex shrink-0 items-center">
-      <button
-        type="button"
-        data-testid="project-settings"
-        onClick={openProjectSettings}
-        aria-label={t("projectProperties.title")}
-        title={t("projectProperties.title")}
-        className={iconButton}
-      >
-        <Settings className="size-[15px]" />
-      </button>
       <DropdownMenu>
         <DropdownMenuTrigger
           data-testid="project-create"

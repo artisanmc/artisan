@@ -70,6 +70,7 @@ import {
   CircleArrowUp,
   Folder,
   FolderOpen,
+  Server,
   Settings,
   Table2,
   type Terminal,
@@ -297,6 +298,13 @@ export function ProjectSidebar() {
       {urlParams.serverId && <SidebarSearch />}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        {srvParam && activeServer && (
+          <ServerRow
+            serverId={srvParam}
+            label={activeServer.serverLabel}
+            online={activeServer.online === true}
+          />
+        )}
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
@@ -379,6 +387,48 @@ export function ProjectSidebar() {
 
       <UserMenu serverLabel={activeServerLabel} />
     </nav>
+  );
+}
+
+/**
+ * The server itself, first of the places: highlighted on its own views (its header's
+ * tabs), as a module's row is on the module's. The sidebar lists the places, the header
+ * the views of the one highlighted here.
+ */
+function ServerRow({
+  serverId,
+  label,
+  online,
+}: {
+  serverId: string;
+  label: string;
+  online: boolean;
+}) {
+  const { t } = useTranslation();
+  const params = useParams({ strict: false }) as { projectId?: string; screenId?: string };
+  const active = !params.projectId && !params.screenId;
+  return (
+    <Link
+      to="/servers/$serverId"
+      params={{ serverId }}
+      onClick={() => useSidebarStore.getState().close()}
+      aria-current={active ? "page" : undefined}
+      data-testid="sidebar-server"
+      title={online ? t("serverDetail.stateOnline") : t("serverDetail.stateOffline")}
+      className={`mb-3 flex shrink-0 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] transition-colors ${
+        active
+          ? "bg-[var(--surface-hover)] font-semibold text-[var(--text)]"
+          : "font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+      }`}
+    >
+      <Server className="size-[15px] shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span
+        aria-hidden
+        className="size-1.5 shrink-0 rounded-full"
+        style={{ background: online ? "var(--success)" : "var(--text-faint)" }}
+      />
+    </Link>
   );
 }
 
@@ -784,7 +834,9 @@ function PluginModuleItem({
   const [expanded, setExpanded] = useState(showsChild);
   // A module that ships no icon, or whose brand the hub has not announced yet, shows Artisan's.
   const icon = useModuleBrand(module.id)?.icon ?? DEFAULT_MODULE_ICON;
-  const entries = module.entries.length > 0 && (
+  // A module's screens are views of its folder (its header's **More**): listed here only for
+  // a module without a folder, whose screens are then its only pages.
+  const entries = module.projects.length === 0 && module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
   const [only] = module.projects;

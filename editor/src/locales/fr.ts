@@ -2220,6 +2220,7 @@ const fr: typeof en = {
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     tabs: {
+      label: "Vues du module",
       home: "Accueil",
       resources: "Ressources",
       canvas: "Canvas",

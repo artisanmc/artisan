@@ -2186,6 +2186,7 @@ export default {
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     tabs: {
+      label: "Module views",
       home: "Home",
       resources: "Resources",
       canvas: "Canvas",

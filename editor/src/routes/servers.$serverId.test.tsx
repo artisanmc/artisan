@@ -169,7 +169,7 @@ describe("ServerDetailPage", () => {
   });
 
   /** Same split as the sidebar: a folder shipped by an Add-on is one row under its module's
-   *  name; its screens stay in the sidebar. */
+   *  name; its screens are views of the folder (its header's More). */
   it("lists an owned folder once, under its module's name, beside the admin's folders", async () => {
     screensState.screens = [
       {
@@ -187,7 +187,7 @@ describe("ServerDetailPage", () => {
     expect(within(row).getByText("serverDetail.overview.addon")).toBeInTheDocument();
     expect(within(rows).queryByText(/boutique_shop/)).toBeNull();
     expect(within(rows).getByText("Hub")).toBeInTheDocument();
-    // Navigation is the sidebar's: no screen links here.
+    // No screen links here: they are views of the folder.
     expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
   });
 
