@@ -16,6 +16,7 @@ import {
   assetNamesIn,
   commonImageRef,
   imageNamed,
+  kitFootprint,
   kitNameOf,
   moduleImageKey,
 } from "@/lib/pack/kit";
@@ -419,6 +420,17 @@ export function useCommonImageRef(projectId: string): (asset: Asset) => string {
     },
     [byName, own, projectId],
   );
+}
+
+/**
+ * The slots a common image covers when its name says them (`button.3x1`), under any spelling
+ * a menu writes for it: `kit:<name>`, the name alone, `artisan:<name>`. `null` for any other
+ * image, whose size gives them.
+ */
+export function imageSlots(asset: Asset): { width: number; height: number } | null {
+  if (asset.projectId !== KIT_FOLDER) return kitFootprint(asset.id);
+  const name = kitNameOf(asset.id) ?? asset.id.slice(asset.id.indexOf(":") + 1);
+  return kitFootprint(KIT_PREFIX + name);
 }
 
 const pathsOf = (held: KitRead) => [

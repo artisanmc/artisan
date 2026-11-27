@@ -30,9 +30,10 @@ and 3 × 2 or 2 × 3 covers six. Drag the image to move the entire button: the p
 button you hold lands on the slot under the pointer. Release it over another menu of the
 project to move it there.
 
-**Common images.** Beside **Item** and **Image**, **Common** lists the images every server has
-(`button.3x1`, `close.1x1`, arrows, toggles…) and the ones this server added, kept in
-`plugins/Artisan/themes/artisan/`. The menu names the image instead of copying it: when the
+**Common images.** **Image** lists the server's library first, then this module's images. The
+library holds the images every server has (`button.3x1`, `close.1x1`, arrows, toggles…) and the
+ones this server added, kept in `plugins/Artisan/themes/artisan/`, then the themes' own images.
+The menu names an image of the library instead of copying it: when the
 server redraws the common button, every menu that names it follows. A common image whose name
 ends with its slots (`3x1`) takes that area. A title's image layer offers the same list, with
 the common windows (`window.6`, `window.3`). When the server has themes in place
@@ -161,9 +162,9 @@ named like a common image replaces it while the theme is in place, at that image
 of another name is the theme's alone, a garland for the winter look, say: a menu names it with
 its theme, `noel:garland`, never by its name alone. It is in the pack as long as the server has the
 theme, in place or not, and shows as drawn: no theme repaints it. The theme's page lists
-them under **Its own images**, each as a menu writes it, and **Common** (on a button's image
-or a title layer) offers them after the common images: the menu names the one you pick,
-nothing is copied.
+them under **Its own images**, each as a menu writes it, and a button's **Image** chooser or
+a title layer's **Common** offers them after the common images: the menu names the one you
+pick, nothing is copied.
 
 A theme created as a folder of its own is renamed and deleted from its page (**Rename**,
 **Delete**, under where its files are). A renamed theme keeps its images and its

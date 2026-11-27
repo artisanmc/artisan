@@ -268,4 +268,101 @@ describe("AssetPicker", () => {
     expect(onPick).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  describe("the server's library", () => {
+    const library = (byName: boolean) =>
+      useKitStore.setState({
+        read: byName ? { projectId: "artisan", files: {}, binaries: [], byName } : undefined,
+        modules: [],
+        own: {},
+      } as never);
+    const open = (onPick: (asset: Asset) => void, named = true) =>
+      render(
+        <AssetPicker
+          projectId={"p1" as never}
+          usage="button"
+          named={named}
+          open
+          onClose={() => {}}
+          onPick={onPick}
+        />,
+      );
+
+    it("is listed first where a name is written, each image picked by its name alone", () => {
+      library(true);
+      const onPick = vi.fn();
+      open(onPick);
+      expect(screen.getByText("Bibliothèque du serveur")).toBeTruthy();
+      // A window is a menu's background, not a button's image.
+      expect(screen.queryByTitle(/^window\.6/)).toBeNull();
+      fireEvent.click(screen.getByTitle("button.3x1"));
+      expect(onPick).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "button.3x1", projectId: "artisan" }),
+      );
+    });
+
+    it("names it with artisan: when the module holds an image of that name", () => {
+      library(true);
+      useAssetStore.getState().setAssets([{ ...TEX, id: "button.3x1", name: "mine" }]);
+      const onPick = vi.fn();
+      open(onPick);
+      fireEvent.click(screen.getByTitle("button.3x1"));
+      expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: "artisan:button.3x1" }));
+    });
+
+    it("keeps kit: on a server older than the common images", () => {
+      library(false);
+      const onPick = vi.fn();
+      open(onPick);
+      fireEvent.click(screen.getByTitle("button.3x1"));
+      expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: "kit:button.3x1" }));
+    });
+
+    it("is not listed where no name is written, nor among another module's images", () => {
+      library(true);
+      open(vi.fn(), false);
+      expect(screen.queryByTitle("button.3x1")).toBeNull();
+      cleanup();
+      open(vi.fn());
+      fireEvent.click(screen.getByRole("button", { name: "guilds" }));
+      expect(screen.queryByTitle("button.3x1")).toBeNull();
+    });
+
+    it("lists a theme's own images, measured when the descriptor says no size", async () => {
+      const { encodePng, createImage } = await import("@/lib/pack/png");
+      const png = encodePng(createImage(40, 20));
+      // A fresh answer each time: the tiles' previews read the same address.
+      const fetched = vi
+        .spyOn(globalThis, "fetch")
+        .mockImplementation(async () => new Response(png as unknown as BodyInit, { status: 200 }));
+      useKitStore.setState({
+        read: { projectId: "artisan", files: {}, binaries: [], byName: true },
+        modules: [],
+        own: {
+          noel: {
+            projectId: "srv.noel",
+            files: { "assets/textures/star.yml": "width: 54\nheight: 18\n" },
+            binaries: [
+              { path: "assets/textures/star.png", hash: "h1" },
+              { path: "assets/textures/garland.png", hash: "h2" },
+            ],
+          },
+        },
+      } as never);
+      const onPick = vi.fn();
+      open(onPick);
+      fireEvent.click(screen.getByTitle("noel:star"));
+      expect(onPick).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: "noel:star", width: 54, height: 18 }),
+      );
+      fireEvent.click(screen.getByTitle("noel:garland"));
+      await waitFor(() =>
+        expect(onPick).toHaveBeenLastCalledWith(
+          expect.objectContaining({ id: "noel:garland", width: 40, height: 20 }),
+        ),
+      );
+      fetched.mockRestore();
+      useKitStore.setState({ own: {} });
+    });
+  });
 });
