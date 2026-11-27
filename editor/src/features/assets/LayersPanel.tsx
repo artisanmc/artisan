@@ -5,11 +5,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { StudioSection } from "./StudioFrame";
 
@@ -26,6 +27,8 @@ export interface LayerRow {
   repeat?: string;
   /** A common image: placed here, redrawn among the common images. */
   common?: boolean;
+  /** Gives the layer another name; the reason it cannot take it, else `null`. Absent: it keeps its name. */
+  rename?: (name: string) => string | null;
 }
 
 function Thumb({ image, picture }: { image?: Asset; picture?: string }) {
@@ -85,6 +88,10 @@ export function LayersPanel({
 }) {
   const { t } = useTranslation();
   const several = rows.length > 1;
+  // The layer whose name is being written, what is written, and why it was refused.
+  const [naming, setNaming] = useState<{ index: number; name: string; error?: string } | null>(
+    null,
+  );
   return (
     <StudioSection title={t("compose.layers")} testId="studio-layers">
       {add ? (
@@ -132,22 +139,64 @@ export function LayersPanel({
                     : "border-[var(--border-soft)] bg-[var(--surface-raised)]",
                 )}
               >
-                <button
-                  type="button"
-                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-xs text-[var(--text)]"
-                  aria-pressed={on}
-                  onClick={() => onSelect?.(row.index)}
-                >
-                  <Thumb image={row.image} picture={row.picture} />
-                  <span className="truncate font-mono">{row.label}</span>
-                  {row.repeat ? <span className="badge shrink-0">{row.repeat}</span> : null}
-                  {row.common ? (
-                    <span className="badge shrink-0">{t("studio.commonLayer")}</span>
-                  ) : null}
-                  {!row.image ? (
-                    <span className="badge badge-amber shrink-0">{t("compose.missing")}</span>
-                  ) : null}
-                </button>
+                {naming?.index === row.index && row.rename ? (
+                  <form
+                    className="flex min-w-0 flex-1 flex-col gap-0.5"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const error = row.rename?.(naming.name);
+                      setNaming(error ? { ...naming, error } : null);
+                    }}
+                  >
+                    <Input
+                      autoFocus
+                      className="h-7 font-mono text-xs"
+                      aria-label={t("compose.rename.label", { name: row.label })}
+                      value={naming.name}
+                      onChange={(event) =>
+                        setNaming({ index: row.index, name: event.target.value })
+                      }
+                      onBlur={() => setNaming((held) => (held?.error ? held : null))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setNaming(null);
+                      }}
+                    />
+                    {naming.error ? (
+                      <span role="alert" className="text-[11px] text-[var(--danger)]">
+                        {naming.error}
+                      </span>
+                    ) : null}
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-left text-xs text-[var(--text)]"
+                    aria-pressed={on}
+                    onClick={() => onSelect?.(row.index)}
+                  >
+                    <Thumb image={row.image} picture={row.picture} />
+                    <span className="truncate font-mono">{row.label}</span>
+                    {row.repeat ? <span className="badge shrink-0">{row.repeat}</span> : null}
+                    {row.common ? (
+                      <span className="badge shrink-0">{t("studio.commonLayer")}</span>
+                    ) : null}
+                    {!row.image ? (
+                      <span className="badge badge-amber shrink-0">{t("compose.missing")}</span>
+                    ) : null}
+                  </button>
+                )}
+                {row.rename && naming?.index !== row.index ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-7"
+                    aria-label={t("compose.rename.button", { name: row.label })}
+                    title={t("compose.rename.button", { name: row.label })}
+                    onClick={() => setNaming({ index: row.index, name: row.label })}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                ) : null}
                 {onMove && several ? (
                   <>
                     <Button

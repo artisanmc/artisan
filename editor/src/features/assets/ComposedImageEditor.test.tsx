@@ -2,7 +2,7 @@ import type { Asset } from "@/domain/asset";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import type { ComposeRecipe } from "@/lib/pack/compose";
 import { createImage, decodePng, encodePng } from "@/lib/pack/png";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -223,6 +223,47 @@ describe("ComposedImageEditor", () => {
     expect([...drawn.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
     expect([...drawn.data.subarray(4, 8)]).toEqual([0, 0, 255, 255]);
     expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+  });
+
+  it("renames a layer of the module at the save: its file, then the recipe that names it", async () => {
+    const saved = vi
+      .spyOn(userAssetsApi, "patchAsset")
+      .mockImplementation(async (_project, id, patch) =>
+        patch.name
+          ? image(patch.name, 16, 16)
+          : ({ ...composed, id, compose: patch.compose } as Asset),
+      );
+    render(<Stand />);
+    // A server image keeps its name: only the module's PNG offers one.
+    expect(screen.queryByRole("button", { name: "Renommer window.3" })).toBeNull();
+    const write = (name: string) => {
+      fireEvent.change(screen.getByLabelText(/^Nouveau nom de /), { target: { value: name } });
+      fireEvent.submit(screen.getByLabelText(/^Nouveau nom de /));
+    };
+    fireEvent.click(screen.getByRole("button", { name: "Renommer icon" }));
+    write("Bad Name");
+    expect(screen.getByRole("alert")).toHaveTextContent("minuscules");
+    write("other");
+    expect(screen.getByRole("alert")).toHaveTextContent("déjà le nom d’une image");
+    // Another image shows this layer: its recipe would name a file that is gone.
+    write("badge");
+    expect(screen.getByRole("alert")).toHaveTextContent("« other » utilise aussi ce calque");
+    act(() =>
+      useAssetStore.getState().setAssets([composed, image("icon", 16, 16), image("other", 8, 8)]),
+    );
+    write("badge");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("badge");
+    // Nothing is written before the save.
+    expect(saved).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(saved).toHaveBeenCalledTimes(2));
+    expect(saved.mock.calls[0]).toEqual(["p1", "icon", { name: "badge" }]);
+    expect(saved.mock.calls[1]?.[2].compose?.layers.map((l) => l.image)).toEqual([
+      "kit:window.3",
+      "kit:cell",
+      "badge",
+    ]);
   });
 
   it("moves a layer with the pointer and the keys, by pixels or by slots, and saves the recipe", async () => {

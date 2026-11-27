@@ -229,7 +229,7 @@ and **Discard changes** goes back to what is saved.
 one is what the tools act on. **Add a layer** offers a **Server image**, a **Module image** or a **Drawing**
 (an empty image of the same size, on top, to draw on). With the move tool, drag a layer (hold
 Shift to put it on the slots' grid, wherever it started; the arrow keys move it by one pixel,
-and with Shift to the next slot that way), reorder or remove layers in the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
+and with Shift to the next slot that way), reorder, rename (the pencil: a layer of the module's, whose file takes the name at the next save) or remove layers in the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
 `artisan:cell`). With a drawing tool, you draw on the selected layer among the others, the
 ones above shown through; switching layer or tool keeps what you drew in hand, shown on its
 layer, until you save. **Ctrl+Z** undoes and **Ctrl+Y** (or **Ctrl+Shift+Z**) redoes, wherever

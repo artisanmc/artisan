@@ -219,6 +219,13 @@ export default {
     layers: "Layers",
     layerLabel: "Layer {{n}}: {{name}}",
     addLayer: "Add a layer",
+    rename: {
+      button: "Rename {{name}}",
+      label: "New name of {{name}}",
+      invalid: 'A name is lowercase letters, digits, "_" and "-".',
+      taken: '"{{name}}" is already the name of an image of this module.',
+      used: 'The image "{{name}}" shows this layer too: it would lose it.',
+    },
     addKit: "Server image",
     addImage: "Module image",
     addDrawn: "Drawing",
