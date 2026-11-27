@@ -24,7 +24,8 @@ builders, a pack vector) is in the code. Follows `themes-reach-modules`
    is not composed has no tint.
 
 2. **A colour is a name of the palette, or a literal.** `tint: primary` or `tint: "#c0392b"`.
-   The palette is the file `colors.yml` of a theme, a map of names to `#rrggbb`. A name is
+   The palette is the file `palette.yml` at the root of a theme (not the removed
+   `overrides/colors.yml`), a map of names to `#rrggbb`. A name is
    looked up like an image's (`themes-reach-modules`): the themes in place from the highest
    down, then the library, whose base ships a default palette (`neutral`, `primary`,
    `success`, `danger`, `warning`). A name no place defines leaves the layer untinted, and the
@@ -33,7 +34,7 @@ builders, a pack vector) is in the code. Follows `themes-reach-modules`
 3. **The base ships neutral pieces and their coloured recipes.** For each tintable piece, a
    greyscale PNG (`button.neutral.3x1`) and one composed image per palette name
    (`button.primary.3x1`: that PNG tinted `primary`). `button.3x1` keeps its present drawing:
-   no menu changes. A theme changes every coloured button by one line of `colors.yml`, or
+   no menu changes. A theme changes every coloured button by one line of `palette.yml`, or
    redraws one variant by holding a PNG of its name, as for any image.
 
 4. **A component declares a choice among names.** A parameter of type `choice` lists values;
@@ -58,7 +59,7 @@ builders, a pack vector) is in the code. Follows `themes-reach-modules`
 ## Steps
 
 1. `tint` with a literal on a layer, both builders, vectors.
-2. `colors.yml` and the lookup of a name; the editor's mark on an unknown name.
+2. `palette.yml` and the lookup of a name; the editor's mark on an unknown name.
 3. Neutral pieces, coloured recipes and the default palette in the base.
 4. The `choice` parameter and `color` on `button`.
 5. The theme's sheet, and the palette edited on the theme's page.
@@ -68,6 +69,6 @@ builders, a pack vector) is in the code. Follows `themes-reach-modules`
 - One PNG in the pack per coloured variant a server's files hold, used or not: about five per
   tintable piece and size.
 - A theme has a second kind of file beside its images. The MCP tools and the export must carry
-  `colors.yml`.
+  `palette.yml`.
 - A piece is tintable only if someone drew its neutral version: the quality of the greyscale
   drawing bounds the quality of every colour.
