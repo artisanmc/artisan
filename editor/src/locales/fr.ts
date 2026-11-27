@@ -217,7 +217,8 @@ const fr: typeof en = {
     newCreate: "Créer",
     layers: "Calques",
     layerLabel: "Calque {{n}} : {{name}}",
-    addKit: "Image commune",
+    addLayer: "Ajouter un calque",
+    addKit: "Image du serveur",
     addImage: "Image du module",
     addDrawn: "Dessin",
     retouchLayer: "Dessiner sur ce calque",
@@ -247,6 +248,8 @@ const fr: typeof en = {
     width: "Largeur",
     height: "Hauteur",
     sizeHint: "Sans taille fixe, l’image a la taille de son calque du dessous.",
+    anchored:
+      "Ce calque donne sa taille à l’image : il ne se déplace pas. Cochez « Taille fixe » pour le placer librement.",
     dragHint:
       "Glissez un calque ; Maj le pose sur les cases. Les flèches déplacent le calque sélectionné, avec Maj jusqu’à la case suivante.",
     nothing: "Aucun calque ne peut être dessiné.",
@@ -305,7 +308,6 @@ const fr: typeof en = {
     title: "Enregistrer sous",
     button: "Enregistrer sous…",
     hint: "Une copie dans la bibliothèque du serveur ou dans un thème. L'image de départ ne change pas.",
-    saveFirst: "Enregistre d'abord tes changements : la copie est faite de l'image enregistrée.",
     name: "Nom",
     place: "Où",
     save: "Enregistrer",
@@ -346,15 +348,11 @@ const fr: typeof en = {
     moveSingle: "Un seul calque : ajoutez-en un pour le déplacer.",
     noDrawing: "Aucun dessin de ce module parmi les calques : ajoutez un calque « Dessin ».",
     layer: "Calque sélectionné",
-    commonLayer: "commune",
+    commonLayer: "serveur",
     commonHint:
-      "Une image commune se place ici ; elle se redessine dans les images communes du serveur.",
+      "Une image du serveur se place ici ; elle se redessine dans les ressources du serveur.",
     size: "Taille de l'image",
     fit: "Ajuster à la place disponible",
-    flatten: "Aplatir",
-    flattenConfirm: "Aplatir en un seul dessin ?",
-    flattenHint:
-      "Les calques deviennent un seul dessin du même nom. Il ne suit plus les images communes ; les calques restent dans le module comme images. Enregistrez d'abord : c'est l'image enregistrée qui est aplatie.",
     failed: "Ça n'a pas marché : {{detail}}",
     slice: {
       label: "Bords fixes",

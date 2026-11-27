@@ -1,0 +1,4 @@
+- **Changed**: in the atelier, **Save as** copies the image as shown, saved or not, and leaves the image it started from untouched (it asked to save first). **Flatten** is gone: a flat copy is made with **Save as**, and the image keeps its layers.
+- **Changed**: one **Add a layer** button offers a server image, a module image or a drawing; "common image" is said **server image**.
+- **Fixed**: dragging the bottom layer of an image without a fixed size grew or cropped the whole image. That layer stays where it is until the image is given a fixed size.
+- **Fixed**: in the base, the images shipped with Artisan and left as they are no longer wear **Override**.

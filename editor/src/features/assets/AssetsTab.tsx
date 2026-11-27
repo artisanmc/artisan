@@ -664,9 +664,14 @@ function OwnAssets({
   const marks = useImageMarks(projectId);
   // In a theme, an image says what it does to the places below (ADR `resources-one-screen`, decision 6).
   const themePlace = useThemePlaceMark(projectId);
+  // What the module ships and the owner left alone is listed apart, folded: the owner's own
+  // images and the ones redrawn come first. A search opens both parts.
+  const isShipped = useShippedUntouched(projectId);
   const markOf = (asset: Asset): AssetMark | null => {
     const mark = marks(asset);
     if (mark) return imageMarkShown(mark, t);
+    // An image shipped with Artisan and left as it is replaces nothing: it is the one below.
+    if (isShipped(asset)) return null;
     // An image a theme adds needs no mark: every image listed here is the theme's.
     return themePlace(asset) === "replacesBase"
       ? {
@@ -680,9 +685,6 @@ function OwnAssets({
   const filtered = assets.filter((asset) =>
     matchesFilter(asset, projectId, project, search, category),
   );
-  // What the module ships and the owner left alone is listed apart, folded: the owner's own
-  // images and the ones redrawn come first. A search opens both parts.
-  const isShipped = useShippedUntouched(projectId);
   // The base's own images are what its place is for: listed open there, folded in a module.
   const [folded, setFolded] = useState<Record<string, boolean>>({
     shipped: !isKitModule(projectId),

@@ -99,9 +99,9 @@ Resources list it under the module's name. Any other copy is saved under the nam
 Before you confirm, the dialog says what the copy changes: which module's image it replaces,
 or how many menus of how many modules show it in place of the image of that name, that nothing
 changes in game while the theme is put away, and that the place already has that image, which
-is then replaced. The copy is the image as saved (save first), flat even when the image is
-made of layers, and it goes to the place's draft: deploy that place for the server to take it.
-The image you started from does not change. To make a module's image common, save it as into
+is then replaced. The copy is the image as you see it, saved or not, flat even when the image
+is made of layers, and it goes to the place's draft: deploy that place for the server to take
+it. The image you started from does not change, and is not saved by the copy. To make a module's image common, save it as into
 the server's library, then delete it in the module: its menus take the common one, with
 nothing to rewrite since the name is the same. A name of Artisan's base (`button.3x1`) can be
 held by a theme only. Once the theme is deployed and in place, the editor's
@@ -225,7 +225,7 @@ work: **Save** in the bar writes what changed, pixels and layers together, into 
 and **Discard changes** goes back to what is saved.
 
 **Layers.** Every image is one or several layers, listed from the top one down; the selected
-one is what the tools act on. Add one with **Common image**, **Module image** or **Drawing**
+one is what the tools act on. **Add a layer** offers a **Server image**, a **Module image** or a **Drawing**
 (an empty image of the same size, on top, to draw on). With the move tool, drag a layer (hold
 Shift to put it on the slots' grid, wherever it started; the arrow keys move it by one pixel,
 and with Shift to the next slot that way), reorder or remove layers in the list, and repeat one with **Columns** and **Rows** (the slots of a window: a grid of
@@ -237,7 +237,8 @@ back in the order you made them, whatever layer or tool you hold. Only a drawing
 module can be drawn on: a common image is placed here and redrawn among the common images. A
 common image is written `artisan:<name>` in the recipe; `kit:<name>`, the former spelling, is
 read the same and stays as written until the layer is replaced. The image is as large as its
-bottom layer reaches unless you give it a **Fixed size**; what goes past is cut.
+bottom layer reaches unless you give it a **Fixed size**; what goes past is cut. Without a
+fixed size the bottom layer does not move: it is what the image is measured from.
 
 **Tint.** The selected layer has a **Tint**: none, a name of the palette (`primary`,
 `success`, and the ones your themes add) or a colour of its own. The layer's image is
@@ -250,9 +251,8 @@ deployed.
 more, it becomes a composed image of the same name whose first layer is that drawing (kept in
 the module as `<image>_layer`): the menus that show it keep showing it. A **Drawing** layer
 gets its file (`<image>_layer`, numbered when taken) at that save too, so a layer added and
-undone leaves nothing in the module. **Flatten**, under the layers, does the reverse: the layers
-become one PNG of the same name, which no longer follows the common images; the layers stay in
-the module as images. It flattens the image as saved: save first. An image a module ships takes layers the same way: its drawing is copied
+undone leaves nothing in the module. A flat copy, one PNG that no longer follows the server's
+images, is made with **Save as**; the image keeps its layers. An image a module ships takes layers the same way: its drawing is copied
 into your files as the first layer, and the composed image is your version of that name.
 **Restore the original** on it gives the module's image back.
 

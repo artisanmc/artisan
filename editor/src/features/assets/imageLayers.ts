@@ -8,8 +8,7 @@ import { assetBytes } from "./assetBytes";
 /**
  * One notion of image: a PNG is an image of one layer. Giving it a second layer turns it into
  * a composed image under the same name when it is saved (`toLayers`), so the menus that name
- * it keep doing so;
- * `flatten` goes back to a single PNG.
+ * it keep doing so. A flat copy is made with Save as.
  */
 
 /**
@@ -104,34 +103,3 @@ export const layerOf = (image: string): ComposeLayer => ({
   columns: 1,
   rows: 1,
 });
-
-/**
- * `asset`, a composed image, becomes one PNG of the same name: its picture as it is shown now.
- * Its layers stay in the module as images of their own. A failure puts the recipe back.
- */
-export async function flatten(projectId: string, asset: Asset): Promise<Asset> {
-  const recipe = asset.compose;
-  if (!recipe) return asset;
-  const png = await assetBytes(asset);
-  const usages = assetUsages(asset);
-  const ascent = asset.ascent === null ? {} : { ascent: asset.ascent };
-  await deleteAsset(projectId, asset.id);
-  try {
-    return await uploadAsset(projectId, {
-      file: new File([png as Uint8Array<ArrayBuffer>], `${asset.name}.png`, { type: "image/png" }),
-      type: kindOf(asset),
-      name: asset.name,
-      usages,
-      ...ascent,
-    });
-  } catch (cause) {
-    await composeAsset(projectId, {
-      type: kindOf(asset),
-      name: asset.name,
-      recipe,
-      usages,
-      ...ascent,
-    }).catch(() => {});
-    throw cause;
-  }
-}
