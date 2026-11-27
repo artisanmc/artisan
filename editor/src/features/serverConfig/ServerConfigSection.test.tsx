@@ -161,7 +161,7 @@ describe("ServerConfigSection", () => {
         conditionsField={NoConditions}
       />,
     );
-    const themes = await screen.findByLabelText(/^Thèmes en place/);
+    const themes = await screen.findByLabelText(/^Thèmes actifs/);
     expect(themes).toHaveValue("noel");
     // The former single theme, which the server still reports, is not offered beside the list.
     expect(screen.queryByLabelText(/^Thème des images communes/)).toBeNull();

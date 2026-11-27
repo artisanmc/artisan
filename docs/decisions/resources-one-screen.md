@@ -79,6 +79,11 @@ decisions 1 to 3 and 8 to 11 stand. Mock-up: `Maquette Ressources du serveur` (p
    components, its fonts, edited there. Under an image, who provides its name, from the top
    down, and which one players see. The **Show:** filter, the read-only view "as published" and
    the separate Themes screen go; their content is in the tree.
+   The base and a theme are Projects, opened by the server's tab: their page keeps the
+   server's header (its name, its tabs with Resources active) and shows their Resources alone,
+   with their draft and Deploy. A module's views (Home, Canvas, Translations) are not offered
+   there: such a place holds images, components and colours, nothing to build. Storage is
+   unchanged: only the frame differs (2026-11-27).
 
 6. **Words.** The editor says **theme**, **module** and **base**. It no longer says "common
    images" for a place (the place is the server's theme and the base), "redraw for the

@@ -14,6 +14,9 @@ import * as React from "react";
  * so the view's state — translation filters, an in-flight assistant chat, the
  * selected data source — survives leave/return. Nothing renders until the first
  * activation.
+ *
+ * Without `onExit` the view is the page itself (a place of the server's resources, which
+ * has no canvas to go back to): no close button, and Escape leaves it alone.
  */
 export function WorkspaceView({
   active,
@@ -22,7 +25,7 @@ export function WorkspaceView({
   children,
 }: {
   active: boolean;
-  onExit: () => void;
+  onExit?: () => void;
   title: string;
   children: React.ReactNode;
 }) {
@@ -32,7 +35,7 @@ export function WorkspaceView({
   if (active && !everActive) setEverActive(true);
 
   React.useEffect(() => {
-    if (!active) return;
+    if (!active || !onExit) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -64,14 +67,16 @@ export function WorkspaceView({
         >
           {title}
         </h2>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onExit}
-          className="rounded-md p-1 text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {onExit ? (
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onExit}
+            className="rounded-md p-1 text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-line)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
     </div>

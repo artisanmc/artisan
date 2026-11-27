@@ -227,8 +227,7 @@ const fr: typeof en = {
       custom: "Une couleur à elle…",
       colour: "Couleur de la teinte",
       hint: "Multiplie le calque par une couleur : un pixel blanc la prend, un gris en prend une nuance plus sombre. Idéal sur un dessin gris.",
-      namedHint:
-        "Prend la couleur « {{name}} » du thème en place : changez de thème, le calque suit.",
+      namedHint: "Prend la couleur « {{name}} » du thème actif : changez de thème, le calque suit.",
       unknown:
         "Aucun thème ni la bibliothèque ne nomme une couleur « {{name}} » : le calque s'affiche tel que dessiné.",
     },
@@ -311,17 +310,17 @@ const fr: typeof en = {
     place: "Où",
     save: "Enregistrer",
     theme: "Thème « {{name}} »",
-    themeAway: "Thème « {{name}} » (rangé)",
+    themeAway: "Thème « {{name}} » (désactivé)",
     newTheme: "Nouveau thème…",
     replacesModuleImage:
-      "Remplace « {{name}} » du module « {{module}} » quand ce thème est en place. Les autres modules ne changent pas.",
+      "Remplace « {{name}} » du module « {{module}} » quand ce thème est actif. Les autres modules ne changent pas.",
     replaces_one: "Remplace l'image de ce nom dans {{count}} menu de {{modules}}.",
     replaces_other: "Remplace l'image de ce nom dans {{count}} menus de {{modules}}.",
     modules_one: "{{count}} module",
     modules_other: "{{count}} modules",
     addedTheme:
       "Aucun menu n'écrit ce nom pour l'instant : l'image est ajoutée à cet endroit, rien d'autre ne change.",
-    away: "Ce thème est rangé : rien ne change en jeu tant qu'il n'est pas mis en place.",
+    away: "Ce thème est désactivé : rien ne change en jeu tant qu'il n'est pas activé.",
     overwrites: "Cet endroit a déjà une image de ce nom : elle sera remplacée.",
     saved: "« {{name}} » enregistrée ici, dans le brouillon.",
     failed: "L'image n'a pas pu être enregistrée : {{detail}}",
@@ -406,7 +405,7 @@ const fr: typeof en = {
       open: "Nouveau thème",
       title: "Nouveau thème",
       intro:
-        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a pas d'images redessinées, et tant qu'il n'est pas mis en place.",
+        "Un thème donne un autre aspect aux images communes, pour une saison ou un événement, sans toucher aux menus. Il est créé vide : il ne change rien tant qu'il n'a pas d'images redessinées, et tant qu'il n'est pas activé.",
       name: "Nom du thème",
       placeholder: "noel",
       errors: {
@@ -426,7 +425,7 @@ const fr: typeof en = {
       open: "Importer un thème",
       title: "Importer un thème",
       intro:
-        "Apporte un thème exporté d'un autre serveur (<nom>.theme.zip). Il arrive sur le serveur sans être mis en place : il ne change rien tant qu'il n'est pas mis en place.",
+        "Apporte un thème exporté d'un autre serveur (<nom>.theme.zip). Il arrive sur le serveur désactivé : il ne change rien tant qu'il n'est pas activé.",
       file: "Archive du thème",
       drop: "Dépose l'archive d'un thème, ou clique pour en choisir une",
       dropHint: "Un .zip exporté depuis la page d'un thème",
@@ -458,12 +457,12 @@ const fr: typeof en = {
       title: "Thème « {{name}} »",
       intro:
         "Un thème redessine des images communes. Les menus gardent leur mise en page, et l'image propre à un module reste celle du module.",
-      inPlace: "En place",
-      notInPlace: "Pas en place",
-      putInPlace: "Mettre en place sur le serveur",
-      takeOff: "Ranger ce thème",
+      inPlace: "Actif",
+      notInPlace: "Désactivé",
+      putInPlace: "Activer le thème",
+      takeOff: "Désactiver le thème",
       stack:
-        "Thèmes en place, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte.",
+        "Thèmes actifs, du plus bas au plus haut : {{themes}}. Le plus haut qui redessine une image l'emporte.",
       missing: "Le serveur n'a pas de thème « {{name}} » déployé.",
       drawings: "Pièces redessinées pour ce thème",
       noDrawings: "Ce thème ne redessine aucune pièce.",
@@ -472,7 +471,7 @@ const fr: typeof en = {
         "Un thème change une image en contenant une image : ses couleurs ne repeignent plus rien. Ces fichiers du thème peuvent être supprimés.",
       ownImages: "Ses propres images",
       ownImagesHint:
-        "Un menu en nomme une comme écrit ici. Elle s'affiche telle que dessinée, dans le pack tant que le serveur a ce thème, en place ou non.",
+        "Un menu en nomme une comme écrit ici. Elle s'affiche telle que dessinée, dans le pack tant que le serveur a ce thème, actif ou non.",
       noOwnImages:
         "Aucune. Une image ajoutée aux fichiers de ce thème (assets/) est la sienne : un menu la nomme {{name}}:<son nom>.",
       files:
@@ -491,14 +490,14 @@ const fr: typeof en = {
         failed: "Les couleurs n'ont pas pu être enregistrées dans votre brouillon : {{detail}}",
         libraryTitle: "Les couleurs du serveur",
         libraryHint:
-          "La couleur de chaque nom sur ce serveur, dans tous les modules. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un thème en place peut donner une autre couleur à un nom.",
+          "La couleur de chaque nom sur ce serveur, dans tous les modules. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un thème actif peut donner une autre couleur à un nom.",
         libraryReset: "Revenir à la couleur par défaut",
         libraryDrafted:
           "Ces couleurs sont dans votre brouillon : déployez-le pour les voir en jeu.",
       },
       compare: "Sans et avec, dans un menu",
       putHint:
-        "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
+        "Activer un thème le pose au-dessus de ceux qui sont déjà actifs et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le désactiver se fait d'ici aussi.",
       open: "Ouvrir le dossier du thème",
       export: "Exporter",
       exportFailed: {
@@ -512,12 +511,12 @@ const fr: typeof en = {
         renameIntro:
           "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Ses images restent telles quelles.",
         renameInPlace:
-          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Le thème garde sa place parmi les thèmes en place, et le pack du serveur est reconstruit.",
+          "Le dossier du thème est renommé sur le serveur, avec ses brouillons et son historique. Le thème garde sa place parmi les thèmes actifs, et le pack du serveur est reconstruit.",
         deleteTitle: "Supprimer le thème {{name}}",
         deleteIntro:
           "Le dossier themes/{{name}}/ part dans la corbeille du serveur (themes/.artisan-trash/) : rien n'est effacé, et il se remet en place depuis les fichiers du serveur.",
         deleteInPlace:
-          "Le dossier themes/{{name}}/ part dans la corbeille du serveur (themes/.artisan-trash/) : rien n'est effacé, et il se remet en place depuis les fichiers du serveur. Ce thème est en place : il est retiré, et le pack du serveur est reconstruit sans lui.",
+          "Le dossier themes/{{name}}/ part dans la corbeille du serveur (themes/.artisan-trash/) : rien n'est effacé, et il se remet en place depuis les fichiers du serveur. Ce thème est actif : il est désactivé, et le pack du serveur est reconstruit sans lui.",
         errors: {
           invalid_path:
             "Minuscules, chiffres, « _ » et « - », en commençant par une lettre ou un chiffre. « artisan » est le nom des images communes.",
@@ -531,7 +530,7 @@ const fr: typeof en = {
           plugin_update_required:
             "Ce serveur utilise une version plus ancienne d'Artisan. Mets son plugin à jour pour renommer ou supprimer un thème.",
           stack_failed:
-            "Le dossier du thème a été déplacé, mais la liste des thèmes en place n'a pas pu être écrite. Corrige-la sur l'écran Thèmes.",
+            "Le dossier du thème a été déplacé, mais la liste des thèmes actifs n'a pas pu être écrite. Corrige-la sur l'écran Thèmes.",
           failed: "Le serveur a refusé. Réessaie.",
         },
       },
@@ -541,7 +540,7 @@ const fr: typeof en = {
     none: "Aucune image « {{name}} » : ni ce module, ni les images communes, ni un autre module déployé n'en a. Rien ne s'affichera en jeu.",
     module: "Image du module {{module}}.",
     theme:
-      "Image du thème {{theme}} : elle s'affiche tant que le serveur a ce thème, en place ou non.",
+      "Image du thème {{theme}} : elle s'affiche tant que le serveur a ce thème, actif ou non.",
     elsewhere: "« {{name}} » est une image du module {{module}}, nommée par son nom seul.",
     write: "Écrire {{ref}}",
   },
@@ -606,12 +605,12 @@ const fr: typeof en = {
     themesHint:
       "Cherchés de haut en bas : le premier qui a l'image gagne, la base en dernier. Un module qui a sa propre image la garde.",
     server: "Base",
-    serverHint: "Artisan et ce serveur : toujours en place, sous les thèmes",
+    serverHint: "Artisan et ce serveur : toujours actif, sous les thèmes",
     pick: "Choisis un endroit à gauche.",
     opening: "Ouverture de la base…",
-    away: "rangé",
-    putAway: "Ranger",
-    putInPlace: "Mettre en place",
+    away: "désactivé",
+    putAway: "Désactiver",
+    putInPlace: "Activer",
     move: "Faire glisser pour changer la place du thème",
     images_one: "{{count}} image",
     images_other: "{{count}} images",
@@ -622,8 +621,8 @@ const fr: typeof en = {
     modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
     noModules: "Aucun module sur ce serveur.",
     themeSettings: "Aperçu et réglages du thème",
-    themeAway: "rangé",
-    themeInPlace: "en place",
+    themeAway: "désactivé",
+    themeInPlace: "actif",
     themeBar: "Thème « {{name}} »",
   },
   projectSource: {
@@ -2757,7 +2756,7 @@ const fr: typeof en = {
         "hide-inventory-label":
           "Masquer le libellé « Inventaire » sous les menus (tous les conteneurs, toutes les langues)",
         theme: "Thème des images communes",
-        themes: "Thèmes en place",
+        themes: "Thèmes actifs",
         "container-textures": {
           chest: "Coffres",
           hopper: "Entonnoirs",

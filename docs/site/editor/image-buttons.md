@@ -109,11 +109,13 @@ canvas shows the module's image as the theme draws it, like the resource pack; t
 Resources keep showing the image the module holds. A font is not saved as.
 
 **Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
-the same list of places on the left, in the order an image's name is looked up:
+the same list of places on the left. The base and a theme open under the server's own tabs:
+you stay on the server's page, with **Deploy** for what you changed in that place. A module
+opens as the module it is. The places, in the order an image's name is looked up:
 
 - **Server themes**: the themes in place, the highest first (drag one by its handle to change
-  its place, **Put away** to take it off), then **Base**, Artisan's images and the server's own
-  in one place, always in place below the others, then the themes put away (**Put in place** sets one above
+  its place, **Disable** to take it off), then **Base**, Artisan's images and the server's own
+  in one place, always in place below the others, then the themes put away (**Enable** sets one above
   the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
   the server's pack.
 - **Modules**: each module's own images. A module that holds an image of a name keeps it in
@@ -153,10 +155,10 @@ module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that n
 keep working.
 
 **Themes.** A theme opens on what it changes (the pieces it redraws)
-and on the same menu without it and with it. **Put in place on the server** sets the theme
+and on the same menu without it and with it. **Enable the theme** sets the theme
 above the ones already in place and rebuilds the server's pack: players receive it at their
 next connection. Several themes stack: each changes what the ones below show, so the highest
-that redraws an image wins. **Put this theme away** takes that theme alone off; the list of
+that redraws an image wins. **Disable the theme** takes that theme alone off; the list of
 places on the left reorders the themes in place. A theme's
 files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
 here once deployed. **New theme** creates one, empty, as a folder of its own on the server

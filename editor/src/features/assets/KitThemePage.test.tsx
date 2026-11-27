@@ -30,10 +30,10 @@ describe("KitThemePage", () => {
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Pas en place")).toBeInTheDocument();
+    expect(screen.getByText("Désactivé")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
     expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Mettre en place sur le serveur" }));
+    fireEvent.click(screen.getByRole("button", { name: "Activer le thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", true));
   });
 
@@ -41,15 +41,15 @@ describe("KitThemePage", () => {
     useKitStore.setState({ themes: ["noel"] });
     const onPutInPlace = vi.fn().mockResolvedValue(undefined);
     const { unmount } = render(<KitThemePage name="noel" onPutInPlace={onPutInPlace} />);
-    expect(screen.getByText("En place")).toBeInTheDocument();
+    expect(screen.getByText("Actif")).toBeInTheDocument();
     // Alone in place: there is no order to tell.
     expect(screen.queryByTestId("kit-theme-stack")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Ranger ce thème" }));
+    fireEvent.click(screen.getByRole("button", { name: "Désactiver le thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", false));
     unmount();
     render(<KitThemePage name="paques" onPutInPlace={onPutInPlace} />);
     expect(screen.getByText(/n'a pas de thème « paques »/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Mettre en place sur le serveur" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Activer le thème" })).toBeNull();
   });
 
   it("shows a theme of its own folder from the Project of its name", () => {
@@ -162,7 +162,7 @@ describe("KitThemePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("themes/.artisan-trash/");
-    expect(screen.getByRole("dialog")).not.toHaveTextContent("Ce thème est en place");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("Ce thème est actif");
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Supprimer" }));
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith("printemps"));
 
@@ -184,7 +184,7 @@ describe("KitThemePage", () => {
     expect(screen.queryByRole("button", { name: "Renommer" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
     const dialog = screen.getByRole("dialog");
-    expect(dialog).toHaveTextContent("Ce thème est en place");
+    expect(dialog).toHaveTextContent("Ce thème est actif");
     fireEvent.click(within(dialog).getByRole("button", { name: "Supprimer" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("Le serveur est hors ligne");
     // The dialog stays open on a refusal.
