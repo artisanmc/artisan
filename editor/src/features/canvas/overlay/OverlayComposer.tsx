@@ -6,6 +6,7 @@ import { assetPreviewUrl } from "@/domain/asset";
 import { AssetInput } from "@/features/assets/AssetInput";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { assetSize, useAssetSize, useMeasuredAssetSizes } from "@/features/assets/measuredSize";
+import { useDrawnInOwnModule } from "@/features/assets/moduleDrawings";
 import { cx } from "@/lib/cx";
 import { mcLineWidth, wrapLore } from "@/lib/loreWrap";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -146,12 +147,12 @@ export function OverlayComposer({
   const [picking, setPicking] = useState(false);
   const assets = useAssetStore((s) => s.assets);
   const measured = useMeasuredAssetSizes();
+  const drawn = useDrawnInOwnModule(projectId);
   // Undefined while the project lacks the image or its size is not known yet.
-  const sizeOf = (name: string) =>
-    assetSize(
-      assets.find((a) => a.projectId === projectId && a.name === name),
-      measured,
-    );
+  const sizeOf = (name: string) => {
+    const own = assets.find((a) => a.projectId === projectId && a.name === name);
+    return assetSize(own && drawn(own), measured);
+  };
 
   /** The layer of each entry as shown: the dragged one where the pointer has it. */
   const shown = read.entries.map((e) => (drag && drag.index === e.index ? drag.current : e.layer));
@@ -761,9 +762,12 @@ function StageImage({
   top,
   scale,
 }: { projectId: string; name: string; left: number; top: number; scale: number }) {
-  const asset = useAssetStore((s) =>
+  const own = useAssetStore((s) =>
     s.assets.find((a) => a.projectId === projectId && a.name === name),
   );
+  // As the themes in place show it, like the pack.
+  const drawn = useDrawnInOwnModule(projectId);
+  const asset = own && drawn(own);
   const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
   // A module's image has no descriptor: its size is read from the image once loaded.
   const size = useAssetSize(asset, url);

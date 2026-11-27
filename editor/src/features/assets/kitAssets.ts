@@ -31,6 +31,7 @@ import { useAssetStore } from "./assetStore";
 import { composedView, toDataUrl } from "./composedAssets";
 import { activeKitTheme, serverTheme } from "./kitTheme";
 import { readPublishedBinary } from "./localAssets";
+import { type ModuleDrawings, drawnInModule, useModuleDrawings } from "./moduleDrawings";
 
 /**
  * The UI kit as the editor shows it (`lib/pack/kit.ts`): what a menu names `kit:<name>`. Each
@@ -566,11 +567,20 @@ export function useImageReach(projectId: string): (ref: string) => Reach | null 
   );
 }
 
-/** The images of the server's modules other than `projectId`, each under its key, in the pack's order. */
-function otherImages(modules: readonly ModuleRead[], projectId: string | undefined): Asset[] {
+/**
+ * The images of the server's modules other than `projectId`, each under its key, in the pack's
+ * order, as the themes in place show them (`drawings`).
+ */
+function otherImages(
+  modules: readonly ModuleRead[],
+  projectId: string | undefined,
+  drawings: ModuleDrawings,
+): Asset[] {
   return modules
     .filter((m) => m.projectId !== projectId)
-    .flatMap((m) => [...heldBy(m).images.values()]);
+    .flatMap((m) =>
+      [...heldBy(m).images].map(([name, asset]) => drawnInModule(asset, m.folder, name, drawings)),
+    );
 }
 
 /**
@@ -582,17 +592,20 @@ export function useAssetsWithKit(): Asset[] {
   const kit = useKitAssets();
   const modules = useKitStore((s) => s.modules);
   const themes = useKitStore((s) => s.own);
-  return useMemo(
-    () => [
-      ...own,
+  const drawings = useModuleDrawings();
+  return useMemo(() => {
+    const folder = modules.find((m) => m.projectId === own[0]?.projectId)?.folder;
+    return [
+      ...own.map((asset) =>
+        asset.under ? asset : drawnInModule(asset, folder, asset.name, drawings),
+      ),
       ...kit,
-      ...otherImages(modules, own[0]?.projectId),
+      ...otherImages(modules, own[0]?.projectId, drawings),
       ...themesBeside(themes, modules).flatMap(([folder, read]) => [
         ...themeImages(folder, read).values(),
       ]),
-    ],
-    [own, kit, modules, themes],
-  );
+    ];
+  }, [own, kit, modules, themes, drawings]);
 }
 
 /**
@@ -607,25 +620,32 @@ export function useImageAsset(projectId: string, name: string | undefined): Asse
   const read = useKitStore((s) => s.read);
   const modules = useKitStore((s) => s.modules);
   const themes = useKitStore((s) => s.own);
+  const drawings = useModuleDrawings();
   return useMemo(() => {
     if (!name) return undefined;
-    const mine = (id: string) => assets.find((a) => a.projectId === projectId && a.id === id);
+    // The module's own image, as the themes in place show it.
+    const folder = modules.find((m) => m.projectId === projectId)?.folder;
+    const mine = (id: string) => {
+      const own = assets.find((a) => a.projectId === projectId && a.id === id && !a.under);
+      return own && drawnInModule(own, folder, own.name, drawings);
+    };
     const where = holdersOf(read, modules, themes, assets, projectId);
     if (!where) {
       // An older server: the module's own, the common one, then another module's of that name.
       const own = kitNameOf(name) === null ? mine(name) : undefined;
-      return own ?? imageNamed([...kit, ...otherImages(modules, projectId)], name);
+      return own ?? imageNamed([...kit, ...otherImages(modules, projectId, drawings)], name);
     }
     const reach = reachOf(name, where);
     if (reach.kind === "own") return mine(name.slice(name.indexOf(":") + 1));
     if (reach.kind === "module") {
       const holder = modules.find((m) => m.folder === reach.folder && m.projectId !== projectId);
-      return holder && heldBy(holder).images.get(reach.name);
+      const image = holder && heldBy(holder).images.get(reach.name);
+      return image && drawnInModule(image, reach.folder, reach.name, drawings);
     }
     if (reach.kind === "theme") {
       const theme = themes[reach.folder];
       return theme && themeImages(reach.folder, theme).get(reach.name);
     }
     return imageNamed(kit, name);
-  }, [assets, kit, read, modules, themes, projectId, name]);
+  }, [assets, kit, read, modules, themes, drawings, projectId, name]);
 }

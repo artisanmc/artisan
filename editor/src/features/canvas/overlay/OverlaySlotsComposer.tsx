@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AssetInput } from "@/features/assets/AssetInput";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { assetSize, useMeasuredAssetSizes } from "@/features/assets/measuredSize";
+import { useDrawnInOwnModule } from "@/features/assets/moduleDrawings";
 import { cx } from "@/lib/cx";
 import {
   type McScreenGeometry,
@@ -84,11 +85,11 @@ export function OverlaySlotsComposer({
   const [drag, setDrag] = useState<SlotDrag | null>(null);
   const assets = useAssetStore((s) => s.assets);
   const measured = useMeasuredAssetSizes();
-  const sizeOf = (name: string) =>
-    assetSize(
-      assets.find((a) => a.projectId === projectId && a.name === name),
-      measured,
-    );
+  const drawn = useDrawnInOwnModule(projectId);
+  const sizeOf = (name: string) => {
+    const own = assets.find((a) => a.projectId === projectId && a.name === name);
+    return assetSize(own && drawn(own), measured);
+  };
 
   const layers = read.layers;
   const open = layers.filter((l): l is Slot => l.kind === "image_slot");

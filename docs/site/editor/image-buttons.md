@@ -85,8 +85,9 @@ made of layers, and it goes to the place's draft: deploy that place for the serv
 The image you started from does not change. To make a module's image common, save it as into
 the server's library, then delete it in the module: its menus take the common one, with
 nothing to rewrite since the name is the same. A name of Artisan's base (`button.3x1`) can be
-held by a theme only. For now the editor's canvas still shows a module's image as the module
-holds it: the resource pack applies the theme. A font is not saved as.
+held by a theme only. Once the theme is deployed and in place, the editor's
+canvas shows the module's image as the theme draws it, like the resource pack; the module's
+Resources keep showing the image the module holds. A font is not saved as.
 
 **Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
 the same list of places on the left, in the order an image's name is looked up:

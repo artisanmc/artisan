@@ -7,6 +7,7 @@ import type { I18nKey, Project, ProjectId } from "@/domain/types";
 import { useAssetStore } from "@/features/assets/assetStore";
 import { useKitAssets } from "@/features/assets/kitAssets";
 import { useAssetSize } from "@/features/assets/measuredSize";
+import { useDrawnInOwnModule } from "@/features/assets/moduleDrawings";
 import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import {
@@ -102,7 +103,9 @@ export const editorHost: Omit<EditorHost, "components"> = {
     );
     // `kit:<name>`: the UI kit's image, which no module holds.
     const kit = useKitAssets().find((a) => a.id === name);
-    const asset = kit ?? own;
+    // The module's own image as the themes in place show it, like the pack.
+    const drawn = useDrawnInOwnModule(projectId);
+    const asset = kit ?? (own && drawn(own));
     const url = useAuthenticatedImageUrl(asset ? assetPreviewUrl(asset) : "");
     // A module's image has no descriptor: 0 × 0 until its size is read from the image.
     const size = useAssetSize(asset, url);
