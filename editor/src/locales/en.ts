@@ -24,8 +24,8 @@ export default {
       otherSize: "Other size than the module's original it replaces",
       ownVersion: "Your version of an image the module ships",
       originalChanged: "Your version: the module's original changed since",
-      addedHere: "Added here",
-      replacesBase: "Replaces the base",
+      replacesBase: "Override: replaces the image of this name found below",
+      override: "Override",
     },
     original: {
       label: "The module's original",

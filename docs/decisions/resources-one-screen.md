@@ -77,7 +77,9 @@ decisions 1 to 3 and 8 to 11 stand. Mock-up: `Maquette Ressources du serveur` (p
 6. **Words.** The editor says **theme**, **module** and **base**. It no longer says "common
    images" for a place (the place is the server's theme and the base), "redraw for the
    server", "originals" or "restore the original". A file in a theme that has the name of one
-   below is marked **replaces the base**; one that has no such name, **added here**. Removing
+   below is marked **Override** (first written **replaces the base**, found too long); one
+   that has no such name is not marked (first **added here**, which every image of a theme's
+   list would have worn). Removing
    it is **Delete**, with what players will then see written under the button. "Folder" stays
    the glossary's word for a group of Documents inside a module and is not used for a theme.
 

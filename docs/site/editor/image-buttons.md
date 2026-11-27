@@ -98,8 +98,8 @@ the same list of places on the left, in the order an image's name is looked up:
 
 A click opens the place on the right: a theme, a module or the server's theme on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
-its Resources an image named like one of a place below says **Replaces the base**, any other
-**Added here**. The bar above a theme's Resources says whether it is in place and leads to its
+its Resources an image named like one of a place below wears the word **Override**; an image
+the theme adds wears nothing. The bar above a theme's Resources says whether it is in place and leads to its
 page (**Preview and settings of the theme**: the same menu without it and with it, put in
 place, rename, delete, export).
 

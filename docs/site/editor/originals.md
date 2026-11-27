@@ -56,10 +56,10 @@ Your version of such an image is taken as it is, at any measures. At others than
 original's the image says **Other size than the one it replaces**, with both measures: a menu
 laid out for the original may look off, and that is yours to judge. Nothing is refused.
 
-In the list, a dot in the corner of an image marks your version of an image the module ships.
-The dot turns to the warning colour when the module's original changed since your version, and
-as well when your version has another size than the original; hover the image to read which. The server's
-**Resources** carry the same dots on every module's images.
+In the list, the word **Override** under an image marks your version of an image the module
+ships. A dot in the warning colour in its corner says there is something to look at: the
+module's original changed since your version, or your version has another size than the
+original. Hover the image to read which; the bubble shows at once.
 
 ## Removing a shipped document
 

@@ -26,8 +26,8 @@ const fr: typeof en = {
       otherSize: "Autre taille que l'original du module qu'elle remplace",
       ownVersion: "Votre version d'une image livrée par le module",
       originalChanged: "Votre version : l'original du module a changé depuis",
-      addedHere: "Ajoutée ici",
-      replacesBase: "Remplace la base",
+      replacesBase: "Surcharge : remplace l'image de ce nom qui se trouve en dessous",
+      override: "Surcharge",
     },
     original: {
       label: "Original du module",
