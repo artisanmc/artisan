@@ -6,7 +6,9 @@ sidebar:
 ---
 
 Open **Buttons → Images**, upload a PNG if needed, then drag its thumbnail
-onto the menu. The button automatically occupies the slots it needs to fit, a slot being 18
+onto the menu. The list shows the server's library first, the images every menu of the server
+can name, then the images of the menu's module; an upload from here goes to the library, and
+an image of the library dragged onto the menu is named where it is, with no copy. The button automatically occupies the slots it needs to fit, a slot being 18
 pixels from the next: 54×18 uses 3×1 slots; 54×36 uses 3×2; 16×16 uses one; 48×16 uses 3×1.
 You can also convert an existing item by choosing **Image** in its appearance card.
 An image uploaded from that card's chooser goes to the server's library, not to the menu's

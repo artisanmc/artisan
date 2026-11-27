@@ -506,6 +506,8 @@ const fr: typeof en = {
   },
   imageButton: {
     search: "Rechercher une image…",
+    fromLibrary: "Bibliothèque du serveur",
+    fromModule: "Images de ce module",
     native: "Taille naturelle",
     offsetX: "Décalage horizontal (px)",
     offsetY: "Décalage vertical (px)",

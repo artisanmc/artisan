@@ -3,6 +3,7 @@ import { adoptCapturedItem } from "@/features/canvas/adoptCapturedItem";
 import { dropCopiedImageButton, dropImageButton } from "@/features/canvas/imageButtonDrop";
 import { pinPlacementRow } from "@/features/canvas/placementDrop";
 import { tryStageDrop, tryStageSlotHit } from "@/features/canvas/stageDropTarget";
+import { KIT_FOLDER } from "@/lib/pack/kit";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import {
@@ -20,7 +21,8 @@ import { type WorkspaceDrop, decodeDragEnd, dragStartMaterial } from "./workspac
 export function applyWorkspaceDrop(projectId: ProjectId, drop: WorkspaceDrop): void {
   switch (drop.kind) {
     case "imageButton":
-      if (drop.asset.projectId !== projectId) {
+      // An image of the server's library is named, not copied (`dropImageButton`).
+      if (drop.asset.projectId !== projectId && drop.asset.projectId !== KIT_FOLDER) {
         void dropCopiedImageButton(projectId, drop.asset, drop.x, drop.y);
         return;
       }

@@ -81,3 +81,46 @@ it("lists project images with their slot footprint, filters them and offers uplo
   fireEvent.click(screen.getByRole("button", { name: /Importer/ }));
   expect(screen.getByText("Upload image dialog")).toBeInTheDocument();
 });
+
+it("lists the server's library before the module's images, each under its bare name", async () => {
+  const { useKitStore } = await import("@/state/kitStore");
+  useKitStore.setState({
+    read: {
+      projectId: "srv.artisan",
+      byName: true,
+      files: { "assets/textures/crest.yml": "width: 40\nheight: 12\n" },
+      binaries: [{ path: "assets/textures/crest.png", hash: "h" }],
+    },
+    own: {},
+    themes: [],
+  });
+  useAssetStore.setState({
+    assets: [
+      {
+        id: "tall",
+        name: "Tall",
+        projectId: "p",
+        type: "glyph",
+        width: 16,
+        height: 48,
+        usages: ["button"],
+      } as never,
+    ],
+    loading: false,
+    error: null,
+  });
+  render(
+    <DndContext>
+      <ImageButtonLibrary projectId={"p" as never} />
+    </DndContext>,
+  );
+  const library = screen.getByText("Bibliothèque du serveur");
+  const module = screen.getByText("Images de ce module");
+  const crest = screen.getByText("crest");
+  expect(library.compareDocumentPosition(crest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(crest.compareDocumentPosition(module) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.getByText("Tall")).toBeTruthy();
+  // A window is a menu's background: not offered as a button.
+  expect(screen.queryByText("window.6")).toBeNull();
+  useKitStore.setState({ read: undefined });
+});

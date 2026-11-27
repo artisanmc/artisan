@@ -1,6 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import type { MenuId, ProjectId } from "@/domain/types";
 import { copyAssetInto } from "@/features/assets/copyAssetInto";
+import { KIT_FOLDER } from "@/lib/pack/kit";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
 import { toast } from "sonner";
@@ -12,7 +13,8 @@ export function dropImageButton(
   x: number,
   y: number,
 ) {
-  if (asset.projectId !== projectId) return false;
+  // A common image is named where it is (its `id` is what the menu writes): nothing is copied.
+  if (asset.projectId !== projectId && asset.projectId !== KIT_FOLDER) return false;
   const hit = tryStageSlotHit(x, y);
   if (!hit) return false;
   const menuId = hit.menuId as MenuId;
