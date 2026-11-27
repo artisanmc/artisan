@@ -159,3 +159,28 @@ export async function publishOtherDraft(draft: OtherDraft): Promise<OtherDeployR
     return { ok: false, code: error instanceof ApiError ? error.code : "unknown_error" };
   }
 }
+
+const LIBRARY_IMAGE = /^assets\/(?:glyphs|textures)\/([^/]+)\.png$/;
+
+/**
+ * The images the library's draft adds that the files of the Project being deployed name: left
+ * out of a deployment, the menus that name them show nothing (ADR `themes-reach-modules`,
+ * decision 1). Read from the text: a name written as a whole word in any file counts, so a
+ * word of a menu's text that happens to be an image's name is reported too.
+ */
+export function libraryImagesNamed(library: ChangeSet, deployed: ChangeSet): string[] {
+  const before = library.binaryBefore ?? {};
+  const added = Object.keys(library.binaryAfter ?? {})
+    .filter((path) => !(path in before))
+    .flatMap((path) => LIBRARY_IMAGE.exec(path)?.[1] ?? []);
+  if (added.length === 0) return [];
+  const text = Object.values(deployed.after).join("\n");
+  return [...new Set(added)]
+    .filter((name) =>
+      new RegExp(
+        `(?:^|[^A-Za-z0-9_.-])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^A-Za-z0-9_.-])`,
+        "m",
+      ).test(text),
+    )
+    .sort();
+}

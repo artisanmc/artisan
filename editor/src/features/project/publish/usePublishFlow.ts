@@ -396,6 +396,7 @@ export function usePublishFlow(
     },
     confirmReview: () => void confirmReview(),
     others: others.state,
+    library: libraryFor(projectId),
     current: {
       dirty,
       picked: currentPicked,

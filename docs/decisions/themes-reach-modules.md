@@ -4,8 +4,8 @@
 as**, a theme's Resources, the canvas, the MCP tools) are in the code. Of step 3, an image
 uploaded from a button's image chooser or from the canvas's image list goes to the library, that
 list shows the library first, the inspector has one image chooser that does the same, the
-menu shows the image from the draft, and Deploy picks that draft with the menu (the start of
-step 5), and a module's Resources move an image added on the server to the library (**Move to
+menu shows the image from the draft, and Deploy picks that draft with the menu and warns when
+it is left out with an image the module names (step 5), and a module's Resources move an image added on the server to the library (**Move to
 the library**); an image added from a module's Resources and a new drawn image still go to the
 module. Step 4 needed nothing new: the
 export already copies the library's images a module names, and the import keeps the copies the

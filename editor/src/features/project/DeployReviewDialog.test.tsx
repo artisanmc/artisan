@@ -227,6 +227,39 @@ describe("DeployReviewDialog — other Projects' drafts", () => {
     expect(screen.getByText("yaml: bad")).toBeInTheDocument();
   });
 
+  it("warns when the library's draft is left out and holds an image this module names", () => {
+    const library = {
+      ...other("lib", "artisan"),
+      changes: {
+        before: {},
+        after: {},
+        binaryBefore: { "assets/glyphs/cell.png": { hash: "h0", size: 1 } },
+        binaryAfter: {
+          "assets/glyphs/cell.png": { hash: "h0", size: 1 },
+          "assets/glyphs/crest.png": { hash: "h1", size: 1 },
+          "assets/glyphs/unused.png": { hash: "h2", size: 1 },
+        },
+      },
+    };
+    const view = (selected: string[]) => (
+      <DeployReviewDialog
+        changes={{ before: {}, after: { "menus/shop.yml": "image:\n  asset: crest\n" } }}
+        documents={{ status: "ready", problems: [] }}
+        current={{ dirty: true, picked: true, toggle: vi.fn() }}
+        others={{ status: "ready", drafts: [library], selected, checks: {} }}
+        onToggleOther={vi.fn()}
+        libraryId="s1.artisan"
+        onConfirm={noop}
+        onCancel={noop}
+      />
+    );
+    const { rerender } = render(view([]));
+    // Only the image the module names, not one already on the server nor one nothing names.
+    expect(screen.getByRole("alert")).toHaveTextContent(/l'image crest, que ce module nomme/);
+    rerender(view(["lib"]));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("deploys only other drafts when this project has no change", () => {
     render(
       <DeployReviewDialog
