@@ -38,6 +38,10 @@ describe("a new image's size and start", () => {
       "button.danger.3x1",
       "button.off.3x1",
       "button.plain.3x1",
+      "button.neutral.3x1",
+      "button.primary.3x1",
+      "button.success.3x1",
+      "button.warning.3x1",
       "panel.3x1",
       "value.3x1",
     ]);

@@ -1,6 +1,6 @@
 import { kitNameOf } from "./kit";
 import { type Palette, tintOf } from "./palette";
-import { type RgbaImage, createImage, decodePng } from "./png";
+import { type RgbaImage, createImage, decodePng, encodePng } from "./png";
 import { type Slice, drawSliced, slicesAt } from "./slice";
 
 /**
@@ -75,6 +75,20 @@ export function tinted(source: RgbaImage, colour: readonly [number, number, numb
     od[i + 3] = sd[i + 3] as number;
   }
   return out;
+}
+
+/**
+ * The PNG `png` multiplied by `colour` (`#rrggbb`), as a PNG: the base's drawing of a coloured
+ * variant (`KitSlot.tint`). `null` when `colour` is none or `png` is unreadable.
+ */
+export function tintedPng(png: Uint8Array, colour: string | undefined): Uint8Array | null {
+  const rgb = tintColour(colour);
+  if (!rgb) return null;
+  try {
+    return encodePng(tinted(decodePng(png), rgb));
+  } catch {
+    return null;
+  }
 }
 
 export interface ComposeRecipe {

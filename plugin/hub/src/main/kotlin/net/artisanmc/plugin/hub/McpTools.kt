@@ -994,14 +994,20 @@ class McpTools(
         }
 
         /** A layer `kit:<name>` of a composed image: a PNG of the kit module or the base's, never a composed image. */
-        fun layer(name: String): ByteArray? =
-            Kit.image(name, if (name == except) null else module?.png(name)?.png, module?.shipped(name))
-                ?.let { theme?.shown(name, it.png) ?: it.png }
+        fun layer(name: String): ByteArray? = drawn(name)?.let { theme?.shown(name, it.png) ?: it.png }
+
+        /** The common image [name] before the themes: the kit module's PNG, else the base's, a coloured variant ([Kit.Tint]) in the palette. */
+        private fun drawn(name: String, own: ByteArray? = if (name == except) null else module?.png(name)?.png): Kit.Image? =
+            Kit.image(name, own, module?.shipped(name))?.let { image ->
+                Kit.tinted(name, image, palette) { of ->
+                    Kit.image(of, if (of == except) null else module?.png(of)?.png, module?.shipped(of))?.let { theme?.shown(of, it.png) ?: it.png }
+                }
+            }
 
         /** What a menu shows for `kit:<name>`: a composed image of the kit module as well. */
         fun image(name: String): Kit.Image? {
             val png = module?.png(name)?.png
-            val image = Kit.image(name, png ?: module?.composed(name, this)?.png, module?.shipped(name)) ?: return null
+            val image = drawn(name, png ?: module?.composed(name, this)?.png) ?: return null
             val theme = theme ?: return image
             val shown = theme.shown(name, image.png)
             if (shown === image.png) return image

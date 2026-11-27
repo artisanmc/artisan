@@ -114,7 +114,7 @@ object ResourcePackBuilder {
         // The margins of the server's common images that are sliced ([Slices]), by name.
         val kitSlices = HashMap<String, Slice>()
         val kitBase = HashMap<String, ByteArray?>()
-        val kitImage = { name: String ->
+        val kitDrawn = { name: String ->
             Kit.image(name, kitImages[name], kitBase.getOrPut(name) { kitProject?.takeIf { Kit.shippedPath(name) in it.binaries }?.binary(Kit.shippedPath(name)) })
         }
         val composed = ArrayList<Composed>()
@@ -133,6 +133,10 @@ object ResourcePackBuilder {
 
         // The colours a tint names ([Palette]): the themes in place from the highest, then the library.
         val palette = Palette.of(input.themes, kitProject, themeProjects)
+        // A coloured variant of the base ([Kit.Tint]) takes its neutral image as shown here, in the palette's colour.
+        val kitImage = { name: String ->
+            kitDrawn(name)?.let { image -> Kit.tinted(name, image, palette) { of -> kitDrawn(of)?.let { theme?.shown(of, it.png) ?: it.png } } }
+        }
 
         // A look that names a component is read as that component's parts ([Components]).
         val expandOf = Components.ofProjects(projects.map { it.folder to it.files })

@@ -27,6 +27,33 @@
     "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
   },
   {
+    "id": "button.neutral.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 }
+  },
+  {
+    "id": "button.primary.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 },
+    "tint": { "of": "button.neutral.3x1", "color": "primary" }
+  },
+  {
+    "id": "button.success.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 },
+    "tint": { "of": "button.neutral.3x1", "color": "success" }
+  },
+  {
+    "id": "button.warning.3x1",
+    "width": 54,
+    "height": 18,
+    "slice": { "left": 3, "right": 3, "top": 4, "bottom": 4 },
+    "tint": { "of": "button.neutral.3x1", "color": "warning" }
+  },
+  {
     "id": "panel.3x1",
     "width": 54,
     "height": 18,

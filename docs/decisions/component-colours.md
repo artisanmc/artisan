@@ -1,8 +1,8 @@
 # A component takes a colour from the theme's palette
 
-**Status:** accepted (2026-11-27). Being built: steps 1 and 2 are in the code (a tint on a layer, a
-literal or a name of `palette.yml`, in both builders, the editor's previews, the assistant's
-image tool and the deploy review's mark on an unknown name). Follows `themes-reach-modules`
+**Status:** accepted (2026-11-27). Being built: steps 1 to 3 are in the code (a tint on a layer, a
+literal or a name of `palette.yml`; the base's neutral button and its variants `primary`,
+`success`, `warning`). Follows `themes-reach-modules`
 ("Left open: colour").
 
 ## Context
@@ -32,11 +32,16 @@ image tool and the deploy review's mark on an unknown name). Follows `themes-rea
    `success`, `danger`, `warning`). A name no place defines leaves the layer untinted, and the
    editor says so on the image.
 
-3. **The base ships neutral pieces and their coloured recipes.** For each tintable piece, a
-   greyscale PNG (`button.neutral.3x1`) and one composed image per palette name
-   (`button.primary.3x1`: that PNG tinted `primary`). `button.3x1` keeps its present drawing:
-   no menu changes. A theme changes every coloured button by one line of `palette.yml`, or
-   redraws one variant by holding a PNG of its name, as for any image.
+3. **The base ships neutral pieces and their coloured variants.** For each tintable piece, a
+   greyscale PNG (`button.neutral.3x1`) and one variant per palette name
+   (`button.primary.3x1`: that PNG tinted `primary`). A variant is declared in the base's list
+   (`slots.json`, `tint: { of, color }`), a recipe of one layer, and ships a PNG of it in the
+   default palette for what shows the base without a server. Where a server is known (the two
+   pack builders, the editor's images, the MCP tools) the variant is drawn again: the neutral
+   image as the server and its themes in place show it, in the palette's colour.
+   `button.3x1` and `button.danger.3x1` keep their present drawing: no menu changes. A theme
+   changes every coloured button by one line of `palette.yml`, or redraws one variant by
+   holding a PNG of its name, as for any image.
 
 4. **A component declares a choice among names.** A parameter of type `choice` lists values;
    the look of `button` takes `color` and names its image `button.<color>.<size>`. The
@@ -67,8 +72,10 @@ image tool and the deploy review's mark on an unknown name). Follows `themes-rea
 
 ## Consequences
 
-- One PNG in the pack per coloured variant a server's files hold, used or not: about five per
-  tintable piece and size.
+- A coloured variant is in the pack only when a menu names it, like any image of the base.
+- `button.danger.3x1` existed before as a drawn image and stays one: `danger` does not follow
+  the palette on the base's button until that image becomes a variant, which changes its
+  pixels on servers that use it.
 - A theme has a second kind of file beside its images. The MCP tools and the export must carry
   `palette.yml`.
 - A piece is tintable only if someone drew its neutral version: the quality of the greyscale

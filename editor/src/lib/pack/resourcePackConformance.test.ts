@@ -14,6 +14,7 @@ import {
   kotlinFontChars,
   kotlinSymbolGlyphs,
 } from "../../../scripts/pack/cli";
+import { decodePng } from "./png";
 import { readPngDimensions } from "./pngDimensions";
 
 /**
@@ -40,6 +41,31 @@ describe("resource pack — cross-stack vector", () => {
       }
     });
   }
+});
+
+test("a coloured variant of the base is its neutral image, as the themes show it, in the palette's colour", async () => {
+  const c = (vectors.cases as unknown as ConformanceCase[]).find((v) =>
+    v.name.startsWith("coloured variants of the base"),
+  );
+  const zip = unzipSync((await buildCase(c!)).zipBytes);
+  // The body of each 3x1 button of the menu: the theme's neutral drawing is white there.
+  const bodies = Object.entries(zip)
+    .filter(([path]) => /textures\/buttons\/[0-9a-f]+_54_18_native_\d+\.png$/.test(path))
+    .map(([, png]) => {
+      const image = decodePng(png);
+      const at = (8 * image.width + 10) * 4;
+      return [...image.data.slice(at, at + 4)].join(",");
+    });
+  expect(new Set(bodies)).toEqual(
+    new Set([
+      // primary: the theme's palette; success: the library's; warning: the server's own image, as drawn.
+      "179,38,30,255",
+      "0,136,0,255",
+      "10,20,30,255",
+      // The neutral button itself, as the theme draws it.
+      "255,255,255,255",
+    ]),
+  );
 });
 
 test("the Kotlin builder's vanilla font tables match vanillaFontChars.ts (npm run pack -- kotlin-data)", () => {
