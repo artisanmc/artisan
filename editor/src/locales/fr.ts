@@ -451,7 +451,7 @@ const fr: typeof en = {
       noDrawings: "Ce thème ne redessine aucune pièce.",
       unread: "Fichiers qui ne sont plus lus",
       unreadHint:
-        "Un thème change une image en contenant une image : ses couleurs ne repeignent plus rien, et l'image propre à un module se change dans le module. Ces fichiers du thème peuvent être supprimés.",
+        "Un thème change une image en contenant une image : ses couleurs ne repeignent plus rien. Ces fichiers du thème peuvent être supprimés.",
       ownImages: "Ses propres images",
       ownImagesHint:
         "Un menu en nomme une comme écrit ici. Elle s'affiche telle que dessinée, dans le pack tant que le serveur a ce thème, en place ou non.",

@@ -445,7 +445,7 @@ export default {
       noDrawings: "This theme redraws no piece.",
       unread: "No longer read",
       unreadHint:
-        "A theme changes an image by holding an image: its colours repaint nothing, and a module's own image is changed in the module. These files of the theme can be deleted.",
+        "A theme changes an image by holding an image: its colours repaint nothing. These files of the theme can be deleted.",
       ownImages: "Its own images",
       ownImagesHint:
         "A menu names one as written here. It shows as drawn, in the pack as long as the server has this theme, in place or not.",

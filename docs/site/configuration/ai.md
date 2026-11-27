@@ -240,8 +240,9 @@ assets/textures/window.6.png   # the theme's image of that name: it replaces the
 ```
 
 The assistant writes it into a draft of the theme, which you deploy like any other draft.
-A theme changes the common images only: an image a module holds itself is changed in that
-module ("redraw the guilds banner with snow" goes into a draft of `guilds`).
+A theme changes the common images by their names. An image a module holds itself is changed
+in that module ("redraw the guilds banner with snow" goes into a draft of `guilds`), or for
+one theme by a file of the theme under that module (`overrides/guilds/banner.png`).
 
 A theme may hold images of its own too, which no module and no common image has: a garland
 for the winter look ("draw a garland in the theme noel and put it at the top of the shop").

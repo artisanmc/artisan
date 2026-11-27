@@ -182,8 +182,17 @@ object ResourcePackBuilder {
                         composed += Composed(allAssets.lastIndex, project, a.recipe, own, a.row.name, slices)
                         continue
                     }
-                    // A module's own image is the module's: no theme changes it.
-                    val bytes = project.binary(a.path) ?: continue
+                    // A module's own image is the module's: a theme changes it only by an image
+                    // filed under that module (`overrides/<module>/`, ADR `themes-reach-modules`),
+                    // taken as it is, with its own size.
+                    val file = project.binary(a.path) ?: continue
+                    val bytes = theme?.shownIn(project.folder, a.row.name, file) ?: file
+                    if (bytes !== file) {
+                        val drawn = ImageFunctions.pixelSize(bytes)
+                        if (drawn != null && drawn != ImageFunctions.pixelSize(file)) {
+                            allAssets[allAssets.lastIndex] = row.copy(width = drawn.first.toDouble(), height = drawn.second.toDouble())
+                        }
+                    }
                     glyphPngs[row.id] = bytes
                     imagesByRef += "${project.id}:${a.row.name}" to bytes
                     own[a.row.name] = bytes
