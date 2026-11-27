@@ -374,12 +374,16 @@ export function ComposedImageEditor({
   const setRecipe = history.setRecipe;
   const [selected, setSelected] = useState<number | null>(null);
   const [picker, setPicker] = useState<"kit" | "module" | null>(null);
+  // The names layers take when the image is saved, by the name they have: a layer's name is its
+  // file's, renamed with the recipe so that the saved image never names a file that is gone.
+  const [renames, setRenames] = useState<Readonly<Record<string, string>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Another recipe under this asset (saved, or changed by someone else): start again from it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the saved recipe, not the history's functions
   useEffect(() => {
     history.reset(saved);
+    setRenames({});
     setError(null);
   }, [saved]);
   // A step back may take the selected layer away.
@@ -585,7 +589,9 @@ export function ComposedImageEditor({
     .drawings()
     .filter((d) => (lone && d.asset.id === asset.id) || usedNames.has(d.asset.name));
   const dirty =
-    !sameRecipe(recipe, saved) || usedDrawings.some((d) => d.draft || history.dirty(d.asset.id));
+    !sameRecipe(recipe, saved) ||
+    Object.keys(renames).length > 0 ||
+    usedDrawings.some((d) => d.draft || history.dirty(d.asset.id));
   /** The PNG of the image as it is shown now: its layers as drawn here, saved or not. */
   const picture = async (): Promise<Uint8Array> => {
     const pixels = new Map<string, RgbaImage>();
@@ -649,8 +655,20 @@ export function ComposedImageEditor({
         }
       }
       if (!lone) {
-        if (!sameRecipe(recipe, saved))
-          upsertAsset(await patchAsset(projectId, asset.id, { compose: recipe }));
+        // A layer renamed: its file first, then the recipe that names it.
+        let written = recipe;
+        for (const [from, to] of Object.entries(renames)) {
+          const image = own.find((a) => a.name === from);
+          if (!image || !usedNames.has(from)) continue;
+          upsertAsset(await patchAsset(projectId, image.id, { name: to }));
+          written = {
+            ...written,
+            layers: written.layers.map((l) => (l.image === from ? { ...l, image: to } : l)),
+          };
+        }
+        if (!sameRecipe(written, saved))
+          upsertAsset(await patchAsset(projectId, asset.id, { compose: written }));
+        setRenames({});
       } else if (!sameRecipe(recipe, saved)) {
         // More than its one layer: the PNG becomes the layer of an image of the same name.
         const taken = new Set(all.filter((a) => a.projectId === projectId).map((a) => a.name));
@@ -671,7 +689,10 @@ export function ComposedImageEditor({
       setBusy(false);
     }
   };
-  const discard = () => history.discard(saved);
+  const discard = () => {
+    setRenames({});
+    history.discard(saved);
+  };
 
   /**
    * A layer to draw, on top of the others: empty, of the image's size, selected with a pencil
@@ -710,7 +731,42 @@ export function ComposedImageEditor({
   };
 
   const labelOf = (layer: ComposeLayer) =>
-    layer.image === SELF ? asset.name : (kitNameOf(layer.image) ?? layer.image);
+    layer.image === SELF
+      ? asset.name
+      : (kitNameOf(layer.image) ?? renames[layer.image] ?? layer.image);
+  /**
+   * Whether the layer `layer` can be renamed: a PNG of the module that has its file, in an image
+   * saved with layers. A server image keeps its name, and a layer drawn here gets one at the save.
+   */
+  const renamable = (layer: ComposeLayer) =>
+    !lone &&
+    layer.image !== SELF &&
+    kitNameOf(layer.image) === null &&
+    own.some((a) => a.name === layer.image);
+  /** Names the layer `from` as `to` at the next save; the reason it cannot be, else `null`. */
+  const rename = (from: string, to: string): string | null => {
+    const name = to.trim();
+    if (name === from) {
+      setRenames(({ [from]: _, ...rest }) => rest);
+      return null;
+    }
+    if (!/^[a-z0-9_-]+$/.test(name)) return t("compose.rename.invalid");
+    const taken =
+      all.some((a) => a.projectId === projectId && a.name === name) ||
+      history.drawings().some((d) => d.asset.name === name) ||
+      Object.entries(renames).some(([other, target]) => other !== from && target === name);
+    if (taken) return t("compose.rename.taken", { name });
+    // Another image that shows this file as a layer would lose it: its recipe is not rewritten here.
+    const elsewhere = all.find(
+      (a) =>
+        a.projectId === projectId &&
+        a.id !== asset.id &&
+        a.compose?.layers.some((l) => l.image === from),
+    );
+    if (elsewhere) return t("compose.rename.used", { name: elsewhere.name });
+    setRenames((held) => ({ ...held, [from]: name }));
+    return null;
+  };
   const current = selected === null ? undefined : recipe.layers[selected];
   const currentImage = current && imageOf(current.image);
   const currentSize = current && sizeOf(current.image);
@@ -762,6 +818,10 @@ export function ComposedImageEditor({
             repeat:
               layer.columns > 1 || layer.rows > 1 ? `${layer.columns} × ${layer.rows}` : undefined,
             common: kitNameOf(layer.image) !== null,
+            rename:
+              user && !busy && renamable(layer)
+                ? (name: string) => rename(layer.image, name)
+                : undefined,
           }))}
           selected={selected}
           onSelect={select}

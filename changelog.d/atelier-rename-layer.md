@@ -1,0 +1,1 @@
+- **Added**: in the atelier, a layer that is an image of the module is renamed from the list (the pencil). Its file takes the name when the image is saved, with the recipe that names it; a name taken, or a layer another image shows too, is refused.

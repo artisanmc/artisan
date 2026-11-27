@@ -222,6 +222,13 @@ const fr: typeof en = {
     layers: "Calques",
     layerLabel: "Calque {{n}} : {{name}}",
     addLayer: "Ajouter un calque",
+    rename: {
+      button: "Renommer {{name}}",
+      label: "Nouveau nom de {{name}}",
+      invalid: "Un nom s’écrit en minuscules, chiffres, « _ » et « - ».",
+      taken: "« {{name}} » est déjà le nom d’une image de ce module.",
+      used: "L’image « {{name}} » utilise aussi ce calque : elle le perdrait.",
+    },
     addKit: "Image du serveur",
     addImage: "Image du module",
     addDrawn: "Dessin",
