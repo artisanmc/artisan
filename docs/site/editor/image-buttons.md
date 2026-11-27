@@ -64,6 +64,12 @@ rebuilds its pack, its console names, module by module, the images written that 
 answers and the layers of composed images that take nothing, once until the list changes. That is how a module's folder copied by hand from
 another server tells what it lacks.
 
+**Move to the library.** An image added to a module on this server, selected in that module's
+Resources, has **Move to the library**: it leaves the module for the server's library under the
+same name, so the menus that name it keep it and every other module can name it too. Deploy the
+library with the module. An image the module shipped with, a composed image and an image cut in
+slices stay where they are, and a name the library already has is refused.
+
 **Common images in a module's Resources.** The **Module** selector of the Resources screen has
 an entry **Common images**, beside this module, all modules and the other modules. It lists
 every common image as the server has it deployed; one selected shows its size, who drew it

@@ -1,11 +1,12 @@
 import { type Asset, type AssetUsage, assetPreviewUrl } from "@/domain/asset";
 import { loadPersistedDrafts, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { readProjectFiles } from "@/lib/api/projectFiles";
-import { uploadAsset } from "@/lib/api/userAssets";
+import { deleteAsset, uploadAsset } from "@/lib/api/userAssets";
 import { KIT_ASCENT, KIT_FOLDER, KIT_PREFIX } from "@/lib/pack/kit";
 import { projectPrincipal } from "@/lib/projectPrincipal";
 import { type KitRead, useKitStore } from "@/state/kitStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { assetBytes } from "./assetBytes";
 
 /**
  * The server's library written from a module (ADR `themes-reach-modules`, decision 1): an
@@ -87,6 +88,43 @@ export async function addToLibrary(
 ): Promise<Asset> {
   await openLibraryDraft(libraryId);
   return uploadAsset(libraryId, { ...input, type: "glyph" });
+}
+
+const MOVED_USAGES: readonly string[] = ["button", "menu"];
+
+/**
+ * Whether the image `asset` of a module can be moved to the library: one added on this server
+ * (`shipped` false: a module holds what it shipped with), a plain PNG whose descriptor says
+ * nothing a library image does not keep (no slices, no recipe).
+ */
+export function movableToLibrary(asset: Asset, shipped: boolean): boolean {
+  return (
+    !shipped &&
+    asset.type !== "font" &&
+    !asset.under &&
+    !asset.compose &&
+    !asset.slice &&
+    !asset.draftId
+  );
+}
+
+/**
+ * Moves the image `asset` of the module `projectId` to the library `libraryId`, under the name
+ * the menus write (its id): they keep naming it and now read the library's. The copy is written
+ * first: if the module's image cannot be deleted, it stays and still wins over the copy.
+ */
+export async function moveToLibrary(
+  libraryId: string,
+  projectId: string,
+  asset: Asset,
+): Promise<void> {
+  const png = await assetBytes(asset);
+  await addToLibrary(libraryId, {
+    file: new File([png as BlobPart], `${asset.id}.png`, { type: "image/png" }),
+    name: asset.id,
+    usages: (asset.usages ?? []).filter((u): u is AssetUsage => MOVED_USAGES.includes(u)),
+  });
+  await deleteAsset(projectId, asset.id);
 }
 
 /** An image of the library's draft as the common image a menu names: `kit:<name>`. */

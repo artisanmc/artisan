@@ -22,6 +22,12 @@ const assetBytes = vi.fn(async (): Promise<Uint8Array> => {
 });
 vi.mock("./assetBytes", () => ({ assetBytes: () => assetBytes() }));
 
+const moveToLibrary = vi.fn();
+vi.mock("./libraryDraft", async (original) => ({
+  ...(await original<typeof import("./libraryDraft")>()),
+  moveToLibrary: (...args: unknown[]) => moveToLibrary(...args),
+}));
+
 vi.mock("@/lib/pack/kitUrls", () => ({
   kitImageUrl: (id: string) => `/kit/${id}.png`,
   kitImageBytes: async () => new Uint8Array([1, 2, 3]),
@@ -86,6 +92,41 @@ describe("AssetDetailPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Supprimer du module/i }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith("p1", "asset_a"));
     expect(useAssetStore.getState().assets).toHaveLength(0);
+  });
+
+  it("moves an image added on the server to its library, and offers it nowhere else", async () => {
+    useAssetStore.getState().setAssets([{ ...A, id: "My Icon" }]);
+    useAssetStore.getState().setSelectedId("My Icon");
+    // No library read by name (an older server): the image stays in its module.
+    render(<AssetDetailPanel projectId={"p1" as never} />);
+    expect(screen.queryByRole("button", { name: "Déplacer vers la bibliothèque" })).toBeNull();
+    act(() => {
+      useKitStore.setState({
+        read: { projectId: "srv.artisan", files: {}, binaries: [], byName: true },
+        own: {},
+      } as never);
+    });
+    // Its id is no name the library takes: nothing is asked, nothing moves.
+    fireEvent.click(screen.getByRole("button", { name: "Déplacer vers la bibliothèque" }));
+    expect(screen.getByText(/Renommez d’abord l’image/)).toBeInTheDocument();
+    act(() => {
+      useAssetStore.getState().setAssets([{ ...A, id: "icon" }]);
+      useAssetStore.getState().setSelectedId("icon");
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    moveToLibrary.mockRejectedValueOnce(Object.assign(new Error("exists"), { status: 409 }));
+    fireEvent.click(screen.getByRole("button", { name: "Déplacer vers la bibliothèque" }));
+    await screen.findByText(/La bibliothèque a déjà une image de ce nom/);
+    expect(useAssetStore.getState().assets).toHaveLength(1);
+    moveToLibrary.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Déplacer vers la bibliothèque" }));
+    await waitFor(() => expect(useAssetStore.getState().assets).toHaveLength(0));
+    expect(moveToLibrary).toHaveBeenLastCalledWith(
+      "srv.artisan",
+      "p1",
+      expect.objectContaining({ id: "icon" }),
+    );
+    useKitStore.setState({ read: undefined } as never);
   });
 
   it("reports a common image that is not at its piece's size, in the common images' Project", () => {

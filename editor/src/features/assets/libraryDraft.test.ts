@@ -2,16 +2,25 @@ import { usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { libraryDraftAssets } from "./kitAssets";
-import { addToLibrary, libraryFor, openLibraryDraft } from "./libraryDraft";
+import {
+  addToLibrary,
+  libraryFor,
+  movableToLibrary,
+  moveToLibrary,
+  openLibraryDraft,
+} from "./libraryDraft";
 
 const readProjectFiles = vi.fn();
 const uploadAsset = vi.fn();
 const loadPersistedDrafts = vi.fn();
+const deleteAsset = vi.fn();
+vi.mock("./assetBytes", () => ({ assetBytes: async () => new Uint8Array([7]) }));
 vi.mock("@/lib/api/projectFiles", () => ({
   readProjectFiles: (...args: unknown[]) => readProjectFiles(...args),
 }));
 vi.mock("@/lib/api/userAssets", () => ({
   uploadAsset: (...args: unknown[]) => uploadAsset(...args),
+  deleteAsset: (...args: unknown[]) => deleteAsset(...args),
 }));
 vi.mock("@/lib/projectPrincipal", () => ({
   projectPrincipal: { current: () => ({ kind: "player", id: "u1" }) },
@@ -123,5 +132,44 @@ describe("libraryDraftAssets", () => {
         remote: { id: "d1", revision: 2 },
       }),
     ).toEqual([]);
+  });
+
+  const crest = { id: "crest", projectId: "srv.shop", type: "texture", name: "Crest" } as never;
+
+  it("moves a module's image under the name the menus write, then deletes the module's", async () => {
+    vi.clearAllMocks();
+    usePersistedDraftStore.setState({
+      sessions: { "srv.artisan": { ownerId: "u1", drafts: [], status: "saved" } } as never,
+    });
+    const order: string[] = [];
+    uploadAsset.mockImplementation(async () => order.push("upload"));
+    deleteAsset.mockImplementation(async () => order.push("delete"));
+    await moveToLibrary("srv.artisan", "srv.shop", {
+      ...(crest as object),
+      usages: ["button", "title_icon"],
+    } as never);
+    expect(uploadAsset).toHaveBeenCalledWith(
+      "srv.artisan",
+      expect.objectContaining({ name: "crest", usages: ["button"], type: "glyph" }),
+    );
+    expect(deleteAsset).toHaveBeenCalledWith("srv.shop", "crest");
+    expect(order).toEqual(["upload", "delete"]);
+  });
+
+  it("keeps the module's image when the library refuses the name", async () => {
+    usePersistedDraftStore.setState({
+      sessions: { "srv.artisan": { ownerId: "u1", drafts: [], status: "saved" } } as never,
+    });
+    vi.clearAllMocks();
+    uploadAsset.mockRejectedValueOnce(Object.assign(new Error("exists"), { status: 409 }));
+    await expect(moveToLibrary("srv.artisan", "srv.shop", crest)).rejects.toThrow("exists");
+    expect(deleteAsset).not.toHaveBeenCalled();
+  });
+
+  it("offers the move for an image added on the server, plain", () => {
+    expect(movableToLibrary(crest, false)).toBe(true);
+    expect(movableToLibrary(crest, true)).toBe(false);
+    for (const extra of [{ under: "shop" }, { compose: {} }, { slice: {} }, { type: "font" }])
+      expect(movableToLibrary({ ...(crest as object), ...extra } as never, false)).toBe(false);
   });
 });

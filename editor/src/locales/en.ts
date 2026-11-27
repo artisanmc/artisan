@@ -94,6 +94,14 @@ export default {
     saving: "Saving…",
     delete: "Delete from module",
     confirmDelete: "Delete “{{name}}” from the module? Menus using it will lose this image.",
+    toLibrary: {
+      move: "Move to the library",
+      hint: "The server's library holds the images every module can name. The menus that name this one keep it.",
+      confirm:
+        "Move “{{name}}” to the server's library? It leaves this module; the menus that name it read it from the library. Deploy the library with the module.",
+      invalidName:
+        "The library takes names in lowercase letters, digits, “_” and “-” only. Rename the image first.",
+    },
     advanced: "Advanced",
     dimensions: "Dimensions",
     choose: "Choose an image",

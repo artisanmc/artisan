@@ -5,7 +5,9 @@ as**, a theme's Resources, the canvas, the MCP tools) are in the code. Of step 3
 uploaded from a button's image chooser or from the canvas's image list goes to the library, that
 list shows the library first, the inspector has one image chooser that does the same, the
 menu shows the image from the draft, and Deploy picks that draft with the menu (the start of
-step 5); a module's Resources, a new drawn image and **Move to the library** are not. Step 4 needed nothing new: the
+step 5), and a module's Resources move an image added on the server to the library (**Move to
+the library**); an image added from a module's Resources and a new drawn image still go to the
+module. Step 4 needed nothing new: the
 export already copies the library's images a module names, and the import keeps the copies the
 server lacks (ADR `common-images-and-themes`, decision 10). Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
 theme no longer aims at a module") and the part of its decision 7 that offers a module as a

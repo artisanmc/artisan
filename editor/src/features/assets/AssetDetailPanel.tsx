@@ -15,8 +15,10 @@ import { CommonImageOriginal, OriginalImage } from "./CommonImageState";
 import { OriginalChanged } from "./OriginalChanged";
 import { useAssetStore } from "./assetStore";
 import { originalImageUrl, useImageOtherSize, useImageStanding } from "./imageStanding";
+import { movableToLibrary, moveToLibrary, useLibraryFor } from "./libraryDraft";
 import { isKitModule } from "./localAssets";
 import { useResourcesView } from "./resourcesView";
+import { saveAsNameProblem } from "./saveAsPlaces";
 
 /**
  * The selected resource in the library's column: its picture, what it is and where it is used.
@@ -48,6 +50,7 @@ export function AssetDetailPanel({
   const openStudio = useResourcesView((s) => s.openStudio);
   const standing = useImageStanding(projectId, asset);
   const otherSize = useImageOtherSize(projectId, asset);
+  const library = useLibraryFor(projectId);
 
   const savedName = asset?.name ?? "";
   const savedAscent = asset?.ascent ?? "";
@@ -125,6 +128,29 @@ export function AssetDetailPanel({
       removeAsset(asset.id);
     } catch (e) {
       setError((e as Error).message);
+    }
+  };
+
+  // An image added to a module on this server belongs in the library (ADR
+  // `themes-reach-modules`, decision 1): moved there under its name, the menus keep naming it.
+  const movable = !!library && movableToLibrary(asset, !!original);
+  const onMove = async () => {
+    if (!user || !library || busy) return;
+    if (saveAsNameProblem(asset.id)) return setError(t("resources.toLibrary.invalidName"));
+    if (!window.confirm(t("resources.toLibrary.confirm", { name: asset.name }))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await moveToLibrary(library, projectId, asset);
+      removeAsset(asset.id);
+    } catch (e) {
+      setError(
+        (e as { status?: number } | null)?.status === 409
+          ? t("assetUpload.nameInLibrary")
+          : (e as Error).message,
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -269,6 +295,14 @@ export function AssetDetailPanel({
           </label>
         )}
       </details>
+      {movable && (
+        <div className="flex flex-col gap-1">
+          <Button variant="outline" disabled={!user || busy} onClick={() => void onMove()}>
+            {t("resources.toLibrary.move")}
+          </Button>
+          <p className="text-xs text-[var(--text-mut)]">{t("resources.toLibrary.hint")}</p>
+        </div>
+      )}
       {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
       {!asShipped && (
         <div className="flex justify-between">
