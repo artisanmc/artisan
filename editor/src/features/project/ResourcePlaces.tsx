@@ -16,13 +16,13 @@ import { rebuildServerPackInBackground } from "./resourcePackSync";
 
 /**
  * A place a resource lives in (ADR `resources-one-screen`, decision 1): a theme of the server,
- * the server's own theme (`artisan`, its files), a module, or Artisan's base.
+ * the base (the theme `artisan`: Artisan's images and the server's own, in one place), or a
+ * module.
  */
 export type ResourcePlace =
   | { kind: "theme"; name: string }
   | { kind: "server" }
-  | { kind: "module"; id: string }
-  | { kind: "base" };
+  | { kind: "module"; id: string };
 
 /** Draws what imports a theme: the server it goes to, the names taken, and what to do once it is there. */
 export type ThemeImporter = (props: {
@@ -84,8 +84,6 @@ export function ResourcePlaces({
         params: { serverId },
         search: { theme: place.name },
       });
-    if (place.kind === "base")
-      return void navigate({ to: "/servers/$serverId/resources", params: { serverId } });
     const projectId =
       place.kind === "theme" ? mine : place.kind === "server" ? read?.projectId : place.id;
     if (!projectId) return;
@@ -256,11 +254,6 @@ export function ResourcePlaces({
             <div key={p.id}>{entry({ kind: "module", id: p.id }, p.name, null)}</div>
           ))
         )}
-      </section>
-
-      <section className="flex flex-col gap-1" data-testid="places-base">
-        <h3 className="eyebrow">{t("places.base")}</h3>
-        {entry({ kind: "base" }, "Artisan", t("places.baseHint"))}
       </section>
     </nav>
   );

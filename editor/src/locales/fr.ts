@@ -18,9 +18,9 @@ const fr: typeof en = {
   onboarding: onboardingFr,
   resources: {
     group: {
-      own: "De ce serveur",
-      shippedArtisan: "Livrées avec Artisan",
-      shippedModule: "Livrées avec le module",
+      own: "Ajoutées ou modifiées sur ce serveur",
+      shippedArtisan: "Livrées avec Artisan, non modifiées",
+      shippedModule: "Livrées avec le module, non modifiées",
     },
     mark: {
       otherSize: "Autre taille que l'original du module qu'elle remplace",
@@ -366,17 +366,8 @@ const fr: typeof en = {
     hintThemes:
       "Les images que tout serveur possède, celles que ce serveur a rendues communes, puis les images propres des thèmes, nommées avec leur thème : une de celles-là s'affiche tant que le serveur a son thème. Le menu nomme l'image : rien n'est copié.",
     page: {
-      title: "Base Artisan",
-      intro:
-        "Les images qu'Artisan livre à tout serveur, cherchées en dernier. Un menu en nomme une par son nom ; une image du même nom dans un thème du serveur la remplace partout où elle est nommée.",
-      none: "L'Artisan de ce serveur est plus ancien que les images communes : chaque pièce est celle d'Artisan. Mettez-le à jour pour en redessiner une.",
       open: "Ouvrir les images du serveur",
       noTheme: "Sans thème",
-      family: {
-        buttons: "Boutons",
-        frames: "Fenêtres, panneaux, valeurs",
-        controls: "Flèches et commandes",
-      },
       shipped: "Artisan",
       redrawn: "Redessinée",
       misfit: "Autre taille",
@@ -387,15 +378,6 @@ const fr: typeof en = {
         "Supprimer le {{name}} de ce serveur ? Les menus montrent de nouveau l'original d'Artisan une fois déployé.",
       misfitDetail:
         "Autre taille que celle qu'elle remplace : cette image fait {{width}} × {{height}} px, la pièce {{pieceWidth}} × {{pieceHeight}} px. Elle est prise telle quelle : un menu disposé pour la pièce peut être décalé.",
-      others: "Les images de ce serveur",
-      noOthers:
-        "Aucune pour l'instant. Une image ajoutée ici se nomme par son nom dans n'importe quel menu du serveur.",
-      inMenu: "Dans un menu",
-      inMenuHint:
-        "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient. Cliquez une pièce pour l'ouvrir dans l'atelier des images communes du serveur.",
-      inMenuHintNoKit: "Toutes les pièces posées sur une fenêtre, comme les joueurs les voient.",
-      redrawnCount_one: "{{count}} pièce redessinée sur {{total}}",
-      redrawnCount_other: "{{count}} pièces redessinées sur {{total}}",
       menusNaming_one: "{{count}} menu nomme une image commune",
       menusNaming_other: "{{count}} menus nomment une image commune",
       usedBy_one: "{{count}} menu la nomme",
@@ -585,9 +567,11 @@ const fr: typeof en = {
     label: "Emplacements des ressources",
     themes: "Thèmes du serveur",
     themesHint:
-      "Cherchés de haut en bas : le premier qui a l'image gagne. Un module qui a sa propre image la garde.",
-    server: "Thème du serveur",
-    serverHint: "toujours en place, sous les autres",
+      "Cherchés de haut en bas : le premier qui a l'image gagne, la base en dernier. Un module qui a sa propre image la garde.",
+    server: "Base",
+    serverHint: "Artisan et ce serveur : toujours en place, sous les thèmes",
+    pick: "Choisis un endroit à gauche.",
+    opening: "Ouverture de la base…",
     away: "rangé",
     putAway: "Ranger",
     putInPlace: "Mettre en place",
@@ -600,8 +584,6 @@ const fr: typeof en = {
     modules: "Modules",
     modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
     noModules: "Aucun module sur ce serveur.",
-    base: "Base",
-    baseHint: "en dernier, lecture seule",
     themeSettings: "Aperçu et réglages du thème",
     themeAway: "rangé",
     themeInPlace: "en place",

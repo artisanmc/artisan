@@ -1,6 +1,10 @@
 # Resources: one rule to find an image, one screen to see it
 
-**Status:** accepted (2026-11-26), being built: step 2 (the removal) is in the code; of
+**Status:** accepted (2026-11-26), amended 2026-11-27 on the owner's first look: Artisan's
+base and the server's own theme are one place on the left, **Base** (two rows were not told
+apart), opened on the same Resources screen as any place; the base's own page and its trial
+menu are gone (two interfaces, and a menu has fewer slots than a base can have pieces).
+Being built: step 2 (the removal) is in the code; of
 step 3, the places on the left of both Resources (`ResourcePlaces`), the **Show:** filter, the
 read-only list of the whole server and the Themes screen gone, a theme holding its images
 under `assets/` like a module and edited in its Project, with the marks of decision 6. Not

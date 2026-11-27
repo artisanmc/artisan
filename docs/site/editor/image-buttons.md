@@ -88,29 +88,25 @@ Artisan's base (`button.3x1`) can be held by a theme only. A font is not saved a
 the same list of places on the left, in the order an image's name is looked up:
 
 - **Server themes**: the themes in place, the highest first (drag one by its handle to change
-  its place, **Put away** to take it off), then **Server theme**, the server's own images,
-  always in place below the others, then the themes put away (**Put in place** sets one above
+  its place, **Put away** to take it off), then **Base**, Artisan's images and the server's own
+  in one place, always in place below the others, then the themes put away (**Put in place** sets one above
   the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
   the server's pack.
 - **Modules**: each module's own images. A module that holds an image of a name keeps it in
   its menus, whatever the themes hold.
-- **Base**: the images Artisan ships, looked up last, read only.
 
-A click opens the place on the right: a theme, a module or the server's theme on its own
+A click opens the place on the right: a theme, a module or the base on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
 its Resources an image named like one of a place below wears the word **Override**; an image
 the theme adds wears nothing. The bar above a theme's Resources says whether it is in place and leads to its
 page (**Preview and settings of the theme**: the same menu without it and with it, put in
 place, rename, delete, export).
 
-**Base** is the page of the common images, as the server has them
-deployed: every piece of the base by family (buttons; windows, panels and
-values; arrows and controls) with its size and who drew it, **Artisan** or this server
-(**Redrawn**), then the images the server added. Each image says how many deployed menus name
-it, so an image no menu names is seen before it is redrawn. **In a menu** sets every piece on one window,
-as players see it. Click a piece, on its card or on that menu, to open it in the atelier of the
-common images (the theme `artisan`, which is not in the module list): a piece still Artisan's
-is first copied under the piece's name, at the piece's size, so the menus keep their layout.
+**Base** opens like any other place, on the same Resources screen: **Added or changed on this
+server** lists the images the server added and its versions of Artisan's, **Shipped with
+Artisan, unchanged** the pieces of the base it left alone. The server's **Resources** tab
+opens on it. Open a piece in the atelier and save: the server's version is written under the
+piece's name, and nothing is written if you leave without drawing.
 An image of a piece's name at another size is taken as it is: menus show it, and the image
 is marked **Other size**, with its size and the piece's, on its card, in the Resources lists
 and in the common images' own Resources. A menu laid out for the piece may look off.

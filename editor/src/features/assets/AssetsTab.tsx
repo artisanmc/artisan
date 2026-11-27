@@ -653,7 +653,10 @@ function OwnAssets({
   // What the module ships and the owner left alone is listed apart, folded: the owner's own
   // images and the ones redrawn come first. A search opens both parts.
   const isShipped = useShippedUntouched(projectId);
-  const [folded, setFolded] = useState<Record<string, boolean>>({ shipped: true });
+  // The base's own images are what its place is for: listed open there, folded in a module.
+  const [folded, setFolded] = useState<Record<string, boolean>>({
+    shipped: !isKitModule(projectId),
+  });
   const shippedOnes = filtered.filter(isShipped);
   const groups: AssetGroup[] | undefined =
     shippedOnes.length === 0
