@@ -91,7 +91,7 @@ describe("SaveAsDialog", () => {
     expect((screen.getByLabelText("Où") as HTMLSelectElement).value).toBe("t-noel");
     expect(screen.getByLabelText("Nom")).toBeDisabled();
     expect(screen.getByTestId("save-as-effect")).toHaveTextContent(
-      "Remplace « banner » du module « boutique » quand ce thème est en place.",
+      "Remplace « banner » du module « boutique » quand ce thème est actif.",
     );
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(on.open).toHaveBeenCalledWith("t-noel"));
@@ -120,7 +120,7 @@ describe("SaveAsDialog", () => {
     });
     expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Nom du thème"), { target: { value: "hiver" } });
-    expect(screen.getByTestId("save-as-effect")).toHaveTextContent("Ce thème est rangé");
+    expect(screen.getByTestId("save-as-effect")).toHaveTextContent("Ce thème est désactivé");
     fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(on.open).toHaveBeenCalledWith("t-hiver"));
     expect(createProject).toHaveBeenCalledWith("srv", "hiver", "theme");

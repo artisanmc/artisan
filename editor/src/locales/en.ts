@@ -225,7 +225,7 @@ export default {
       colour: "Tint colour",
       hint: "Multiplies the layer by a colour: a white pixel takes it, a grey one a darker shade. Best on a grey drawing.",
       namedHint:
-        "Takes the colour “{{name}}” of the theme in place: change the theme, the layer follows.",
+        "Takes the colour “{{name}}” of the active theme: change the theme, the layer follows.",
       unknown: "No theme and no library colour is named “{{name}}”: the layer shows as drawn.",
     },
     chooseImage: "Choose an image of this module",
@@ -305,16 +305,16 @@ export default {
     place: "Where",
     save: "Save",
     theme: "Theme “{{name}}”",
-    themeAway: "Theme “{{name}}” (put away)",
+    themeAway: "Theme “{{name}}” (disabled)",
     newTheme: "New theme…",
     replacesModuleImage:
-      "Replaces “{{name}}” of the module “{{module}}” while this theme is in place. The other modules do not change.",
+      "Replaces “{{name}}” of the module “{{module}}” while this theme is enabled. The other modules do not change.",
     replaces_one: "Replaces the image of this name in {{count}} menu of {{modules}}.",
     replaces_other: "Replaces the image of this name in {{count}} menus of {{modules}}.",
     modules_one: "{{count}} module",
     modules_other: "{{count}} modules",
     addedTheme: "No menu writes this name yet: the image is added there, nothing else changes.",
-    away: "This theme is put away: nothing changes in game until it is put in place.",
+    away: "This theme is disabled: nothing changes in game until it is enabled.",
     overwrites: "This place already has an image of this name: it will be replaced.",
     saved: "“{{name}}” saved here, in the draft.",
     failed: "The image could not be saved: {{detail}}",
@@ -398,7 +398,7 @@ export default {
       open: "New theme",
       title: "New theme",
       intro:
-        "A theme gives the common images another look, for a season or an event, without a menu being touched. It is created empty: it changes nothing until it holds redrawn images, and until it is put in place.",
+        "A theme gives the common images another look, for a season or an event, without a menu being touched. It is created empty: it changes nothing until it holds redrawn images, and until it is enabled.",
       name: "Theme name",
       placeholder: "noel",
       errors: {
@@ -418,7 +418,7 @@ export default {
       open: "Import a theme",
       title: "Import a theme",
       intro:
-        "Brings a theme exported from another server (<name>.theme.zip). It arrives on the server without being put in place: it changes nothing until you put it in place.",
+        "Brings a theme exported from another server (<name>.theme.zip). It arrives on the server disabled: it changes nothing until you enable it.",
       file: "Theme archive",
       drop: "Drop a theme's archive, or click to pick one",
       dropHint: "A .zip exported from a theme's page",
@@ -450,12 +450,12 @@ export default {
       title: "Theme “{{name}}”",
       intro:
         "A theme redraws common images. The menus keep their layout, and a module's own image stays the module's.",
-      inPlace: "In place",
-      notInPlace: "Not in place",
-      putInPlace: "Put in place on the server",
-      takeOff: "Put this theme away",
+      inPlace: "Enabled",
+      notInPlace: "Disabled",
+      putInPlace: "Enable the theme",
+      takeOff: "Disable the theme",
       stack:
-        "Themes in place, from the lowest to the highest: {{themes}}. The highest that redraws an image wins.",
+        "Enabled themes, from the lowest to the highest: {{themes}}. The highest that redraws an image wins.",
       missing: "The server has no theme “{{name}}” deployed.",
       drawings: "Pieces redrawn for this theme",
       noDrawings: "This theme redraws no piece.",
@@ -464,7 +464,7 @@ export default {
         "A theme changes an image by holding an image: its colours repaint nothing. These files of the theme can be deleted.",
       ownImages: "Its own images",
       ownImagesHint:
-        "A menu names one as written here. It shows as drawn, in the pack as long as the server has this theme, in place or not.",
+        "A menu names one as written here. It shows as drawn, in the pack as long as the server has this theme, enabled or not.",
       noOwnImages:
         "None. An image added to this theme's files (assets/) is its own: a menu names it {{name}}:<its name>.",
       files:
@@ -483,13 +483,13 @@ export default {
         failed: "The colours could not be saved to your draft: {{detail}}",
         libraryTitle: "The server's colours",
         libraryHint:
-          "The colour each name has on this server, in every module. The base's coloured buttons, and any image tinted with a name, follow it. A theme in place may give a name another colour.",
+          "The colour each name has on this server, in every module. The base's coloured buttons, and any image tinted with a name, follow it. An enabled theme may give a name another colour.",
         libraryReset: "Back to the default colour",
         libraryDrafted: "These colours are in your draft: deploy it to see them in game.",
       },
       compare: "Without and with, in a menu",
       putHint:
-        "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",
+        "Enabling a theme sets it above the ones already enabled and rebuilds the server's pack: players receive it at their next connection. Disabling it is done from here too.",
       open: "Open the theme's folder",
       export: "Export",
       exportFailed: {
@@ -503,12 +503,12 @@ export default {
         renameIntro:
           "The theme's folder is renamed on the server, with its drafts and its history. Its images stay as they are.",
         renameInPlace:
-          "The theme's folder is renamed on the server, with its drafts and its history. The theme keeps its place among the themes in place, and the server's pack is rebuilt.",
+          "The theme's folder is renamed on the server, with its drafts and its history. The theme keeps its place among the enabled themes, and the server's pack is rebuilt.",
         deleteTitle: "Delete the theme {{name}}",
         deleteIntro:
           "The folder themes/{{name}}/ moves to the server's trash (themes/.artisan-trash/): nothing is erased, and it can be put back from the server's files.",
         deleteInPlace:
-          "The folder themes/{{name}}/ moves to the server's trash (themes/.artisan-trash/): nothing is erased, and it can be put back from the server's files. This theme is in place: it is taken off, and the server's pack is rebuilt without it.",
+          "The folder themes/{{name}}/ moves to the server's trash (themes/.artisan-trash/): nothing is erased, and it can be put back from the server's files. This theme is enabled: it is disabled, and the server's pack is rebuilt without it.",
         errors: {
           invalid_path:
             "Lowercase letters, digits, “_” and “-”, starting with a letter or a digit. “artisan” is the name of the common images.",
@@ -522,7 +522,7 @@ export default {
           plugin_update_required:
             "This server runs an older Artisan. Update its plugin to rename or delete a theme.",
           stack_failed:
-            "The theme's folder was moved, but the list of themes in place could not be written. Fix it on the Themes screen.",
+            "The theme's folder was moved, but the list of enabled themes could not be written. Fix it on the Themes screen.",
           failed: "The server refused. Try again.",
         },
       },
@@ -532,7 +532,7 @@ export default {
     none: "No image “{{name}}”: neither this module, nor the common images, nor another deployed module holds one. Nothing will show in game.",
     module: "Image of the module {{module}}.",
     theme:
-      "Image of the theme {{theme}}: it shows as long as the server has that theme, in place or not.",
+      "Image of the theme {{theme}}: it shows as long as the server has that theme, enabled or not.",
     elsewhere: "“{{name}}” is an image of the module {{module}}, named by its name alone.",
     write: "Write {{ref}}",
   },
@@ -597,12 +597,12 @@ export default {
     themesHint:
       "Looked up from top to bottom: the first that has the image wins, the base last. A module that has its own image keeps it.",
     server: "Base",
-    serverHint: "Artisan's and this server's: always in place, under the themes",
+    serverHint: "Artisan's and this server's: always enabled, under the themes",
     pick: "Pick a place on the left.",
     opening: "Opening the base…",
-    away: "put away",
-    putAway: "Put away",
-    putInPlace: "Put in place",
+    away: "disabled",
+    putAway: "Disable",
+    putInPlace: "Enable",
     move: "Drag to change the theme's place",
     images_one: "{{count}} image",
     images_other: "{{count}} images",
@@ -613,8 +613,8 @@ export default {
     modulesHint: "Their own images, seen in their menus only.",
     noModules: "No module on this server.",
     themeSettings: "Preview and settings of the theme",
-    themeAway: "put away",
-    themeInPlace: "in place",
+    themeAway: "disabled",
+    themeInPlace: "enabled",
     themeBar: "Theme “{{name}}”",
   },
   projectSource: {
@@ -2711,7 +2711,7 @@ export default {
         "hide-inventory-label":
           "Hide the “Inventory” label under menus (every container, every language)",
         theme: "Theme of the common images",
-        themes: "Themes in place",
+        themes: "Enabled themes",
         "container-textures": {
           chest: "Chests",
           hopper: "Hoppers",

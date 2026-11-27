@@ -1,0 +1,2 @@
+- **Fixed**: a colour changed in a theme's or the library's palette no longer goes back a second later (the Project open in the tab did not keep `palette.yml`, and its next autosave took the file off the draft).
+- **Changed**: a theme is **enabled** and **disabled** (it was "put in place" and "put away"); the places say **Enabled** and **Disabled**.

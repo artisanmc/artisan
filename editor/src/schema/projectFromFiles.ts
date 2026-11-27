@@ -57,6 +57,7 @@ import type {
 import { VARIANT_KINDS, showFromYaml, variantNamesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
 import { flattenLangTree } from "@/lib/langTree";
+import { PALETTE_FILE } from "@/lib/pack/palette";
 import { MODULE_FILE_NAMES, YAML_EXT, isYamlPath, yamlFilesUnder, yamlStem } from "@/lib/yamlFiles";
 import { parse as parseYaml } from "yaml";
 import { mergeCommandVariant } from "./commandVariant";
@@ -620,6 +621,11 @@ export function projectFromFiles(
     if (!isOriginalPath(e.path)) unreadFiles[e.path] = getFile(files, projectId, e.path) ?? "";
     console.warn(`[projectFromFiles] ${projectId}: ${e.path} not read (${e.reason})`);
   }
+  // A theme's or the library's palette is a file no view of the Project edits (it is written from
+  // the server's Resources, `writeDraftFile`): carried as it is, or a save of the Project open in
+  // this tab would take it off.
+  const palette = getFile(files, projectId, PALETTE_FILE);
+  if (palette !== null) unreadFiles[PALETTE_FILE] = palette;
   // Variants (design `variantes-modules`, `domain/variants.ts`): their menus and dialogs
   // read like the module's, its commands on the module's (`commandVariant.ts`), the rules from
   // `variants.yml` (the owner's, else the module's in `originals/`). Any other kind, or a

@@ -63,7 +63,9 @@ describe("ResourcePlaces", () => {
     expect(
       within(screen.getByTestId("place-theme-noel")).getByText("2 images"),
     ).toBeInTheDocument();
-    expect(within(screen.getByTestId("place-theme-ete")).getByText("rangé")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("place-theme-ete")).getByText("désactivé"),
+    ).toBeInTheDocument();
     // A theme and the server's own theme are no module.
     const modules = within(screen.getByTestId("places-modules"));
     expect(modules.getAllByTestId(/^place-/).map((row) => row.textContent)).toEqual([
@@ -123,7 +125,7 @@ describe("ResourcePlaces", () => {
     render(<ResourcePlaces serverId="s" serverKeyId="key" selected={null} />);
     fireEvent.click(
       within(screen.getByTestId("place-theme-ete")).getByRole("button", {
-        name: "Mettre en place",
+        name: "Activer",
       }),
     );
     await waitFor(() =>
@@ -135,7 +137,7 @@ describe("ResourcePlaces", () => {
       expect(useKitStore.getState().themes).toEqual(["halloween", "noel", "ete"]),
     );
     fireEvent.click(
-      within(screen.getByTestId("place-theme-noel")).getByRole("button", { name: "Ranger" }),
+      within(screen.getByTestId("place-theme-noel")).getByRole("button", { name: "Désactiver" }),
     );
     await waitFor(() =>
       expect(api.patchServerConfig).toHaveBeenLastCalledWith("key", {
@@ -150,7 +152,7 @@ describe("ResourcePlaces", () => {
     render(<ResourcePlaces serverId="s" serverKeyId="key" selected={null} />);
     const gone = within(screen.getByTestId("place-theme-gone"));
     expect(gone.getByText("Introuvable")).toBeInTheDocument();
-    fireEvent.click(gone.getByRole("button", { name: "Ranger" }));
+    fireEvent.click(gone.getByRole("button", { name: "Désactiver" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("server_offline");
   });
 
@@ -158,10 +160,10 @@ describe("ResourcePlaces", () => {
     const onSettings = vi.fn();
     const { rerender } = render(<ThemeBar name="noel" onSettings={onSettings} />);
     expect(screen.getByTestId("theme-bar")).toHaveTextContent("Thème « noel »");
-    expect(screen.getByText("en place")).toBeInTheDocument();
+    expect(screen.getByText("actif")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Aperçu et réglages du thème" }));
     expect(onSettings).toHaveBeenCalledWith("noel");
     rerender(<ThemeBar name="ete" onSettings={onSettings} />);
-    expect(screen.getByText("rangé")).toBeInTheDocument();
+    expect(screen.getByText("désactivé")).toBeInTheDocument();
   });
 });
