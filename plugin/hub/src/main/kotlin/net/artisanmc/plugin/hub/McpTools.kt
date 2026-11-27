@@ -138,7 +138,8 @@ class McpTools(
             "write_document", "Write a document in a draft",
             "Writes (or, with delete: true, removes) one file in a draft. The file is checked by the Project's server first (path, YAML, " +
                 "JSON schema, engine load): when a check fails, the draft is left unchanged and the problems come back, to fix and retry. " +
-                "Write the whole file, not a patch.",
+                "Write the whole file, not a patch. `palette.yml` at the root of a theme or of the library gives the names a tint writes " +
+                "their colours (primary: \"#b3261e\"): the one file a theme takes besides its images.",
             schema(
                 "project" to PROJECT, "draft_id" to string("The draft from start_draft."), "path" to PATH,
                 "content" to string("The file's full YAML text."), "delete" to mapOf("type" to "boolean", "description" to "Remove the file instead."),
@@ -738,12 +739,23 @@ class McpTools(
         if (!contentPath(path)) throw McpRefusal("invalid_path", "'$path' is not a path a Project file can have.")
         if (Originals.isOriginal(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
         if (content != null && content.length > MAX_FILE) throw McpRefusal("too_large", "A file is at most $MAX_FILE characters.")
-        // A theme holds images and no Document: a file it still has can only be removed.
+        // A theme holds images, its palette and no Document: another file it still has can only be removed.
         val ownTheme = isOwnTheme(project)
-        if (ownTheme && !delete) throw McpRefusal(
+        if (ownTheme && !delete && path != Palette.FILE) throw McpRefusal(
             "invalid_path",
-            "A theme holds its drawings of the common images (write_image): the server reads no other file from it.",
+            "A theme holds its drawings of the common images (write_image) and its colours (${Palette.FILE}, a map of names to " +
+                "\"#rrggbb\"): the server reads no other file from it.",
         )
+        // The colours a tint names, in a theme or in the library: an entry the pack would leave out is refused here.
+        if (path == Palette.FILE && content != null) {
+            val wrong = Palette.problems(content)
+            if (wrong.isNotEmpty()) return Refused(mapOf(
+                "written" to false,
+                "path" to path,
+                "problems" to wrong.map { mapOf("path" to path, "message" to it) },
+                "hint" to "The draft is unchanged. A palette is a map of names to colours, e.g. primary: \"#b3261e\".",
+            ))
+        }
         val draft = draftSnapshot(principal, project, draftId)
         if (delete && path !in draft.tree) throw McpRefusal("not_found", "No file '$path' in draft $draftId.")
         val tree = if (content == null) draft.tree - path else draft.tree + (path to content)

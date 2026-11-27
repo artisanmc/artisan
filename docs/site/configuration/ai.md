@@ -245,6 +245,10 @@ or a tint that is no `#rrggbb` colour, leaves the layer as drawn: the review bef
 deployment lists such layers. An assistant writes a tint with `write_image` (`tint` on a layer
 of `compose`). In the editor it is the **Tint** field of the selected layer.
 
+An assistant sets the colours themselves with `write_document` on `palette.yml`, in a theme's
+draft or the library's: the one file a theme takes besides its images. An entry that is no
+name or no `"#rrggbb"` colour is refused with its reason.
+
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").
 

@@ -596,6 +596,19 @@ class McpTest {
         val table = theme("write_document", "path" to "overrides/colors.yml", "content" to "colors:\n  \"#3c8527\": \"#b3261e\"\n")
         assertTrue(table["isError"].asBoolean() && "write_image" in table["structuredContent"]["message"].asText(), table.toString())
         assertTrue(theme("write_document", "path" to "menus/x.yml", "content" to "schema: menu/v1\n")["isError"].asBoolean())
+        // Its palette is the one file it takes besides its images; an entry the pack would leave out is refused.
+        val badPalette = theme("write_document", "path" to "palette.yml", "content" to "primary: red\nBad Name: \"#112233\"\n")
+        assertTrue(badPalette["isError"].asBoolean(), badPalette.toString())
+        assertEquals(2, badPalette["structuredContent"]["problems"].size(), badPalette.toString())
+        assertTrue(theme("write_document", "path" to "palette.yml", "content" to "- primary\n")["isError"].asBoolean())
+        val palette = theme("write_document", "path" to "palette.yml", "content" to "primary: \"#b3261e\"\n")
+        assertFalse(palette.has("isError"), palette.toString())
+        assertFalse(theme("write_document", "path" to "palette.yml", "delete" to true).has("isError"))
+        // The library takes one the same way: the colours under every theme.
+        assertTrue(kit("write_document", "path" to "palette.yml", "content" to "primary: blue\n")["isError"].asBoolean())
+        val libraryPalette = kit("write_document", "path" to "palette.yml", "content" to "warning: \"#aa5500\"\n")
+        assertFalse(libraryPalette.has("isError"), libraryPalette.toString())
+        assertFalse(kit("write_document", "path" to "palette.yml", "delete" to true).has("isError"))
         // The former place, in the common images, is no longer written.
         val formerImage = kit("write_image", "name" to "cell", "theme" to "noel", "png_base64" to png(18, 18, 0x112233))
         assertTrue(formerImage["isError"].asBoolean() && "Project of its own" in formerImage["structuredContent"]["message"].asText(), formerImage.toString())

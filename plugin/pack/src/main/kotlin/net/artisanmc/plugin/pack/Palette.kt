@@ -49,6 +49,22 @@ class Palette private constructor(private val places: List<Map<String, String>>)
             return out
         }
 
+        /**
+         * What is wrong in [content] as a `palette.yml`, one line an entry [read] would leave out;
+         * empty when every entry is a name and a colour.
+         */
+        fun problems(content: String): List<String> {
+            val read = Yaml.parseOrNull(content) as? Map<*, *>
+                ?: return listOf("A palette is a map of names to colours: primary: \"#3b82f6\".")
+            return read.mapNotNull { (name, value) ->
+                when {
+                    name !is String || !NAME.matches(name) -> "'$name' is not a colour name: lowercase letters, digits, - and _."
+                    value !is String || !COLOUR.matches(value) -> "'$name' needs a colour written \"#rrggbb\", in quotes."
+                    else -> null
+                }
+            }
+        }
+
         /** The palettes [files] (each the text of a `palette.yml`, the highest place first, an absent file as null) as one, over the default one. */
         fun of(files: List<String?>): Palette = Palette(files.filterNotNull().map(::read))
 
