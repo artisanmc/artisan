@@ -51,8 +51,8 @@ describe("ResourcePlaces", () => {
     });
   });
 
-  it("lists the places in the order a name is looked up: themes from the highest, the server's, then modules and the base", () => {
-    render(<ResourcePlaces serverId="s" serverKeyId="key" selected={{ kind: "base" }} />);
+  it("lists the places in the order a name is looked up: themes from the highest, the base, then modules", () => {
+    render(<ResourcePlaces serverId="s" serverKeyId="key" selected={{ kind: "server" }} />);
     const themes = within(screen.getByTestId("places-themes"));
     expect(themes.getAllByTestId(/^place-/).map((row) => row.getAttribute("data-testid"))).toEqual([
       "place-theme-noel",
@@ -70,8 +70,10 @@ describe("ResourcePlaces", () => {
       "Boutique",
       "Guildes",
     ]);
-    expect(screen.getByTestId("place-base")).toHaveAttribute("aria-current", "true");
-    expect(screen.getByTestId("place-server")).not.toHaveAttribute("aria-current");
+    // Artisan's images and the server's are one place.
+    expect(screen.queryByTestId("places-base")).toBeNull();
+    expect(screen.getByTestId("place-server")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByTestId("place-server")).toHaveTextContent("Base");
   });
 
   it("opens a theme, a module and the server's theme in their Project, a theme the common images keep on its page", async () => {
@@ -96,7 +98,7 @@ describe("ResourcePlaces", () => {
       params: { serverId: "s", projectId: "srv.guilds" },
       search: { tab: "resources" },
     });
-    fireEvent.click(within(screen.getByTestId("place-server")).getByText("Thème du serveur"));
+    fireEvent.click(within(screen.getByTestId("place-server")).getByText("Base"));
     expect(api.navigate).toHaveBeenLastCalledWith(
       expect.objectContaining({ params: { serverId: "s", projectId: "srv.artisan" } }),
     );
@@ -113,11 +115,6 @@ describe("ResourcePlaces", () => {
       to: "/servers/$serverId/resources",
       params: { serverId: "s" },
       search: { theme: "hiver" },
-    });
-    fireEvent.click(within(screen.getByTestId("place-base")).getByText("Artisan"));
-    expect(api.navigate).toHaveBeenLastCalledWith({
-      to: "/servers/$serverId/resources",
-      params: { serverId: "s" },
     });
   });
 

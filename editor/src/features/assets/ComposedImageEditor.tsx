@@ -576,7 +576,12 @@ export function ComposedImageEditor({
           },
         );
         const next = drawing.draft
-          ? await uploadAsset(projectId, { file, type: "glyph", name, usages: [] })
+          ? await uploadAsset(projectId, {
+              file,
+              type: type === "texture" ? "texture" : "glyph",
+              name,
+              usages: [],
+            })
           : await uploadAsset(projectId, { file, type, name, retouch: true });
         history.written(id, next);
         upsertAsset(next);
@@ -629,7 +634,8 @@ export function ComposedImageEditor({
         ...asset,
         id: `draft:${name}`,
         name,
-        type: "glyph",
+        // A layer drawn here is of the image's kind, in the same folder.
+        type: asset.type === "texture" ? "texture" : "glyph",
         ...side,
         ascent: null,
         contentHash: "",

@@ -12,9 +12,16 @@ import { assetBytes } from "./assetBytes";
  * `flatten` goes back to a single PNG.
  */
 
-/** Whether `asset` is a PNG that can be given layers: an image with a file, drawn as a glyph. */
+/**
+ * Whether `asset` is a PNG that can be given layers: any image with a file, a texture as much as
+ * a glyph. A font is a set of glyphs, not one picture.
+ */
 export const canHaveLayers = (asset: Asset): boolean =>
-  asset.type === "glyph" && !asset.compose && asset.width > 0 && asset.height > 0;
+  asset.type !== "font" && !asset.compose && asset.width > 0 && asset.height > 0;
+
+/** The type an image made of `asset` keeps: its layers and what it becomes stay of its kind. */
+const kindOf = (asset: Asset): "glyph" | "texture" =>
+  asset.type === "texture" ? "texture" : "glyph";
 
 /** A free name for the layer that holds `asset`'s pixels (a kit piece's dots are not a name's). */
 export function layerName(asset: Asset, taken: ReadonlySet<string>): string {
@@ -54,7 +61,7 @@ export async function toLayers(
     const png = await assetBytes(asset);
     layer = await uploadAsset(projectId, {
       file: new File([png as Uint8Array<ArrayBuffer>], `${name}.png`, { type: "image/png" }),
-      type: "glyph",
+      type: kindOf(asset),
       name,
       usages: [],
       ...ascent,
@@ -64,6 +71,7 @@ export async function toLayers(
   }
   try {
     const image = await composeAsset(projectId, {
+      type: kindOf(asset),
       name: asset.name,
       recipe: recipe(layer.name),
       usages,
@@ -106,13 +114,19 @@ export async function flatten(projectId: string, asset: Asset): Promise<Asset> {
   try {
     return await uploadAsset(projectId, {
       file: new File([png as Uint8Array<ArrayBuffer>], `${asset.name}.png`, { type: "image/png" }),
-      type: "glyph",
+      type: kindOf(asset),
       name: asset.name,
       usages,
       ...ascent,
     });
   } catch (cause) {
-    await composeAsset(projectId, { name: asset.name, recipe, usages, ...ascent }).catch(() => {});
+    await composeAsset(projectId, {
+      type: kindOf(asset),
+      name: asset.name,
+      recipe,
+      usages,
+      ...ascent,
+    }).catch(() => {});
     throw cause;
   }
 }

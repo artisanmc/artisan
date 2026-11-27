@@ -16,9 +16,9 @@ export default {
   onboarding: onboardingEn,
   resources: {
     group: {
-      own: "This server's",
-      shippedArtisan: "Shipped with Artisan",
-      shippedModule: "Shipped with the module",
+      own: "Added or changed on this server",
+      shippedArtisan: "Shipped with Artisan, unchanged",
+      shippedModule: "Shipped with the module, unchanged",
     },
     mark: {
       otherSize: "Other size than the module's original it replaces",
@@ -360,17 +360,8 @@ export default {
     hintThemes:
       "Images every server has, the ones this server made common, then the themes' own images, named with their theme: one of those shows as long as the server has its theme. The menu names the image: nothing is copied.",
     page: {
-      title: "Artisan's base",
-      intro:
-        "The images Artisan ships to every server, looked up last. A menu names one by its name; an image of the same name in a theme of the server replaces it wherever it is named.",
-      none: "This server's Artisan is older than the common images: every piece is Artisan's. Update it to redraw one.",
       open: "Open the server's images",
       noTheme: "No theme",
-      family: {
-        buttons: "Buttons",
-        frames: "Windows, panels, values",
-        controls: "Arrows and controls",
-      },
       shipped: "Artisan",
       redrawn: "Redrawn",
       misfit: "Other size",
@@ -381,14 +372,6 @@ export default {
         "Delete this server's {{name}}? Menus show Artisan's original again once deployed.",
       misfitDetail:
         "Other size than the one it replaces: this image is {{width}} × {{height}} px, the piece {{pieceWidth}} × {{pieceHeight}} px. It is taken as it is: a menu laid out for the piece may look off.",
-      others: "This server's own images",
-      noOthers: "None yet. An image added here is named by its name in any menu of the server.",
-      inMenu: "In a menu",
-      inMenuHint:
-        "Every piece set on one window, as players see it. Click a piece to open it in the atelier of the server's common images.",
-      inMenuHintNoKit: "Every piece set on one window, as players see it.",
-      redrawnCount_one: "{{count}} piece redrawn out of {{total}}",
-      redrawnCount_other: "{{count}} pieces redrawn out of {{total}}",
       menusNaming_one: "{{count}} menu names a common image",
       menusNaming_other: "{{count}} menus name a common image",
       usedBy_one: "{{count}} menu names it",
@@ -578,9 +561,11 @@ export default {
     label: "Places of the resources",
     themes: "Server themes",
     themesHint:
-      "Looked up from the top down: the first that has the image wins. A module that has its own image keeps it.",
-    server: "Server theme",
-    serverHint: "always in place, below the others",
+      "Looked up from top to bottom: the first that has the image wins, the base last. A module that has its own image keeps it.",
+    server: "Base",
+    serverHint: "Artisan's and this server's: always in place, under the themes",
+    pick: "Pick a place on the left.",
+    opening: "Opening the base…",
     away: "put away",
     putAway: "Put away",
     putInPlace: "Put in place",
@@ -593,8 +578,6 @@ export default {
     modules: "Modules",
     modulesHint: "Their own images, seen in their menus only.",
     noModules: "No module on this server.",
-    base: "Base",
-    baseHint: "last, read only",
     themeSettings: "Preview and settings of the theme",
     themeAway: "put away",
     themeInPlace: "in place",

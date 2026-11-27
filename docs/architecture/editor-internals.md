@@ -131,11 +131,11 @@ name is looked up, beside the place that is open. It is drawn by the server page
 (`ProjectCanvasPage`), with the same content: the themes in place the highest first (dragged
 to reorder: `themesMoved` turns a move on the screen into the server's list; put away or put
 in place: `themeChange`), the server's own theme (`artisan`), the themes put away, the
-modules, the base. It writes `resource-pack.themes` itself and rebuilds the pack. A click
+modules. Artisan's base and the server's own theme are one place, **Base** (the theme `artisan`'s Project). It writes `resource-pack.themes` itself and rebuilds the pack. A click
 navigates: a theme of its own folder, a module or the server's theme to its Project's Resources (a
 theme the common images still keep to `?theme=<name>` of the server's route, its
-`KitThemePage`, which `ThemeBar` also leads to), the base to the server's route without
-`?theme` (`KitPage`). What imports a theme is given by the route (`themeImporter`, a
+`KitThemePage`, which `ThemeBar` also leads to). The server's route without `?theme` leads
+to the base's Project; the page of the base by families with its trial menu (`KitPage`) is gone. What imports a theme is given by the route (`themeImporter`, a
 `ThemeImporter`), since `features/project` does not import `features/import`. A theme created
 or imported bumps `useServerIndexRereads`, which both pages add to their re-read of the
 server index.
@@ -162,7 +162,7 @@ composed image's name, a file's path) and is listed without a link (`imageUseNam
 reference counts by the rule a menu is read with (`imageNamedBy`): `artisan:` and `kit:` are
 the common image, a name alone the module's own image then the common one, `<folder>:<name>`
 the image of the module in that folder. `CommonAssets` lists these uses
-(`onOpenMenu` opens a menu), `KitPage` shows the number of menus per common image.
+(`onOpenMenu` opens a menu).
 A server's image of a base piece's name at another size than the piece's is taken as it is
 (ADR `resources-one-screen`, decision 4: the pack and `kitAssetsOf` show it, at its own size);
 `kitMisfits` (`kitAssets.ts`) lists these with their
