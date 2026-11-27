@@ -117,7 +117,7 @@ class McpTools(
             "Creates a new, empty theme on a server: another look for its common images, for a season or an event (survey_ui's " +
                 "`themes_format`). Only when the player asks for a new theme. It changes nothing until a draft of it is deployed and " +
                 "the player puts it in place: next, start_draft on its id, `<server id>.<name>`, then write_image for each common " +
-                "image it redraws.",
+                "image it redraws, or for a module's own image it replaces (`name: <module>:<image>`).",
             schema(
                 "server" to string("A server id from artisan_overview."),
                 "name" to string("The theme's name: lowercase letters, digits, `_` and `-`, starting with a letter or a digit, e.g. `noel`. Not a module's name."),
@@ -259,7 +259,7 @@ class McpTools(
                         "$KIT_PROJECT: a theme's name (`noel`). The image is then that theme's own drawing of the common image `name` (of the base, or " +
                         "the server's), shown in its place while this theme is in place on the server. It has to be of that image's size; drawn with " +
                         "pixels, png_base64 or from. Where a theme is a Project of its own, write in a draft of that Project instead, without `theme`: " +
-                        "`name` is the common image it redraws.",
+                        "`name` is the common image it redraws, or `<module>:<image>` for a module's own image it replaces for that module alone.",
                 ),
                 "delete" to mapOf("type" to "boolean", "description" to "Remove the image instead."),
                 required = listOf("project", "draft_id", "name"),
@@ -684,7 +684,8 @@ class McpTools(
         val created = projects.create(principal, server, name, theme = true)
         return mapOf(
             "project" to created.id, "created" to true, "theme" to name,
-            "next" to "start_draft on ${created.id}; write_image (name: the common image) for each image it redraws; " +
+            "next" to "start_draft on ${created.id}; write_image (name: the common image) for each image it redraws, " +
+                "or name: `<module>:<image>` for a module's own image it replaces; " +
                 " render_menu with theme: \"$name\" and theme_draft_id shows a menu in it. The player deploys the draft, then puts the theme in place.",
         )
     }
@@ -906,8 +907,17 @@ class McpTools(
             hashes.keys.filter { it.endsWith(".png") && it.substringBeforeLast('/') in OWN_ROOTS && hashes[it] != null }
                 .map { it.substringAfterLast('/').removeSuffix(".png") }.distinct().sorted()
 
-        /** The image [name], drawn when it is a composed one ([composed]). A module's own image is the module's: no theme changes it. */
-        fun image(name: String, kit: KitView): MenuPictureImage? = png(name) ?: composed(name, kit)
+        /**
+         * The image [name], drawn when it is a composed one ([composed]). A module's own PNG is
+         * shown as the themes of [kit] draw it for this module (`overrides/<module>/<image>.png`,
+         * ADR `themes-reach-modules`, decision 3), like the pack; a composed one is not.
+         */
+        fun image(name: String, kit: KitView): MenuPictureImage? {
+            val own = png(name) ?: return composed(name, kit)
+            if (project.folder == KIT_FOLDER) return own
+            val shown = kit.theme?.shownIn(project.folder, name, own.png) ?: return own
+            return if (shown === own.png) own else MenuPictureImage(shown, own.ascent)
+        }
 
         /**
          * The composed image [name] as the pack assembles it: its `kit:` layers as [kit] shows them,
@@ -1370,6 +1380,8 @@ class McpTools(
                     themed.themeNamed(name)?.let {
                         mapOf(
                             "name" to name, "redraws" to it.drawings.sorted().ifEmpty { null },
+                            // The modules' own images it replaces, each as write_image names it (`<module>:<image>`).
+                            "module_images" to it.moduleImages.ifEmpty { null },
                             // A theme of its own folder is a Project of its name.
                             "project" to name.takeIf { n -> n in themes }?.let { n -> ProjectRef.id(server.id, n) },
                             // Its own images, each as a menu names it (`<theme>:<image>`).
@@ -1602,16 +1614,11 @@ class McpTools(
         )
         val draft = draftSnapshot(principal, project, draftId)
         val binaryTree = draft.json.path("binaryTree").fields().asSequence().associate { it.key to it.value }
-        // `artisan:<image>` is the common image too. A redraw aimed at a module (`<module>:<image>`), which a theme
-        // once held, is no longer read: it can only be removed.
+        // `artisan:<image>` is the common image too. `<module>:<image>` is that module's own image, which the
+        // theme replaces for that module alone (ADR `themes-reach-modules`, decision 3).
         val common = if (own) Kit.nameOf(name) else null
         val module = if (own && common == null && ':' in name) name.substringBefore(':').takeIf { it.isNotEmpty() } else null
         val image = common ?: if (module != null) name.substringAfter(':') else name
-        if (module != null && !args.path("delete").asBoolean(false)) throw McpRefusal(
-            "invalid_input",
-            "A theme changes the common images, by their name alone: the image `$image` of the module `$module` is the module's, " +
-                "so write it in a draft of that module (write_image, project: the module).",
-        )
         // In the common images, a texture wins over a glyph of the same name: written there, and the other leaves.
         val paths = when {
             module != null -> listOf("${KitTheme.OVERRIDES_DIR}$module/$image.png")
@@ -1625,9 +1632,18 @@ class McpTools(
             val revision = updateDraft(principal, project, draftId, draft, draft.tree, binaryTree - existing.toSet())
             return mapOf("written" to true, "deleted" to true, "path" to existing.first(), "theme" to theme, "draft_id" to draftId, "revision" to revision)
         }
-        // The image redrawn, for its size: the common images' as deployed, or as this draft of them has it.
-        val what = "common image `$image`"
-        val (width, height) = KitView({ if (own) deployed(project.server, KIT_FOLDER) else Images(project, projects.read(project), draft) }, emptyList()).image(image)
+        // The image redrawn, for its size: the module's as deployed; the common images' as deployed, or as
+        // this draft of them has it.
+        val what = if (module != null) "image `$image` of the module `$module`" else "common image `$image`"
+        val (width, height) = if (module != null) {
+            val holder = module.takeIf { it !in themeFolders(project.server) }?.let { deployed(project.server, it) }
+            holder?.png(image)?.png?.let { runCatching { net.artisanmc.plugin.pack.Png.decode(it) }.getOrNull() }?.let { it.width to it.height }
+                ?: throw McpRefusal(
+                    "not_found",
+                    "No image '$image' in a module '$module' of the server, as deployed: a theme replaces a module's own drawn image " +
+                        "(survey_ui lists each module's), named `<module>:<image>`. A composed image is not replaced: redraw its layers.",
+                )
+        } else KitView({ if (own) deployed(project.server, KIT_FOLDER) else Images(project, projects.read(project), draft) }, emptyList()).image(image)
             ?.let { it.width to it.height }
             ?: throw McpRefusal(
                 "not_found",
@@ -1660,7 +1676,7 @@ class McpTools(
             mapOf(
                 "written" to true, "path" to paths.first(), "theme" to theme, "replaced" to existing.isNotEmpty(), "draft_id" to draftId, "revision" to revision,
                 "hash" to hash, "shown_at" to "x${McpImages.scale(drawn)}",
-                "use_it" to "Every menu that names the $what shows this image while the theme `$theme` is in place on the server, unless a theme above it redraws the image too: the player puts " +
+                "use_it" to "Every menu that ${if (module != null) "shows" else "names"} the $what shows this image while the theme `$theme` is in place on the server, unless a theme above it redraws the image too: the player puts " +
                     "the theme in place from its page in the editor, once the draft is deployed. render_menu with theme: \"$theme\" and ${if (own) "theme_draft_id" else "common_draft_id"}: \"$draftId\" shows a menu in it now.",
             ) + mapOf("other_size" to otherSize).filterValues { it != null } + McpImages.facts(drawn) + cut?.facts.orEmpty(),
             listOf(McpImages.preview(drawn)),
