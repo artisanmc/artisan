@@ -30,6 +30,7 @@ The code wins over any doc. A doc that contradicts the code is a bug: fix the do
 | Where an image lives (a module's, common to the server), how a menu names it, what a theme is | `decisions/common-images-and-themes.md` (decided, not built yet; today's code: `decisions/mcp-server.md`, decisions 12 to 16) |
 | The one rule that finds an image (module, the server's themes, the base), the Resources screen as a tree, Save as | `decisions/resources-one-screen.md` (accepted 2026-11-26, not built; amends `common-images-and-themes`) |
 | Can a theme change a module's image, where an added image goes, what an exported module carries | `decisions/themes-reach-modules.md` (accepted 2026-11-27, step 1 built; amends `resources-one-screen`) |
+| How a component (a button) takes a colour, what a theme's palette is | `decisions/component-colours.md` (proposed 2026-11-27, nothing built) |
 | How a button is made of several pieces (background, icon, labels), drawn at any width, and shared as a component | `decisions/element-parts-and-sliced-images.md` (proposed, not built; today: `image` and `label` of `schema/menu/v1/`) |
 | Schema versions, protocol version, changelog rules | `architecture/versioning.md`, `changelog.d/README.md` |
 | The JSON schema of a Document kind | `schema/<kind>/v1/` (+ `architecture/schemas-codegen.md`) |
