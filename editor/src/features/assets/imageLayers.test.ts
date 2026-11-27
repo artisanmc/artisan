@@ -36,11 +36,26 @@ describe("image layers", () => {
     for (const mock of [patchAsset, composeAsset, deleteAsset, uploadAsset]) mock.mockReset();
   });
 
-  it("offers layers to a PNG drawn as a glyph only", () => {
+  it("offers layers to any PNG, a texture as much as a glyph, never to a font", () => {
     expect(canHaveLayers(image("go"))).toBe(true);
     expect(canHaveLayers(image("go", { compose: recipe }))).toBe(false);
-    expect(canHaveLayers(image("go", { type: "texture" }))).toBe(false);
+    expect(canHaveLayers(image("go", { type: "texture" }))).toBe(true);
     expect(canHaveLayers(image("go", { type: "font", width: 0, height: 0 }))).toBe(false);
+    expect(canHaveLayers(image("go", { type: "font" }))).toBe(false);
+  });
+
+  it("keeps a texture a texture: its layer, the image it becomes, and its PNG once flattened", async () => {
+    const texture = image("gem", { type: "texture", ascent: null, usages: [] });
+    patchAsset.mockResolvedValue({ ...texture, name: "gem_layer" });
+    composeAsset.mockResolvedValue({ ...texture, compose: recipe });
+    await toLayers("p1", texture, new Set(["gem"]));
+    expect(composeAsset.mock.calls[0]?.[1]).toMatchObject({ name: "gem", type: "texture" });
+    expect(composeAsset.mock.calls[0]?.[1]).not.toHaveProperty("ascent");
+
+    const composed = { ...texture, compose: recipe, previewUrl: "data:image/png;base64,AQID" };
+    uploadAsset.mockResolvedValue(texture);
+    await flatten("p1", composed);
+    expect(uploadAsset.mock.calls[0]?.[1]).toMatchObject({ name: "gem", type: "texture" });
   });
 
   it("names the layer after the image, free, without a kit piece's dots", () => {
@@ -55,6 +70,7 @@ describe("image layers", () => {
     const made = await toLayers("p1", image("go"), new Set(["go"]));
     expect(patchAsset).toHaveBeenCalledWith("p1", "go", { name: "go_layer", usages: [] });
     expect(composeAsset).toHaveBeenCalledWith("p1", {
+      type: "glyph",
       name: "go",
       recipe: {
         width: null,
@@ -136,6 +152,7 @@ describe("image layers", () => {
     composeAsset.mockResolvedValue(composed);
     await expect(flatten("p1", composed)).rejects.toThrow("offline");
     expect(composeAsset).toHaveBeenCalledWith("p1", {
+      type: "glyph",
       name: "go",
       recipe,
       usages: ["button"],

@@ -141,18 +141,24 @@ export async function copyAsset(
 
 /**
  * Creates a composed image (`lib/pack/compose.ts`): a recipe the resource pack assembles, with
- * no file. A glyph like every image made here, so that a menu's title may take it too.
+ * no file. A glyph unless `type` says a texture: an image given layers keeps its kind.
  */
 export async function composeAsset(
   projectId: string,
-  input: { name: string; recipe: ComposeRecipe; usages?: AssetUsage[]; ascent?: number },
+  input: {
+    name: string;
+    recipe: ComposeRecipe;
+    usages?: AssetUsage[];
+    ascent?: number;
+    type?: "glyph" | "texture";
+  },
 ): Promise<Asset> {
   return (
     await mutate(projectId, {
       suffix: "",
       method: "POST",
       fields: {
-        type: "glyph",
+        type: input.type ?? "glyph",
         name: input.name,
         compose: JSON.stringify(input.recipe),
         ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),
