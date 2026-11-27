@@ -283,6 +283,19 @@ object ResourcePackBuilder {
         }
         if (kitGlyphs.isNotEmpty()) contribs += Kit.FOLDER to kitGlyphs
 
+        // The use decides, not the folder an image is filed in: a module's image of
+        // `assets/textures/` a title is drawn with is a glyph of the menu font too, after the
+        // modules' glyphs and the common images'. Without an ascent of its own, a background
+        // sits under the title bar, at Y 17: where the editor and the Bedrock pack draw it
+        // (`13 - ascent`, so -4).
+        val titled = titleImages.mapTo(HashSet()) { (folder, ref) -> names.resolve(folder, ref) }
+        fun asTitleGlyph(row: AssetRow) = row.copy(type = "glyph", ascent = -4.0, codepoint = CODEPOINT_MIN.toDouble())
+        val titledTextures = allAssets.indices
+            .filter { allAssets[it].type == "texture" && allAssets[it].id in titled && allAssets[it].id in glyphPngs }
+            .sortedBy { allAssets[it].id }
+        for (i in titledTextures) allAssets[i] = asTitleGlyph(allAssets[i])
+        if (titledTextures.isNotEmpty()) contribs += "" to titledTextures.map { allAssets[it].id to CODEPOINT_MIN.toDouble() }
+
         // The themes' own images that are named, as their files are: a glyph keeps its descriptor,
         // and its codepoint comes after the modules' and the common images'.
         val namedOwn = (
@@ -292,12 +305,17 @@ object ResourcePackBuilder {
         val themeGlyphs = LinkedHashMap<String, ArrayList<Pair<String, Double>>>()
         for (id in namedOwn.sorted()) {
             val (project, folder, asset) = themeOwn.getValue(id)
-            val row = asset.row.copy(id = id, name = ImageNames.themePath(folder, asset.row.name))
+            var row = asset.row.copy(id = id, name = ImageNames.themePath(folder, asset.row.name))
             allAssets += row
             // As a module's: a glyph without a codepoint is in the index, and no PNG of the pack.
-            val codepoint = row.codepoint
-            if (row.type == "glyph" && codepoint == null) continue
+            if (row.type == "glyph" && row.codepoint == null) continue
             glyphPngs[id] = project.binary(asset.path) ?: continue
+            // A theme's texture a title is drawn with is a glyph, as a module's is.
+            if (row.type == "texture" && id in titled) {
+                row = asTitleGlyph(row)
+                allAssets[allAssets.lastIndex] = row
+            }
+            val codepoint = row.codepoint
             if (row.type == "glyph" && codepoint != null) themeGlyphs.getOrPut(project.id) { ArrayList() } += id to codepoint
         }
         for ((projectId, glyphs) in themeGlyphs) contribs += projectId to glyphs

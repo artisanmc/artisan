@@ -97,6 +97,9 @@ export interface ServerPacks extends BuildResult {
  * Project order: by id, stable from one build to the next; the first one wins codepoint
  * collisions.
  */
+/** The ascent of an image of `assets/textures/` a title is drawn with: its top at Y 17. */
+const TITLED_ASCENT = -4;
+
 export async function assembleServerPack(input: PackInput): Promise<ServerPacks> {
   const folderOf = (project: PackProject) => project.folder ?? project.id;
   // The common images (`kit.ts`): the server's by name, and the base as the server holds it.
@@ -394,6 +397,26 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   }
   if (kitGlyphs.length > 0) contribs.push({ projectId: KIT_FOLDER, glyphs: kitGlyphs });
 
+  // The use decides, not the folder an image is filed in: a module's image of `assets/textures/`
+  // a title is drawn with is a glyph of the menu font too, after the modules' glyphs and the
+  // common images'. Without an ascent of its own, a background sits under the title bar, at
+  // Y 17: where the canvas and the Bedrock pack draw it (`13 - ascent`, so -4).
+  const titled = new Set(titleImages.map(({ folder, ref }) => names.resolve(folder, ref)));
+  const asTitleGlyph = (row: AssetRow) => {
+    row.type = "glyph";
+    row.ascent = TITLED_ASCENT;
+    row.codepoint = CODEPOINT_MIN;
+  };
+  const titledTextures = allAssets
+    .filter((row) => row.type === "texture" && titled.has(row.id) && glyphPngs.has(row.id))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const row of titledTextures) asTitleGlyph(row);
+  if (titledTextures.length > 0)
+    contribs.push({
+      projectId: "",
+      glyphs: titledTextures.map((row) => ({ assetId: row.id, codepoint: CODEPOINT_MIN })),
+    });
+
   // The themes' own images that are named, as their files are: a glyph keeps its descriptor,
   // and its codepoint comes after the modules' and the common images'.
   const namedOwn = new Set<string>();
@@ -414,6 +437,8 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     const bytes = await project.binary(asset.path);
     if (!bytes) continue;
     glyphPngs.set(id, bytes);
+    // A theme's texture a title is drawn with is a glyph, as a module's is.
+    if (row.type === "texture" && titled.has(id)) asTitleGlyph(row);
     if (row.type === "glyph" && row.codepoint !== null) {
       const glyphs = themeGlyphs.get(project.id) ?? [];
       glyphs.push({ assetId: id, codepoint: row.codepoint });
