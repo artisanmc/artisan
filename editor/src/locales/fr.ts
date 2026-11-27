@@ -126,11 +126,15 @@ const fr: typeof en = {
     create: "Créer",
     empty:
       "Aucun composant pour l’instant. Créez-en un ici, ou enregistrez les pièces d’un bouton comme composant depuis ses propriétés.",
+    shipped: "Livrés, non modifiés",
+    shippedHint:
+      "Ce composant est livré tel quel. Le modifier écrit votre version, qui le remplace ; vous pourrez revenir à l’original.",
+    restore: "Revenir à l’original",
     back: "Composants",
     shownOn: "Montré sur {{width}} × {{height}} emplacements",
     drag: "Déplacer la pièce sélectionnée",
     dragHint:
-      "Glissez sur le menu pour déplacer la pièce sélectionnée ; les flèches la déplacent d'un pixel. Choisissez la pièce dans la liste.",
+      "Glissez sur le composant pour déplacer la pièce sélectionnée ; les flèches la déplacent d'un pixel. Choisissez la pièce dans la liste.",
     noPiece: "Ajoutez une image ou un texte dans Pièces.",
     params: "Paramètres",
     paramsHint:

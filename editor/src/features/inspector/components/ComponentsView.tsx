@@ -5,10 +5,13 @@ import { imageButtonRect } from "@/domain/imageButton";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { StudioFrame } from "@/features/assets/StudioFrame";
 import { TEX_SCALE } from "@/features/canvas/menuLayout";
+import { cx } from "@/lib/cx";
+import { useProjectBaselineStore } from "@/state/projectBaselineStore";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PartsEditor } from "../element/PartsEditor";
 import { ComponentPreview } from "./ComponentPreview";
@@ -21,6 +24,7 @@ import {
   projectComponents,
   readComponent,
   setComponentParam,
+  shippedComponents,
   writeComponentFile,
 } from "./componentFile";
 
@@ -53,13 +57,25 @@ export function ComponentsView({
   const id = useId();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const lang = useUiStore((s) => s.activeLang);
-  const files = projectComponents(project);
-  const names = Object.keys(files).sort();
+  const own = projectComponents(project);
+  // What the Project ships (`originals/components/`): Artisan's components in the base, a
+  // module's in a module. One the owner left alone is listed apart and opened like any other;
+  // its first change writes the owner's version over it.
+  const draft = useProjectDraftStore((s) => s.drafts[projectId]);
+  const published = useProjectBaselineStore((s) => s.baselines[projectId]);
+  const shipped = useMemo(() => shippedComponents(draft?.tree ?? published), [draft, published]);
+  const files = { ...shipped, ...own };
+  const names = Object.keys(own).sort();
+  const untouched = Object.keys(shipped)
+    .filter((name) => !(name in own))
+    .sort();
   const [opened, setOpened] = useState<string | null>(null);
   const [piece, setPiece] = useState<number | null>(null);
   const [created, setCreated] = useState("");
   const [positions, setPositions] = useState("0-2");
   const [error, setError] = useState("");
+  // The slots the component covers, lined over it: what its pieces are placed against.
+  const [slots, setSlots] = useState(true);
   const drag = useRef<{ x: number; y: number; left: number; top: number; paused: boolean } | null>(
     null,
   );
@@ -95,7 +111,9 @@ export function ComponentsView({
       >
         <p className="max-w-xl text-xs text-[var(--text-mut)]">{t("components.hint")}</p>
         {names.length === 0 ? (
-          <p className="text-sm text-[var(--text-mut)]">{t("components.empty")}</p>
+          untouched.length === 0 ? (
+            <p className="text-sm text-[var(--text-mut)]">{t("components.empty")}</p>
+          ) : null
         ) : (
           <ul className="flex flex-wrap gap-1.5" aria-label={t("components.list")}>
             {names.map((name) => (
@@ -107,6 +125,20 @@ export function ComponentsView({
             ))}
           </ul>
         )}
+        {untouched.length > 0 ? (
+          <div className="flex flex-col gap-1.5" data-testid="components-shipped">
+            <span className="eyebrow">{t("components.shipped")}</span>
+            <ul className="flex flex-wrap gap-1.5" aria-label={t("components.shipped")}>
+              {untouched.map((name) => (
+                <li key={name}>
+                  <button type="button" className="chip text-[12px]" onClick={() => open(name)}>
+                    {name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="flex max-w-sm items-end gap-2">
           <label className="field-label !mb-0 flex-1" htmlFor={`${id}-new`}>
             {t("components.newName")}
@@ -191,7 +223,16 @@ export function ComponentsView({
       subtitle={`${t("components.shownOn", { width: rect?.width ?? 1, height: rect?.height ?? 1 })} · ${t("components.uses", { count: uses.length })}`}
       parts={{
         rail: null,
-        controls: null,
+        controls: (
+          <button
+            type="button"
+            aria-pressed={slots}
+            className={cx("chip text-[12px]", slots && "is-active")}
+            onClick={() => setSlots((shown) => !shown)}
+          >
+            {t("studio.guides.slots")}
+          </button>
+        ),
         actions: error ? (
           <span role="alert" className="max-w-xs text-xs text-[var(--danger)]">
             {error}
@@ -210,6 +251,7 @@ export function ComponentsView({
                 component={current}
                 positions={positions}
                 rows={ROWS}
+                slots={slots}
               />
               {held !== null ? (
                 <button
@@ -306,21 +348,41 @@ export function ComponentsView({
                   ))}
                 </ul>
               )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="self-start"
-                disabled={uses.length > 0}
-                title={uses.length > 0 ? t("components.deleteUsed") : undefined}
-                onClick={() =>
-                  perform(() => {
-                    store().writeComponent({ projectId, name: current, content: null });
-                    open(null);
-                  })
-                }
-              >
-                {t("components.delete")}
-              </Button>
+              {current in shipped ? (
+                // The owner's version goes: the shipped component is the one drawn again.
+                current in own ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="self-start"
+                    onClick={() =>
+                      perform(() =>
+                        store().writeComponent({ projectId, name: current, content: null }),
+                      )
+                    }
+                  >
+                    {t("components.restore")}
+                  </Button>
+                ) : (
+                  <p className="text-xs text-[var(--text-mut)]">{t("components.shippedHint")}</p>
+                )
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="self-start"
+                  disabled={uses.length > 0}
+                  title={uses.length > 0 ? t("components.deleteUsed") : undefined}
+                  onClick={() =>
+                    perform(() => {
+                      store().writeComponent({ projectId, name: current, content: null });
+                      open(null);
+                    })
+                  }
+                >
+                  {t("components.delete")}
+                </Button>
+              )}
             </section>
           </>
         ),

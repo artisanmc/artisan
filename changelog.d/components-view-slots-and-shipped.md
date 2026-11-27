@@ -1,0 +1,3 @@
+- **Changed**: a component is shown alone, its slots lined in green over it (**Slots** takes the lines off), instead of inside a chest with the player's inventory.
+- **Added**: a text part of a component or a button is written in the rich editor, which gives it colours and styles.
+- **Fixed**: the components Artisan ships (`button`, `cancel`, `confirm`, `value`) were not listed in the base. A Project now lists what it ships and the owner left alone; changing one writes the owner's version, and **Back to the original** takes it off.
