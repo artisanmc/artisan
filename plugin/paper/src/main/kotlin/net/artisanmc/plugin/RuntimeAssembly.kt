@@ -189,7 +189,14 @@ internal class RuntimeAssembly(
         commandRegistrar.reload(menuProvider.runtimeProjects(), executor, evaluator)
         // Files Artisan wrote itself (system menus and commands) notify no module: nothing to re-fetch.
         if (modules != null && modules.isEmpty()) return
-        api.modules.active().filter { modules == null || it.id in modules }.forEach { runCatching { it.onReload() } }
+        notifyModules(modules)
+    }
+
+    /** Global thread: [modules]' `onReload()` (every active one when null), then `ConfigReloadEvent`. */
+    private fun notifyModules(modules: Set<String>?) {
+        api.modules.active().filter { modules == null || it.id in modules }.forEach { module ->
+            runCatching { module.onReload() }.onFailure { logger.log(java.util.logging.Level.WARNING, "[Artisan] onReload() of module '${module.id}' failed", it) }
+        }
         api.events.publish(ConfigReloadEvent("menus"))
     }
 
@@ -199,6 +206,11 @@ internal class RuntimeAssembly(
         plugin.langManager.reload()
         menuProvider.unload()
         start(cfg)
+        // The end of a publication's path: the modules' folder lang files, then every module's
+        // onReload(), at the next tick (start() above already read the projects, the captured
+        // items and rebuilt the command map). Without it the modules kept what they read at their start.
+        plugin.translations.reloadFolderBundles()
+        scheduler.onGlobal { notifyModules(null) }
         // ServerLoadEvent is past: the custom items hash goes from here, once the new
         // connection is up.
         scheduler.asyncLater(40L) { (menuProvider as? SyncedMenuProvider)?.notifyCustomItemsReload() }

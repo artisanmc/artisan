@@ -19,6 +19,8 @@ cmd:
 artisan:
   in_game_only: "<red>En jeu uniquement.</red>"
   reloaded: "<green>Artisan rechargé.</green>"
+  reloaded_module: "<green>Module <yellow>{id}</yellow> rechargé.</green>"
+  unknown_module: "<red>Aucun module actif <yellow>{id}</yellow>.</red>"
   restarting: "<aqua>[Artisan] </aqua><yellow>Le serveur redémarre dans {seconds} secondes.</yellow>"
   sync_status: "<gray>Consultez les logs du serveur pour les détails de synchronisation.</gray>"
   sync_reconnecting: "<gray>Rechargement des projets depuis le disque.</gray>"
@@ -27,7 +29,7 @@ artisan:
   usage_editor: "<red>Usage : /artisan editor [sessions|revoke <id>|logout [joueur]]</red>"
   editor_logged_out: "<aqua>[Artisan] </aqua><green>{count} session(s) de l'éditeur fermée(s) pour {player}.</green>"
   editor_unknown_player: "<red>[Artisan] Joueur inconnu : {player}</red>"
-  usage_main: "<red>Usage : /artisan <menu <id>|reload|sync <status|reject>|editor|variant <nom|auto>|stats forget <joueur>|import …|dump-title <id>></red>"
+  usage_main: "<red>Usage : /artisan <menu <id>|reload [module]|sync <status|reject>|editor|variant <nom|auto>|stats forget <joueur>|import …|dump-title <id>></red>"
   usage_stats: "<red>Usage : /artisan stats forget <joueur></red>"
   variant_current: "<aqua>[Artisan] </aqua><gray>Menus affichés en <white>{variant}</white> ({mode}). Choisis avec /artisan variant <{choices}|auto>.</gray>"
   variant_mode_auto: "automatique"

@@ -22,8 +22,10 @@ Since phase F (2026-10), there is no backend and no central copy. A Project's pu
   draft published after its reply, replayable under the same `operation_id`.
 - **Server off**: the editor it hosts is off too; a leaf that is off is listed as
   offline (503 `server_offline`). Nothing can be opened without the server.
-- **Hand editing**: picked up on `/artisan reload` only (the `SyncScanner` was
-  removed). The editor learns of it through `projects_reloaded`.
+- **Hand editing**: picked up on `/artisan reload` (every module's `onReload()`, as a Deploy)
+  or `/artisan reload <module>` (that module only, also what its own reload command runs); the
+  `SyncScanner` was removed. The editor learns of it through `projects_reloaded`. A Deploy of a
+  draft made before the hand edit is refused as a conflict (the CAS compares with the disk).
 
 ## One server id = one live server
 

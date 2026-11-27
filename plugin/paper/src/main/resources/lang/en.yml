@@ -19,6 +19,8 @@ cmd:
 artisan:
   in_game_only: "<red>In-game only.</red>"
   reloaded: "<green>Artisan reloaded.</green>"
+  reloaded_module: "<green>Module <yellow>{id}</yellow> reloaded.</green>"
+  unknown_module: "<red>No active module <yellow>{id}</yellow>.</red>"
   restarting: "<aqua>[Artisan] </aqua><yellow>The server restarts in {seconds} seconds.</yellow>"
   sync_status: "<gray>Check server logs for sync status details.</gray>"
   sync_reconnecting: "<gray>Reloading projects from disk.</gray>"
@@ -27,7 +29,7 @@ artisan:
   usage_editor: "<red>Usage: /artisan editor [sessions|revoke <id>|logout [player]]</red>"
   editor_logged_out: "<aqua>[Artisan] </aqua><green>{count} editor session(s) closed for {player}.</green>"
   editor_unknown_player: "<red>[Artisan] Unknown player: {player}</red>"
-  usage_main: "<red>Usage: /artisan <menu <id>|reload|sync <status|reject>|editor|variant <name|auto>|stats forget <player>|import …|dump-title <id>></red>"
+  usage_main: "<red>Usage: /artisan <menu <id>|reload [module]|sync <status|reject>|editor|variant <name|auto>|stats forget <player>|import …|dump-title <id>></red>"
   usage_stats: "<red>Usage: /artisan stats forget <player></red>"
   variant_current: "<aqua>[Artisan] </aqua><gray>Menus shown as <white>{variant}</white> ({mode}). Choose with /artisan variant <{choices}|auto>.</gray>"
   variant_mode_auto: "automatic"

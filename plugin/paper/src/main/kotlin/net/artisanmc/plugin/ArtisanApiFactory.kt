@@ -60,6 +60,7 @@ internal object ArtisanApiFactory {
             net.artisanmc.plugin.project.ProjectContentReader(
                 plugin.projectRoots,
                 onReloadRequested = { plugin.refreshProjectsFromDisk() },
+                onModuleReloadRequested = { plugin.refreshModuleFromDisk(it) },
                 runtimes = { plugin.menuProviderOrNull?.runtimeProjects() ?: emptyList() },
                 snapshot = { (plugin.menuProviderOrNull as? net.artisanmc.plugin.provider.SyncedMenuProvider)?.snapshot() ?: net.artisanmc.plugin.project.ProjectSnapshot.EMPTY },
             ),

@@ -37,12 +37,25 @@ public interface ProjectContentApi {
     boolean hasContent(String dir);
 
     /**
-     * Re-reads the projects from disk, then notifies modules: the same path as {@code /artisan reload}.
+     * Re-reads the projects from disk, then notifies every module: the same path as {@code /artisan reload}
+     * and a Deploy.
      * Call it right after your module writes its OWN project files: the core serves a snapshot taken
      * at load, so an unannounced write stays invisible to the running server and to the editor.
      */
     @Stable
     default void reload() {}
+
+    /**
+     * Re-reads the folders the module {@code moduleId} registered (its own folder included),
+     * their lang files with them, then calls that module's {@link ArtisanModule#onReload} only:
+     * the same path as {@code /artisan reload <moduleId>}. For a module's own reload command
+     * ({@code /guild reload}), so that it reads exactly what a Deploy would. Before 1.12.0 the
+     * default reloads every module, as {@link #reload()}.
+     *
+     * @since 1.12.0
+     */
+    @Beta
+    default void reload(String moduleId) { reload(); }
 
     /**
      * The loaded Documents of a kind a module declared ({@link DocumentKindRegistry}): one map per

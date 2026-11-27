@@ -286,4 +286,35 @@ class SyncedMenuProviderTest {
         queued.removeFirst().run()
         assertEquals(null, reloads.last(), "an explicit reload notifies every module")
     }
+
+    @Test
+    fun `a module's reload reads its folders and notifies that module only`() {
+        val root = Files.createTempDirectory("artisan_module_reload_").toFile()
+        writeTwoProjectsWithSameMenuId(root)
+        val roots = net.artisanmc.plugin.project.ProjectRoots(root)
+        val queued = ArrayDeque<Runnable>()
+        val reloads = mutableListOf<Set<String>?>()
+        val provider = SyncedMenuProvider(
+            roots, logger = null,
+            onReload = { modules -> reloads += modules },
+            reloadExecutor = { queued.addLast(it) },
+        )
+        provider.load()
+        val guilds = Files.createTempDirectory("artisan_guilds_").toFile()
+        File(guilds, "manifest.yaml").writeText("schema: manifest/v1\ndefault_lang: en\nlanguages: [en]\n")
+        File(guilds, "menus").mkdirs()
+        File(guilds, "menus/main.yaml").writeText("schema: menu/v1\nsize: 9\nelements: []\n")
+        roots.register("guilds", guilds, "guilds")
+        while (queued.isNotEmpty()) queued.removeFirst().run()
+        reloads.clear()
+
+        File(guilds, "menus/main.yaml").writeText("schema: menu/v1\nsize: 18\nelements: []\n")
+        File(root, "core/menus/main.yaml").writeText("schema: menu/v1\nsize: 9\nelements: []\n")
+        provider.refreshModule("guilds")
+        assertEquals(1, queued.size)
+        queued.removeFirst().run()
+        assertEquals(listOf<Set<String>?>(setOf("guilds")), reloads, "only that module is notified")
+        assertEquals(18, provider.findMenu("guilds:main")?.yaml?.size, "its folder is read again")
+        assertEquals(27, provider.findMenu("core:main")?.yaml?.size, "the other projects keep what the last reload read")
+    }
 }

@@ -98,7 +98,7 @@ screen has no owner in the editor.
 | Hook | When | Do |
 |---|---|---|
 | `onEnable(api)` | Once, inside `api.modules.register` | Declare everything, load initial content |
-| `onReload()` | After the projects are re-read from disk: a publish from the editor, `/artisan reload`, a sync on a network leaf, a module calling `api.project.reload()` or registering a project root | Re-read your files, rebuild caches |
+| `onReload()` | After the projects are re-read from disk: a publish from the editor, `/artisan reload`, `/artisan reload <your id>`, a sync on a network leaf, a module calling `api.project.reload()` / `reload(moduleId)` or registering a project root | Re-read **everything** your folder holds (settings, Documents): it is the one reload path |
 | `onDisable()` | When **your plugin** starts disabling (server stop, `/reload`, a plugin reloader), before your plugin's own `onDisable()`; on `api.modules.unregister`; or when Artisan disables | Release threads, executors, connections |
 
 `onReload()` is the hook people forget. Admins edit in the browser, publish,
@@ -152,6 +152,14 @@ api.project.reload()
 
 Without it, the running server and the editor keep the old content until
 someone types `/artisan reload`.
+
+### Your own reload command
+
+A `/yourplugin reload` should not re-read your folder by itself: call
+`api.project.reload(getId())` (API 1.12.0), which reads your folders and lang files again and
+calls your `onReload()` only, exactly what a Deploy does. The command then only adds what lives
+outside the folder (a server-local `config.yml`). The admin's `/artisan reload`, your command and
+the editor then reload the same files the same way.
 
 ## Own your project directory
 
