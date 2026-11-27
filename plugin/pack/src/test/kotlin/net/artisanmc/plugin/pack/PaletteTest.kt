@@ -40,4 +40,13 @@ class PaletteTest {
         assertEquals("#b3261e", palette.tintOf("primary"))
         assertNull(palette.tintOf("nowhere"))
     }
+
+    @Test
+    fun `says what a palette file holds that is not read`() {
+        assertEquals(emptyList(), Palette.problems("primary: \"#b3261e\"\nfrost_2: \"#99DDFF\"\n"))
+        assertEquals(1, Palette.problems("- primary\n").size)
+        val wrong = Palette.problems("primary: red\nBad Name: \"#112233\"\nok: \"#000000\"\n")
+        assertEquals(2, wrong.size)
+        assertTrue("'primary'" in wrong[0] && "'Bad Name'" in wrong[1], wrong.toString())
+    }
 }
