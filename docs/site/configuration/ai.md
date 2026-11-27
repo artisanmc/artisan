@@ -243,7 +243,7 @@ the palette every server has: `neutral`, `primary`, `success`, `danger`, `warnin
 put in place recolours every image tinted `primary` without a redraw. A name no place gives,
 or a tint that is no `#rrggbb` colour, leaves the layer as drawn: the review before a
 deployment lists such layers. An assistant writes a tint with `write_image` (`tint` on a layer
-of `compose`).
+of `compose`). In the editor it is the **Tint** field of the selected layer.
 
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").

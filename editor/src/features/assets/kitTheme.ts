@@ -1,4 +1,10 @@
-import { PALETTE_FILE, type Palette, paletteOf } from "@/lib/pack/palette";
+import {
+  DEFAULT_PALETTE,
+  PALETTE_FILE,
+  type Palette,
+  paletteOf,
+  readPalette,
+} from "@/lib/pack/palette";
 import {
   type KitTheme,
   type ThemeFiles,
@@ -96,4 +102,16 @@ export function activePalette(): Palette {
   )
     lastPalette = { read, own, names, palette: serverPalette(read, own, names) };
   return lastPalette.palette;
+}
+
+/**
+ * The names a tint may write on the server as published: the ones every server has, then the
+ * ones its library and its themes, in place or not, add.
+ */
+export function serverPaletteNames(read: KitRead | undefined, own: Own): string[] {
+  const added = new Set<string>();
+  for (const place of [read, ...Object.values(own)])
+    for (const name of readPalette(place?.files[PALETTE_FILE] ?? "").keys())
+      if (!(name in DEFAULT_PALETTE)) added.add(name);
+  return [...Object.keys(DEFAULT_PALETTE), ...[...added].sort()];
 }

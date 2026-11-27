@@ -221,6 +221,17 @@ const fr: typeof en = {
     addImage: "Image du module",
     addDrawn: "Dessin",
     retouchLayer: "Dessiner sur ce calque",
+    tint: {
+      label: "Teinte",
+      none: "Aucune",
+      custom: "Une couleur à elle…",
+      colour: "Couleur de la teinte",
+      hint: "Multiplie le calque par une couleur : un pixel blanc la prend, un gris en prend une nuance plus sombre. Idéal sur un dessin gris.",
+      namedHint:
+        "Prend la couleur « {{name}} » du thème en place : changez de thème, le calque suit.",
+      unknown:
+        "Aucun thème ni la bibliothèque ne nomme une couleur « {{name}} » : le calque s'affiche tel que dessiné.",
+    },
     chooseImage: "Choisir une image de ce module",
     chooseImageHint:
       "Un PNG de ce module. Une image composée ne peut pas être le calque d’une autre.",

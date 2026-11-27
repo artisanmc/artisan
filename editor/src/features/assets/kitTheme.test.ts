@@ -11,6 +11,7 @@ import {
   activeKitTheme,
   activePalette,
   serverPalette,
+  serverPaletteNames,
   serverTheme,
   serverThemeNames,
 } from "./kitTheme";
@@ -258,5 +259,26 @@ describe("the kit in the server's theme", () => {
     const grey = await kitVariantAssets(plain, themed, serverPalette(kit, {}, []));
     expect([...grey.keys()]).toEqual(["kit:button.primary.3x1", "kit:button.success.3x1"]);
     expect(await first(grey.get("kit:button.primary.3x1"))).toEqual([90, 19, 15]);
+  });
+
+  test("the names a tint may write: the default ones, then what the library and the themes add", () => {
+    expect(serverPaletteNames(undefined, {})).toEqual([
+      "neutral",
+      "primary",
+      "success",
+      "danger",
+      "warning",
+    ]);
+    const library = {
+      projectId: "srv.artisan",
+      files: { "palette.yml": 'primary: "#000000"\ngold: "#ffcc00"\n' },
+      binaries: [],
+    };
+    const noel = {
+      projectId: "srv.noel",
+      files: { "palette.yml": 'frost: "#99ddff"\n' },
+      binaries: [],
+    };
+    expect(serverPaletteNames(library, { noel }).slice(5)).toEqual(["frost", "gold"]);
   });
 });

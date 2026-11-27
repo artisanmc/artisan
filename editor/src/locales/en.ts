@@ -218,6 +218,16 @@ export default {
     addImage: "Module image",
     addDrawn: "Drawing",
     retouchLayer: "Draw on this layer",
+    tint: {
+      label: "Tint",
+      none: "None",
+      custom: "A colour of its own…",
+      colour: "Tint colour",
+      hint: "Multiplies the layer by a colour: a white pixel takes it, a grey one a darker shade. Best on a grey drawing.",
+      namedHint:
+        "Takes the colour “{{name}}” of the theme in place: change the theme, the layer follows.",
+      unknown: "No theme and no library colour is named “{{name}}”: the layer shows as drawn.",
+    },
     chooseImage: "Choose an image of this module",
     chooseImageHint: "A PNG of this module. A composed image cannot be a layer of another.",
     noImage: "This module has no image yet.",

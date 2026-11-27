@@ -237,6 +237,13 @@ common image is written `artisan:<name>` in the recipe; `kit:<name>`, the former
 read the same and stays as written until the layer is replaced. The image is as large as its
 bottom layer reaches unless you give it a **Fixed size**; what goes past is cut.
 
+**Tint.** The selected layer has a **Tint**: none, a name of the palette (`primary`,
+`success`, and the ones your themes add) or a colour of its own. The layer's image is
+multiplied by that colour, so a drawing in shades of grey takes any colour. A name follows the
+theme in place: one grey drawing gives a red button under a theme whose `primary` is red, with
+no new image. The stage shows the tint as the game will, in the colours the server has
+deployed.
+
 **A PNG is an image of one layer.** Saved with that one layer, it stays a PNG. Saved with
 more, it becomes a composed image of the same name whose first layer is that drawing (kept in
 the module as `<image>_layer`): the menus that show it keep showing it. A **Drawing** layer
