@@ -107,6 +107,18 @@ class ComposeTest {
     }
 
     @Test
+    fun `a tint multiplies the layer's pixels by its colour, alpha kept, and only a colour tints`() {
+        val grey = mapOf("grey" to solid(1, 1, 255, 128, 0, 200))
+        val drawn = assertNotNull(ComposedImages.compose(recipe("compose:\n  - image: grey\n    tint: '#c03366'\n")) { grey[it] })
+        assertEquals(listOf(192, 26, 0, 200), pixel(drawn, 0, 0))
+        for (tint in listOf("primary", "#fff", "c03366", "#c0336g")) {
+            assertNull(ComposedImages.tintColour(tint))
+            val plain = assertNotNull(ComposedImages.compose(recipe("compose:\n  - image: grey\n    tint: '$tint'\n")) { grey[it] })
+            assertEquals(listOf(255, 128, 0, 200), pixel(plain, 0, 0))
+        }
+    }
+
+    @Test
     fun `a layer is a PNG of the module or a kit image, the base standing in`() {
         val icon = Png.encode(solid(2, 2, 255, 255, 255, 255))
         val out = assertNotNull(

@@ -226,6 +226,11 @@ compose:
     y: 4
 ```
 
+A layer may also take `tint: "#c03366"`: its image is multiplied by that colour, pixel by
+pixel, and keeps its transparency. A white pixel takes the colour, a grey one a darker shade of
+it. Draw the layer's image in shades of grey to tint it into any colour. A tint that is not a
+`#rrggbb` colour leaves the layer as drawn.
+
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").
 

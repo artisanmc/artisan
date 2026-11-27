@@ -31,6 +31,9 @@ import { type Slice, drawSliced, slicesAt } from "./slice";
  * composed with it changes. `width` and `height` on a layer resize an image whose descriptor
  * declares margins (`slice`): corners copied, edges and middle repeated. On another image, or
  * at a size its margins do not fit, they are ignored and the image is drawn at its own size.
+ * `tint: "#rrggbb"` on a layer multiplies each pixel of its image by that colour, channel by
+ * channel, alpha kept (ADR `component-colours`, decision 1): a white pixel takes the colour, a
+ * grey one a darker shade of it. A tint that is no colour leaves the layer as drawn.
  */
 
 /** A side of a composed image, and how far a layer may sit from the origin. */
@@ -48,6 +51,28 @@ export interface ComposeLayer {
   /** The size a sliced image is drawn at; absent for its own size. Never on a layer that repeats. */
   width?: number;
   height?: number;
+  /** The colour the layer's image is multiplied by, as written (`#rrggbb`); absent: as drawn. */
+  tint?: string;
+}
+
+/** The colour `tint` writes, `[r, g, b]`; `null` when it is none (ADR `component-colours`). */
+export function tintColour(tint: string | undefined): [number, number, number] | null {
+  const m = tint === undefined ? null : /^#([0-9a-fA-F]{6})$/.exec(tint);
+  if (!m) return null;
+  const n = Number.parseInt(m[1] as string, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** `source` multiplied by `colour`, channel by channel, in whole numbers; alpha kept. */
+export function tinted(source: RgbaImage, colour: readonly [number, number, number]): RgbaImage {
+  const out = createImage(source.width, source.height);
+  const [sd, od] = [source.data, out.data];
+  for (let i = 0; i < sd.length; i += 4) {
+    for (let c = 0; c < 3; c++)
+      od[i + c] = Math.floor(((sd[i + c] as number) * (colour[c] as number) + 127) / 255);
+    od[i + 3] = sd[i + 3] as number;
+  }
+  return out;
 }
 
 export interface ComposeRecipe {
@@ -78,6 +103,7 @@ export function composeRecipe(descriptor: Record<string, unknown>): ComposeRecip
     // Repeated only when `grid` is what names the image.
     const repeats = use === null;
     const [w, h] = [int(m.width, 1, COMPOSE_MAX_SIDE), int(m.height, 1, COMPOSE_MAX_SIDE)];
+    const tint = text(m.tint);
     layers.push({
       image,
       x: int(m.x, -COMPOSE_MAX_SIDE, COMPOSE_MAX_SIDE) ?? 0,
@@ -86,6 +112,7 @@ export function composeRecipe(descriptor: Record<string, unknown>): ComposeRecip
       rows: repeats ? (int(m.rows, 1, COMPOSE_MAX_REPEAT) ?? 1) : 1,
       // A size only with both sides, and never on a layer that repeats.
       ...(!repeats && w !== null && h !== null ? { width: w, height: h } : {}),
+      ...(tint ? { tint } : {}),
     });
   }
   const width = int(descriptor.width, 1, COMPOSE_MAX_SIDE);
@@ -130,8 +157,21 @@ export function composeImage(
   return out;
 }
 
-/** A layer's image as it is drawn: resized when the layer gives a size its margins fit. */
+/**
+ * A layer's image as it is drawn: resized when the layer gives a size its margins fit, then
+ * tinted when the layer gives a colour.
+ */
 export function layerPicture(
+  layer: ComposeLayer,
+  source: RgbaImage,
+  slice: Slice | null | undefined,
+): RgbaImage {
+  const sized = sizedPicture(layer, source, slice);
+  const colour = tintColour(layer.tint);
+  return colour ? tinted(sized, colour) : sized;
+}
+
+function sizedPicture(
   layer: ComposeLayer,
   source: RgbaImage,
   slice: Slice | null | undefined,
@@ -215,6 +255,7 @@ export function composeYaml(recipe: ComposeRecipe): Record<string, string | numb
       ...(!repeats && layer.width !== undefined && layer.height !== undefined
         ? { width: layer.width, height: layer.height }
         : {}),
+      ...(layer.tint ? { tint: layer.tint } : {}),
     };
   });
 }

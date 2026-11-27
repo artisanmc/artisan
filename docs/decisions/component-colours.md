@@ -1,6 +1,7 @@
 # A component takes a colour from the theme's palette
 
-**Status:** accepted (2026-11-27). Being built from step 1. Follows `themes-reach-modules`
+**Status:** accepted (2026-11-27). Being built: step 1 (a literal tint on a layer, both
+builders, a pack vector) is in the code. Follows `themes-reach-modules`
 ("Left open: colour").
 
 ## Context
