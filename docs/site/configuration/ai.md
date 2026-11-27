@@ -241,7 +241,9 @@ danger: "#600000"
 The name is looked up in the themes in place, the highest first, then in the library, then in
 the palette every server has: `neutral`, `primary`, `success`, `danger`, `warning`. So a theme
 put in place recolours every image tinted `primary` without a redraw. A name no place gives,
-or a tint that is no `#rrggbb` colour, leaves the layer as drawn.
+or a tint that is no `#rrggbb` colour, leaves the layer as drawn: the review before a
+deployment lists such layers. An assistant writes a tint with `write_image` (`tint` on a layer
+of `compose`).
 
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").

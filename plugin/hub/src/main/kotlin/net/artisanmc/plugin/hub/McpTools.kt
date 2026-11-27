@@ -14,6 +14,7 @@ import net.artisanmc.plugin.pack.KitTheme
 import net.artisanmc.plugin.pack.ThemeStack
 import net.artisanmc.plugin.pack.MenuPictures
 import net.artisanmc.plugin.pack.OwnerImages
+import net.artisanmc.plugin.pack.Palette
 import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
 import net.artisanmc.plugin.pack.Png
@@ -245,6 +246,11 @@ class McpTools(
                                     "x" to INTEGER, "y" to INTEGER,
                                     "columns" to mapOf("type" to "integer", "minimum" to 1, "maximum" to ComposedImages.MAX_REPEAT),
                                     "rows" to mapOf("type" to "integer", "minimum" to 1, "maximum" to ComposedImages.MAX_REPEAT),
+                                    "tint" to string(
+                                        "A colour the layer's image is multiplied by, transparency kept: draw the image in shades of grey and tint it. " +
+                                            "`#rrggbb`, or a name of the server's palette (`primary`, `success`, `danger`, `warning`, `neutral`, and the ones " +
+                                            "its themes' `palette.yml` add), which a theme put in place recolours.",
+                                    ),
                                 ),
                                 "required" to listOf("image"),
                             ),
@@ -821,7 +827,7 @@ class McpTools(
     /** A recipe as write_image's `compose` takes it. */
     private fun compose(recipe: ComposedImages.Recipe): Map<String, Any?> = mapOf(
         "layers" to recipe.layers.map { layer ->
-            mapOf("image" to layer.image, "x" to layer.x.takeIf { it != 0 }, "y" to layer.y.takeIf { it != 0 }, "columns" to layer.columns.takeIf { it > 1 }, "rows" to layer.rows.takeIf { it > 1 })
+            mapOf("image" to layer.image, "x" to layer.x.takeIf { it != 0 }, "y" to layer.y.takeIf { it != 0 }, "columns" to layer.columns.takeIf { it > 1 }, "rows" to layer.rows.takeIf { it > 1 }, "tint" to layer.tint)
                 .filterValues { it != null }
         },
         "width" to recipe.width, "height" to recipe.height,
@@ -925,7 +931,7 @@ class McpTools(
          */
         fun composed(name: String, kit: KitView): MenuPictureImage? = recipe(name)?.let { (at, recipe) ->
             val theme = if (project.folder == KIT_FOLDER) kit.theme else null
-            ComposedImages.render(recipe, { layer -> png(layer)?.png?.let { theme?.shown(layer, it) ?: it } }, kit::layer)
+            ComposedImages.render(recipe, { layer -> png(layer)?.png?.let { theme?.shown(layer, it) ?: it } }, kit::layer, kit.palette)
                 ?.let { MenuPictureImage(net.artisanmc.plugin.pack.Png.encode(it), ascent(tree.getValue(at))) }
         }
 
@@ -981,6 +987,11 @@ class McpTools(
 
         /** The themes the kit is shown in, the lowest first, when it is in any. */
         val themed: List<String>? get() = held.map { it.first }.ifEmpty { null }
+
+        /** The colours a tint names ([Palette]): the themes the kit is shown in from the highest, then the library. */
+        val palette: Palette by lazy {
+            Palette.of(held.reversed().map { (name, _) -> own[name]?.invoke()?.tree?.get(Palette.FILE) } + this.module?.tree?.get(Palette.FILE))
+        }
 
         /** A layer `kit:<name>` of a composed image: a PNG of the kit module or the base's, never a composed image. */
         fun layer(name: String): ByteArray? =
@@ -1517,7 +1528,7 @@ class McpTools(
         val kit = kitView(view, except = name.takeIf { project.folder == KIT_FOLDER })
         val cut = if (recipe != null) null else args.get("from")?.takeIf { it.isObject }?.let { cut(it, attached, project, draft) }
         val image = when {
-            recipe != null -> ComposedImages.render(recipe, { layer -> view.png(layer)?.png?.let { png -> kit.theme?.takeIf { project.folder == KIT_FOLDER }?.shown(layer, png) ?: png } }, kit::layer)
+            recipe != null -> ComposedImages.render(recipe, { layer -> view.png(layer)?.png?.let { png -> kit.theme?.takeIf { project.folder == KIT_FOLDER }?.shown(layer, png) ?: png } }, kit::layer, kit.palette)
                 ?: throw McpRefusal("invalid_image", "None of the layers could be read as a PNG.")
             cut != null -> cut.image
             args.path("pixels").isObject -> McpImages.fromPixels(args["pixels"])
@@ -1715,9 +1726,14 @@ class McpTools(
                 view.recipe(image) != null -> refuse("compose: '$image' is itself a composed image. A layer is a PNG of this Project or a common image: name its layers here instead.")
                 else -> refuse("compose: no image '$image' in this draft. Write it first (write_image), or name a common image (`artisan:<name>`).")
             }
+            val tint = layer.get("tint")?.takeIf { !it.isNull }?.let { value ->
+                value.takeIf { it.isTextual }?.asText()?.trim()?.takeIf { TINT.matches(it) }
+                    ?: refuse("compose: `tint` is a colour `#rrggbb` or a name of the palette (lowercase letters, digits, `_`, `-`), such as `primary`.")
+            }
             ComposedImages.Layer(
                 image, whole(layer, "x", -side, side, 0)!!, whole(layer, "y", -side, side, 0)!!,
                 whole(layer, "columns", 1, ComposedImages.MAX_REPEAT, 1)!!, whole(layer, "rows", 1, ComposedImages.MAX_REPEAT, 1)!!,
+                tint = tint,
             )
         }
         val width = whole(node, "width", 1, side, null)
@@ -1725,6 +1741,9 @@ class McpTools(
         if ((width == null) != (height == null)) refuse("compose: give width and height together, or neither (the image is then as large as its first layer).")
         return ComposedImages.Recipe(read, width, height)
     }
+
+    /** What a layer's `tint` may write: a colour, or a name of the palette ([Palette]). */
+    private val TINT = Regex("^(#[0-9a-fA-F]{6}|[a-z0-9_-]+)$")
 
     /** A recipe's layers as a descriptor holds them ([ComposedImages]). */
     private fun composeYaml(recipe: ComposedImages.Recipe): String = buildString {
@@ -1739,6 +1758,7 @@ class McpTools(
             if (layer.x != 0) append("    x: ${layer.x}\n")
             if (layer.y != 0) append("    y: ${layer.y}\n")
             if (key == "grid") append("    columns: ${layer.columns}\n    rows: ${layer.rows}\n")
+            layer.tint?.let { append("    tint: \"$it\"\n") }
         }
     }
 

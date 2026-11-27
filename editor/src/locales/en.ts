@@ -2529,6 +2529,10 @@ export default {
         "The composed image {{image}} has a layer that names {{refs}}: a layer takes a PNG of this module or a common image (artisan:name), and neither holds it. The layer is left out.",
       layerMissing_other:
         "The composed image {{image}} has layers that name {{refs}}: a layer takes a PNG of this module or a common image (artisan:name), and neither holds them. These layers are left out.",
+      tintUnknown_one:
+        "The composed image {{image}} has a layer tinted {{tints}}: no palette of the server gives that name (palette.yml of a theme or of the library), and it is no #rrggbb colour. The layer is left as drawn.",
+      tintUnknown_other:
+        "The composed image {{image}} has layers tinted {{tints}}: no palette of the server gives these names (palette.yml of a theme or of the library), and they are no #rrggbb colours. These layers are left as drawn.",
       by: { menu: "the menu {{name}}", file: "the file {{name}}" },
       kind: { menu: "Menu", command: "Command", dialog: "Dialog" },
     },

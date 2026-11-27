@@ -11,6 +11,7 @@
  * live in `publishReducer` (pure).
  */
 import type { ProjectId } from "@/domain/types";
+import { activePalette } from "@/features/assets/kitTheme";
 import { libraryFor } from "@/features/assets/libraryDraft";
 import { isKitModule } from "@/features/assets/localAssets";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
@@ -37,6 +38,7 @@ import { serverChecksFor } from "@/features/serverIndex/serverChecks";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { ApiError } from "@/lib/api/client";
 import { checkDocuments, deploymentDelta } from "@/lib/api/documentChecks";
+import { PALETTE_FILE, readPalette } from "@/lib/pack/palette";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -227,6 +229,8 @@ export function usePublishFlow(
           ? { ...holders, common: (name) => holders.common(name) || written.png(name) }
           : holders,
         inCommon ? { ...written, png: (name) => written.png(name) || holders.base(name) } : written,
+        // A theme's or the library's palette as this draft holds it counts: it is what goes out.
+        (name) => readPalette(changes.after[PALETTE_FILE] ?? "").get(name) ?? activePalette()(name),
       ),
       changes,
     });

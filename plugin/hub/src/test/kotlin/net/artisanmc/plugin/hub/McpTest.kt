@@ -797,6 +797,7 @@ class McpTest {
         assertTrue("together" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon")), "width" to 20)))
         assertTrue("columns" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon", "columns" to 65)))))
         assertTrue("at least one" in refused("name" to "card", "compose" to mapOf("layers" to emptyList<Any>())))
+        assertTrue("`tint`" in refused("name" to "card", "compose" to mapOf("layers" to listOf(mapOf("image" to "shop_icon", "tint" to "Bad Name")))))
         assertEquals(revision, mapper.readTree(drafts.rows.getValue(draftId))["revision"].asInt())
 
         // A given size clips the layers; written as pixels, the image keeps its place and loses its recipe; composed again, its PNG.
@@ -805,6 +806,14 @@ class McpTest {
         assertEquals(
             "width: 30\nheight: 12\nusages: [button]\ncompose:\n  - use: \"kit:card.3x2\"\n  - image: \"shop_icon\"\n    x: 19\n    y: 4\n",
             snapshot()["tree"]["assets/textures/card.yml"].asText(),
+        )
+        // A layer's tint, a name of the palette or a colour, is written with it and read back.
+        val tints = listOf(mapOf("image" to "shop_icon", "tint" to "danger"), mapOf("image" to "shop_icon", "x" to 2, "tint" to "#C03366"))
+        val tinted = write("name" to "badge", "compose" to mapOf("layers" to tints))
+        assertFalse(tinted.has("isError"), tinted.toString())
+        assertTrue(
+            snapshot()["tree"]["assets/textures/badge.yml"].asText()
+                .endsWith("compose:\n  - image: \"shop_icon\"\n    tint: \"danger\"\n  - image: \"shop_icon\"\n    x: 2\n    tint: \"#C03366\"\n"),
         )
         val pixels = mapOf("palette" to mapOf("#" to "#373737"), "rows" to listOf("##", "##"))
         val drawn = write("name" to "shop_window", "pixels" to pixels)

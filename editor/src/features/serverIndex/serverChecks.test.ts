@@ -1,6 +1,7 @@
 import type { Project } from "@/domain/types";
-import { describe, expect, it } from "vitest";
 import type { ElsewhereWhere } from "@/lib/pack/elsewhere";
+import { paletteOf } from "@/lib/pack/palette";
+import { describe, expect, it } from "vitest";
 import { checkImageIssues, checkServerIssues, serverChecksFor } from "./serverChecks";
 
 type Opens = { to: string; kind?: "menu" | "dialog" };
@@ -425,6 +426,24 @@ describe("checkImageIssues", () => {
     expect(checkImageIssues(edited, holders(), writers)).toEqual([
       { kind: "layer_missing", image: "badge", refs: ["window"] },
       { kind: "layer_missing", image: "window", refs: ["anvil", "kit:ghost"] },
+    ]);
+  });
+
+  it("a layer's tint that is no colour and no name of the palette is reported, once the palette is known", () => {
+    const edited = project("core", { menus: [] });
+    const writers = {
+      files: [],
+      composed: [
+        { name: "badge", refs: ["frame"], tints: ["primary", "#C03366", "gold"] },
+        { name: "plate", refs: ["frame"], tints: ["nowhere", "#fff", "nowhere"] },
+        { name: "plain", refs: ["frame"] },
+      ],
+      png: () => true,
+    };
+    expect(checkImageIssues(edited, holders(), writers)).toEqual([]);
+    const palette = paletteOf(['gold: "#d4a017"\n']);
+    expect(checkImageIssues(edited, holders(), writers, palette)).toEqual([
+      { kind: "tint_unknown", image: "plate", tints: ["nowhere", "#fff"] },
     ]);
   });
 });
