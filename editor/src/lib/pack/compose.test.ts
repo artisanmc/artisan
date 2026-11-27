@@ -3,6 +3,7 @@
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 import { composeImage, composeRecipe, composeSize, composeYaml, over, tintColour } from "./compose";
+import { paletteOf } from "./palette";
 import { type RgbaImage, createImage } from "./png";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -136,6 +137,18 @@ compose:
       );
       expect(plain && pixel(plain, 0, 0)).toEqual([255, 128, 0, 200]);
     }
+    // A name is a colour once a palette gives it one.
+    const named = recipe("compose:\n  - image: grey\n    tint: primary\n");
+    const palette = paletteOf(['primary: "#c03366"\n']);
+    const byName = composeImage(named, (name) => grey[name], undefined, palette);
+    expect(byName && pixel(byName, 0, 0)).toEqual([192, 26, 0, 200]);
+    const unknown = composeImage(
+      recipe("compose:\n  - image: grey\n    tint: nowhere\n"),
+      (name) => grey[name],
+      undefined,
+      palette,
+    );
+    expect(unknown && pixel(unknown, 0, 0)).toEqual([255, 128, 0, 200]);
     // Written back as read.
     const read = recipe("compose:\n  - image: grey\n    tint: '#C03366'\n");
     expect(composeYaml(read)).toEqual([{ image: "grey", tint: "#C03366" }]);

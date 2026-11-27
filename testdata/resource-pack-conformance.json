@@ -4802,13 +4802,13 @@
       "textYSized": []
     },
     {
-      "name": "composed image: a tint multiplies a layer's pixels by its colour, alpha kept, after the layer is sized; a tint that is no #rrggbb colour leaves the layer as drawn",
+      "name": "composed image: a tint multiplies a layer's pixels by its colour, alpha kept, after the layer is sized; a tint that is no #rrggbb colour and no name of the palette leaves the layer as drawn",
       "projects": [
         {
           "id": "alpha",
           "files": {
             "assets/textures/panel.yml": "width: 12\nheight: 10\nslice: { left: 3, right: 4, top: 2, bottom: 3 }\n",
-            "assets/glyphs/tinted.yml": "ascent: 13\ncodepoint: 57344\nwidth: 60\nheight: 24\ncompose:\n  - image: panel\n    tint: '#c03366'\n  - image: panel\n    x: 14\n    width: 20\n    height: 14\n    tint: '#33CC99'\n  - image: panel\n    x: 36\n    tint: primary\n  - image: panel\n    x: 48\n    y: 12\n    tint: '#fff'\n",
+            "assets/glyphs/tinted.yml": "ascent: 13\ncodepoint: 57344\nwidth: 60\nheight: 24\ncompose:\n  - image: panel\n    tint: '#c03366'\n  - image: panel\n    x: 14\n    width: 20\n    height: 14\n    tint: '#33CC99'\n  - image: panel\n    x: 36\n    tint: nowhere\n  - image: panel\n    x: 48\n    y: 12\n    tint: '#fff'\n",
             "menus/tinted.yaml": "id: tinted\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: tinted }\n"
           },
           "binaries": {
@@ -4866,6 +4866,113 @@
       "textYSized": [],
       "textUpFonts": 129,
       "sha1": "4208484b9f08369ff73a12ca6df931e846360604"
+    },
+    {
+      "name": "palette: a tint that names a colour takes it from palette.yml of the themes in place, the highest first, then of the library, then from the default palette; an entry that is no colour is not read, a name no place gives leaves the layer as drawn",
+      "projects": [
+        {
+          "id": "survival.shop",
+          "folder": "shop",
+          "files": {
+            "assets/textures/panel.yml": "width: 12\nheight: 10\nslice: { left: 3, right: 4, top: 2, bottom: 3 }\n",
+            "assets/glyphs/named.yml": "ascent: 13\ncodepoint: 57344\nwidth: 72\nheight: 10\ncompose:\n  - image: panel\n    tint: primary\n  - image: panel\n    x: 12\n    tint: danger\n  - image: panel\n    x: 24\n    tint: gold\n  - image: panel\n    x: 36\n    tint: success\n  - image: panel\n    x: 48\n    tint: warning\n  - image: panel\n    x: 60\n    tint: nowhere\n",
+            "menus/named.yaml": "id: named\nsize: 27\nvanilla_texture: false\ntitle:\n  - { kind: background, asset: named }\n"
+          },
+          "binaries": {
+            "assets/textures/panel.png": "iVBORw0KGgoAAAANSUhEUgAAAAwAAAAKCAYAAACALL/6AAABkUlEQVR4nB2RSc9PMRjFu7NiVYtig4W+FobGlLiIMahQxDyG5+U1xRhKlIopoSSGNIaF2mBDN7XyBZ4PcTf3kxw3/9/6/HJycoQYkWIWtJiDTsyFEwtAYnH0YimSWIki1qGJTWCxI4oJajakktBqPjq1CE5NRVIr4NVaJLURRW1HU3siq4Po1XEIYeZBmoXQRqMzy6Mza0BmA7zZhmQsijkQmzkGNmfRm4ujYJdA2mXQdnXsbAdnt4Lsbni7H8kejcWeQbMXwPYaentnFGgVJK2Pmrago11w5EB0BJ5Ox0TTKHQVjW6D6QF6ejLuCJujDDuhwz504TBcOAUKFH24ghRuoYT7aCGCw8vYh7djQ94LmQ9B55Po8nm4fDlSvgmfPVJ+jJJfoOU3kfNH9PnrKNQTkPUcdL2Ert6Irt4D1Ufw9TlSTSj1Q2z1C7h+R19/jQLPQPJ1aL4bOw5w/AzEr+H5PRJ/joULGv8E8x/0/BeTK+TwMOrhKbrhFdzwDjR8gh++xTT8QBl+ow0NPPybhP8DdEr5aYcd8YUAAAAASUVORK5CYII="
+          }
+        },
+        {
+          "id": "survival.artisan",
+          "folder": "artisan",
+          "role": "theme",
+          "files": {
+            "palette.yml": "gold: \"#d4a017\"\ndanger: \"#990000\"\nprimary: \"#000001\"\n"
+          },
+          "binaries": {}
+        },
+        {
+          "id": "survival.nuit",
+          "folder": "nuit",
+          "role": "theme",
+          "files": {
+            "palette.yml": "primary: \"#101820\"\ndanger: \"#600000\"\n"
+          },
+          "binaries": {}
+        },
+        {
+          "id": "survival.noel",
+          "folder": "noel",
+          "role": "theme",
+          "files": {
+            "palette.yml": "primary: \"#b3261e\"\ndanger: red\nwarning: \"#fff\"\nBad Name: \"#000000\"\n"
+          },
+          "binaries": {}
+        },
+        {
+          "id": "survival.absent",
+          "folder": "absent",
+          "role": "theme",
+          "files": {
+            "palette.yml": "primary: \"#00ff00\"\ngold: \"#00ff00\"\n"
+          },
+          "binaries": {}
+        }
+      ],
+      "themes": [
+        "nuit",
+        "noel"
+      ],
+      "containerTextures": {},
+      "vanillaGui": false,
+      "entries": [
+        "assets/artisan/asset-index.json",
+        "assets/artisan/font/default.json",
+        "assets/artisan/font/vanilla_gui.json",
+        "assets/artisan/textures/font/accented_up.png",
+        "assets/artisan/textures/font/ascii_up.png",
+        "assets/artisan/textures/font/named.png",
+        "assets/artisan/textures/font/nonlatin_european_up.png",
+        "assets/artisan/textures/font/text_accented.png",
+        "assets/artisan/textures/font/text_ascii.png",
+        "assets/artisan/textures/font/text_nonlatin_european.png",
+        "assets/artisan/textures/gui/dispenser.png",
+        "assets/artisan/textures/gui/generic_9x1.png",
+        "assets/artisan/textures/gui/generic_9x2.png",
+        "assets/artisan/textures/gui/generic_9x3.png",
+        "assets/artisan/textures/gui/generic_9x4.png",
+        "assets/artisan/textures/gui/generic_9x5.png",
+        "assets/artisan/textures/gui/generic_9x6.png",
+        "assets/artisan/textures/gui/hopper.png",
+        "pack.mcmeta",
+        "pack.png"
+      ],
+      "entryHashes": {
+        "assets/artisan/asset-index.json": "5494c86ec15edbd94ef1dd0707202f2e017ec7bee186273209fb661f8ee91a5c",
+        "assets/artisan/font/default.json": "5203e861591c261e44e94fad5f38ec2fa33b5444754bf73e0572a26bdb30dee4",
+        "assets/artisan/font/vanilla_gui.json": "ef6cc6ac76f3de03e619772b67d8763486efcacd005d2893580afd8a1fe1f6a8",
+        "assets/artisan/textures/font/accented_up.png": "454c174ce9e1aeefde41326f571561130bfc4cf5b1c39e26554bd7e34f1e6a18",
+        "assets/artisan/textures/font/ascii_up.png": "a2ca25208d39ab01617fc5d855f6e8e3f4d00100d114f19b5f79adcceb58a238",
+        "assets/artisan/textures/font/named.png": "3de165ed5dc2c6622058d0a2fe4c26f8734dd90dfaae8f11c547355d18bdb5be",
+        "assets/artisan/textures/font/nonlatin_european_up.png": "210a35d91ac279d37b6f2f2162926acc7a46953d80fa8133b7ea83b11631bae0",
+        "assets/artisan/textures/font/text_accented.png": "0c4946dabaaedc7198be189b99e64c17be55c2bfe08bd53d947b7ee59cb7a569",
+        "assets/artisan/textures/font/text_ascii.png": "a2861a21e3ff5edcdc9e033c14fa31773136a0d54754c9bdf11d3cd4e0e5d000",
+        "assets/artisan/textures/font/text_nonlatin_european.png": "de2955e6ac0a6d24c852bb412721a2701d00c642f6e52e1205624fcc614f1b7e",
+        "assets/artisan/textures/gui/dispenser.png": "437f4c4c7cc98af96577d01a62aba607cf999bdc6ad032fa6cdf6ad47f44b718",
+        "assets/artisan/textures/gui/generic_9x1.png": "898d282a843d306f23652f10f78e8bf765f25d5095f60e8cab8db8543b2fee02",
+        "assets/artisan/textures/gui/generic_9x2.png": "fcb46d8c1adfb5c510e2f6560a037854c580e74059a57525bfd56b81f5a21a19",
+        "assets/artisan/textures/gui/generic_9x3.png": "6a5e5e3951556e6b87c73bf26096997afe63dd6da00116c97bbb2782e0a77da0",
+        "assets/artisan/textures/gui/generic_9x4.png": "bcb32b11964ab9aac32c6b8711618b94918461a73ffee7b9dc3f0073931337ef",
+        "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
+        "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
+        "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
+        "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
+      },
+      "textYFonts": 168,
+      "textYSized": [],
+      "textUpFonts": 129,
+      "sha1": "aaa3202e4f40aabc8a50a7f6f43b6d7575daee19"
     }
   ]
 }

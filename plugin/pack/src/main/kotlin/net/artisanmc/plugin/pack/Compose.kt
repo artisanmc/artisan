@@ -29,8 +29,9 @@ package net.artisanmc.plugin.pack
  * declares margins (`slice`): corners copied, edges and middle repeated. On another image, or
  * at a size its margins do not fit, they are ignored and the image is drawn at its own size.
  * `tint: "#rrggbb"` on a layer multiplies each pixel of its image by that colour, channel by
- * channel, alpha kept (ADR `component-colours`, decision 1). A tint that is no colour leaves the
- * layer as drawn.
+ * channel, alpha kept (ADR `component-colours`, decision 1). `tint: primary` takes the colour of
+ * that name in the palette ([Palette]). A tint that is no colour and no name of the palette
+ * leaves the layer as drawn.
  */
 object ComposedImages {
     /** A side of a composed image, and how far a layer may sit from the origin. */
@@ -120,9 +121,16 @@ object ComposedImages {
      * whose file is missing or unreadable is left out. [slice]: the margins of a layer's image,
      * by the name the layer writes (`kit:<name>` or a module's).
      */
-    fun render(recipe: Recipe, own: (String) -> ByteArray?, kit: (String) -> ByteArray?, slice: (String) -> Slice? = { null }): RgbaImage? {
+    fun render(
+        recipe: Recipe,
+        own: (String) -> ByteArray?,
+        kit: (String) -> ByteArray?,
+        /** The palette a tint's name is looked up in; without it only a literal colour tints. */
+        palette: Palette? = null,
+        slice: (String) -> Slice? = { null },
+    ): RgbaImage? {
         val decoded = HashMap<String, RgbaImage?>()
-        return compose(recipe, slice) { name ->
+        return compose(recipe, slice, palette) { name ->
             decoded.getOrPut(name) {
                 val inKit = Kit.nameOf(name)
                 val png = if (inKit != null) kit(inKit) else own(name)
@@ -137,14 +145,14 @@ object ComposedImages {
      * be drawn. Without a size of its own, the image reaches as far as its first layer at that
      * layer's own size.
      */
-    fun compose(recipe: Recipe, slice: (String) -> Slice? = { null }, image: (String) -> RgbaImage?): RgbaImage? {
+    fun compose(recipe: Recipe, slice: (String) -> Slice? = { null }, palette: Palette? = null, image: (String) -> RgbaImage?): RgbaImage? {
         val drawn = recipe.layers.mapNotNull { layer -> image(layer.image)?.let { layer to it } }
         val (first, piece) = drawn.firstOrNull() ?: return null
         val width = recipe.width ?: (first.x + first.columns * piece.width).coerceIn(1, MAX_SIDE)
         val height = recipe.height ?: (first.y + first.rows * piece.height).coerceIn(1, MAX_SIDE)
         val out = RgbaImage(width, height)
         for ((layer, plain) in drawn) {
-            val source = picture(layer, plain, slice(layer.image))
+            val source = picture(layer, plain, slice(layer.image), palette)
             for (row in 0 until layer.rows) for (column in 0 until layer.columns) {
                 over(out, source, layer.x + column * source.width, layer.y + row * source.height)
             }
@@ -156,9 +164,10 @@ object ComposedImages {
      * A layer's image as it is drawn: resized when the layer gives a size its margins fit, then
      * tinted when the layer gives a colour.
      */
-    fun picture(layer: Layer, source: RgbaImage, slice: Slice?): RgbaImage {
+    fun picture(layer: Layer, source: RgbaImage, slice: Slice?, palette: Palette? = null): RgbaImage {
         val sized = sized(layer, source, slice)
-        return tintColour(layer.tint)?.let { tinted(sized, it) } ?: sized
+        val tint = if (palette != null) palette.tintOf(layer.tint) else layer.tint
+        return tintColour(tint)?.let { tinted(sized, it) } ?: sized
     }
 
     private fun sized(layer: Layer, source: RgbaImage, slice: Slice?): RgbaImage {
