@@ -461,6 +461,17 @@ export default {
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/assets/textures/<piece>.png is a piece redrawn at the piece's size. It is read here once deployed.",
       filesOwn:
         "This theme is a folder of the server, themes/{{name}}/: assets/ holds its images; one named like a common image replaces it, at that image's size. It is read here once deployed.",
+      palette: {
+        title: "Its colours",
+        hint: "The colour each name has in this theme. The base's coloured buttons, and any image tinted with a name, follow it. A name left alone keeps the colour of the library.",
+        colourOf: "Colour of {{name}}",
+        reset: "Back to the colour without this theme",
+        newName: "New colour name",
+        add: "Add",
+        drafted:
+          "These colours are in your draft of the theme: open its folder and deploy it to see them in game.",
+        failed: "The colours could not be saved to your draft: {{detail}}",
+      },
       compare: "Without and with, in a menu",
       putHint:
         "Putting a theme in place sets it above the ones already there and rebuilds the server's pack: players receive it at their next connection. Taking it off is done from here too.",

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KIT_PREFIX } from "@/lib/pack/kit";
+import { PALETTE_FILE, paletteOf } from "@/lib/pack/palette";
 import { themeUnread } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
@@ -8,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 import { KitTrialMenu } from "./KitTrialMenu";
 import { ThemeMoves } from "./ThemeMoves";
+import { ThemePalette, paletteFile, useThemePalette } from "./ThemePalette";
 import { publishedKitTheme, useKitAssetsIn, useThemeOwnImages } from "./kitAssets";
 import { serverThemeNames } from "./kitTheme";
 
@@ -22,6 +24,10 @@ import { serverThemeNames } from "./kitTheme";
  * when the server moves a theme's folder, and exported as an archive (`onExport`). What it
  * still holds that is no longer read (a table of colours, a redraw aimed at a module:
  * `themeUnread`) is said.
+ *
+ * A theme of its own folder has its palette edited here too (`ThemePalette`): the colours its
+ * `palette.yml` gives the names a tint writes, written to the player's draft of the theme and
+ * shown at once on the menu with the theme.
  */
 export function KitThemePage({
   name,
@@ -55,11 +61,22 @@ export function KitThemePage({
   const stack = useKitStore((s) => s.themes);
   const inPlace = stack.includes(name);
   const theme = useMemo(() => publishedKitTheme(read, name, own), [read, own, name]);
+  const mine = own[name];
+  const palette = useThemePalette(mine?.projectId, mine?.files[PALETTE_FILE]);
+  // What a colour is without this theme, and with it as edited here: the menu on the right
+  // shows a change of colour before it is deployed.
+  const below = useMemo(() => paletteOf([read?.files[PALETTE_FILE]]), [read]);
+  const edited = useMemo(
+    () =>
+      mine
+        ? paletteOf([paletteFile(palette.colours) ?? undefined, read?.files[PALETTE_FILE]])
+        : undefined,
+    [mine, palette.colours, read],
+  );
   const plain = useKitAssetsIn(null);
-  const themed = useKitAssetsIn(name);
+  const themed = useKitAssetsIn(name, edited);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const mine = own[name];
   const unread = useMemo(
     () =>
       mine ? themeUnread([...Object.keys(mine.files), ...mine.binaries.map((b) => b.path)]) : [],
@@ -166,6 +183,7 @@ export function KitThemePage({
                 </ul>
               )}
             </section>
+            {mine ? <ThemePalette state={palette} below={below} /> : null}
             {unread.length > 0 ? (
               <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-unread">
                 <h3 className="eyebrow">{t("kit.theme.unread")}</h3>

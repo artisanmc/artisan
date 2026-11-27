@@ -437,35 +437,36 @@ export const publishedKitTheme = (
  * The server's kit images in its theme `name` alone, whatever themes its pack is built in;
  * `null`: in no theme. What a theme is judged on before it is put in place.
  */
-export function useKitAssetsIn(name: string | null): Asset[] {
+export function useKitAssetsIn(name: string | null, palette?: Palette): Asset[] {
   const read = useKitStore((s) => s.read);
   const own = useKitStore((s) => s.own);
   const [shown, setShown] = useState<{
     read: KitRead;
     name: string | null;
+    palette: Palette | undefined;
     assets: Asset[];
   } | null>(null);
   useEffect(() => {
     if (!read) return;
     let cancelled = false;
     const theme = name === null ? null : publishedKitTheme(read, name, own);
-    const palette = serverPalette(read, own, name === null ? [] : [name]);
-    void composedKitImages(read, theme, palette)
+    const colours = palette ?? serverPalette(read, own, name === null ? [] : [name]);
+    void composedKitImages(read, theme, colours)
       .then(async (images) => {
         const plain = kitAssetsOf(read, images);
         const shown = theme ? await themedKitAssets(plain, theme) : plain;
-        const variants = await kitVariantAssets(plain, shown, palette);
+        const variants = await kitVariantAssets(plain, shown, colours);
         return variants.size === 0 ? shown : shown.map((asset) => variants.get(asset.id) ?? asset);
       })
       .then((assets) => {
-        if (!cancelled) setShown({ read, name, assets });
+        if (!cancelled) setShown({ read, name, palette, assets });
       });
     return () => {
       cancelled = true;
     };
-  }, [read, own, name]);
+  }, [read, own, name, palette]);
   const plain = useMemo(() => kitAssetsOf(read), [read]);
-  // While another theme is being read, the last one stays: the menu does not blink to the base.
+  // While another theme or palette is being read, the last one stays: the menu does not blink to the base.
   return shown && shown.read === read && shown.name === name ? shown.assets : plain;
 }
 

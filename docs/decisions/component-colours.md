@@ -1,8 +1,8 @@
 # A component takes a colour from the theme's palette
 
-**Status:** accepted (2026-11-27). Being built: steps 1 to 4 are in the code (a tint on a layer, a
-literal or a name of `palette.yml`; the base's neutral button and its variants; the `choice`
-parameter and `color` on the base's `button`). Follows `themes-reach-modules`
+**Status:** accepted (2026-11-27), built: a tint on a layer, a literal or a name of
+`palette.yml`; the base's neutral button and its variants; the `choice` parameter and `color` on
+the base's `button`; the palette edited on a theme's page. Follows `themes-reach-modules`
 ("Left open: colour").
 
 ## Context
@@ -50,8 +50,12 @@ parameter and `color` on the base's `button`). Follows `themes-reach-modules`
    so a menu that gave `image` reads as before. The inspector shows a list, never a colour
    picker: the colour's value belongs to the theme.
 
-5. **A theme's sheet.** The theme's page shows each tintable piece in each palette name, in
-   place of the single trial menu, without the theme and with it.
+5. **A theme's sheet.** The theme's page shows the base's coloured pieces without the theme and
+   with it, and the theme's palette beside them, one colour picker a name. As built: the trial
+   menu holds the coloured buttons (one a palette name the base draws), so the sheet is that
+   menu; a colour picked shows on it at once and is written to `palette.yml` in the player's
+   draft of the theme, which reaches the game when deployed. A theme the library still keeps in
+   `themes/<name>/` has no palette: a palette is read at the root of a theme's own Project.
 
 6. **Both builders, same bytes.** The multiplication is on whole numbers
    (`(c * t + 127) / 255`), with a case in the shared pack vectors.

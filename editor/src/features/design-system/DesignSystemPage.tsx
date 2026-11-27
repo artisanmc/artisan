@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChangeList } from "@/components/ui/change-list";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible } from "@/components/ui/collapsible";
+import { ColorInput } from "@/components/ui/color-input";
 import { DataTable } from "@/components/ui/data-table";
 import {
   Dialog,
@@ -684,6 +685,16 @@ export function DesignSystemPage() {
             <div className="flex max-w-xs items-center gap-1">
               <Input defaultValue="Original" />
               <ResetButton modified={false} onReset={() => {}} label="Reset" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<ColorInput value onChange label>"}
+            </span>
+            <div className="flex max-w-xs items-center gap-2">
+              <ColorInput value="#3b82f6" onChange={() => {}} label="Colour" />
+              <code className="text-[12px] text-[var(--text-mut)]">#3b82f6</code>
+              <ColorInput value="#3b82f6" onChange={() => {}} label="Colour, disabled" disabled />
             </div>
           </div>
           <div className="flex flex-col gap-2">
