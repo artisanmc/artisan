@@ -93,7 +93,7 @@ the same list of places on the left, in the order an image's name is looked up:
   the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
   the server's pack.
 - **Modules**: each module's own images. A module that holds an image of a name keeps it in
-  its menus, whatever the themes hold.
+  its menus; a theme changes it only by an image filed under that module.
 
 A click opens the place on the right: a theme, a module or the base on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
@@ -138,7 +138,10 @@ files are written with the common images (see [AI](../../configuration/ai/), "Th
 here once deployed. **New theme** creates one, empty, as a folder of its own on the server
 (`plugins/Artisan/themes/<name>/`): it changes nothing until it holds redrawn
 images and is put in place. Its page says where its files are; the assistant fills it when
-asked ("make the buttons red in the theme noel"). A theme changes the common images only.
+asked ("make the buttons red in the theme noel"). A theme changes a common image by holding an
+image of its name. It changes a module's own image by holding one filed under that module,
+`overrides/<module>/<image>.png` (`overrides/shop/banner.png` for the module shop's `banner`):
+that module's image alone, while the theme is in place.
 
 A theme's images are under `assets/` of its folder (`assets/textures/`, `assets/glyphs/`). The
 folder does not decide what an image is for: one of either folder draws a button, a layer of

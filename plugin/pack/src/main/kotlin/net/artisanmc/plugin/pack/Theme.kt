@@ -19,9 +19,16 @@ package net.artisanmc.plugin.pack
  *
  * A theme in place changes what `kit:<name>` shows: the theme's own drawing of that image when
  * it has one of the same size. A theme holds no Document and moves nothing, so a menu laid out
- * against the kit keeps its layout; at worst it is ugly. A module's own image is the module's:
- * no theme changes it (ADR `resources-one-screen`, decision 2), and a theme repaints no pixel
- * (decision 3): what it once held to do so is no longer read.
+ * against the kit keeps its layout; at worst it is ugly. A theme repaints no pixel (ADR
+ * `resources-one-screen`, decision 3): what it once held to do so is no longer read.
+ *
+ * A theme replaces an image where it lives (ADR `themes-reach-modules`): its image of a common
+ * name replaces the common one, and never a module's image of that name. A module's image is
+ * replaced by the theme's file filed under that module:
+ *
+ * ```
+ * themes/noel/overrides/shop/banner.png    the module shop's `banner`, while noel is in place
+ * ```
  *
  * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
  * the highest that draws an image wins ([ThemeStack]).
@@ -30,6 +37,8 @@ class KitTheme internal constructor(
     /** The images the theme redraws: their name to their file. */
     private val redrawn: Map<String, String>,
     private val binary: (String) -> ByteArray?,
+    /** The images of modules the theme replaces: the module's folder, then the image's name, to its file. */
+    private val modules: Map<String, Map<String, String>> = emptyMap(),
 ) {
     private val files = HashMap<String, ByteArray?>()
 
@@ -43,8 +52,13 @@ class KitTheme internal constructor(
      * The theme's own drawing of [name], whatever its size (ADR `resources-one-screen`,
      * decision 4); null when it has none, or one that is no PNG.
      */
-    fun drawing(name: String): ByteArray? {
-        val path = redrawn[name] ?: return null
+    fun drawing(name: String): ByteArray? = read(redrawn[name])
+
+    /** The theme's drawing of the module [module]'s image [name] (`overrides/<module>/`); null when it has none. */
+    fun drawingIn(module: String, name: String): ByteArray? = read(modules[module]?.get(name))
+
+    private fun read(path: String?): ByteArray? {
+        path ?: return null
         val mine = files.getOrPut(path) { binary(path) } ?: return null
         return mine.takeIf { runCatching { Png.decode(it) }.isSuccess }
     }
@@ -113,7 +127,34 @@ class KitTheme internal constructor(
         fun own(theme: PackProject): KitTheme = ownOf(theme.binaries, theme.binary)
 
         /** [own] of a theme given as the paths of its [binaries] and what reads one. */
-        fun ownOf(binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme = KitTheme(ownDrawings(binaries), binary)
+        fun ownOf(binaries: Collection<String>, binary: (String) -> ByteArray?): KitTheme =
+            KitTheme(ownDrawings(binaries), binary, moduleDrawings(binaries))
+
+        /** `overrides/<module>/<image>.png`: the module's folder and the image's name; null for any other path. */
+        private fun moduleDrawing(path: String): Pair<String, String>? {
+            if (!path.startsWith(OVERRIDES_DIR) || path.startsWith(COMMON_DIR)) return null
+            val parts = path.substring(OVERRIDES_DIR.length).split('/')
+            if (parts.size != 2 || parts[0].isEmpty()) return null
+            val file = parts[1]
+            if (!file.endsWith(".png") || file.length == ".png".length) return null
+            return parts[0] to file.dropLast(".png".length)
+        }
+
+        /**
+         * The images of modules a theme of its own folder replaces among its [binaries], by module
+         * folder then by name (ADR `themes-reach-modules`): `overrides/<module>/<image>.png`.
+         */
+        fun moduleDrawings(binaries: Collection<String>): Map<String, Map<String, String>> {
+            val out = LinkedHashMap<String, LinkedHashMap<String, String>>()
+            for (path in binaries.sorted()) {
+                val (module, name) = moduleDrawing(path) ?: continue
+                out.getOrPut(module) { LinkedHashMap() }[name] = path
+            }
+            return out
+        }
+
+        /** The path of the theme's own drawing of the module [module]'s image [name]. */
+        fun moduleDrawingPath(module: String, name: String): String = "$OVERRIDES_DIR$module/$name.png"
 
         /** The images the theme [name] redraws among [binaries], by name: a texture wins over a glyph. */
         fun drawings(name: String, binaries: Collection<String>): Map<String, String> {
@@ -163,6 +204,10 @@ class ThemeStack private constructor(private val themes: List<KitTheme>) {
 
     /** The themes' drawing of [name], the highest theme's first; null when none draws it. */
     fun drawing(name: String): ByteArray? = themes.asReversed().firstNotNullOfOrNull { it.drawing(name) }
+
+    /** The module [module]'s image [name], whose PNG is [png], as the themes show it. */
+    fun shownIn(module: String, name: String, png: ByteArray): ByteArray =
+        themes.asReversed().firstNotNullOfOrNull { it.drawingIn(module, name) } ?: png
 
     companion object {
         /** Null for no theme. */

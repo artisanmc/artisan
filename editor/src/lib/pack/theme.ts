@@ -18,9 +18,17 @@ import { decodePng } from "./png";
  *
  * A theme in place changes what `kit:<name>` shows: the theme's own drawing of that image when
  * it has one of the same size. A theme holds no Document and moves nothing, so a menu laid out
- * against the kit keeps its layout; at worst it is ugly. A module's own image is the module's:
- * no theme changes it (ADR `resources-one-screen`, decision 2), and a theme repaints no pixel
- * (decision 3): what it once held to do so (`themeUnread`) is no longer read.
+ * against the kit keeps its layout; at worst it is ugly. A theme repaints no pixel (ADR
+ * `resources-one-screen`, decision 3): what it once held to do so (`themeUnread`) is no longer
+ * read.
+ *
+ * A theme replaces an image where it lives (ADR `themes-reach-modules`): its image of a common
+ * name replaces the common one, and never a module's image of that name. A module's image is
+ * replaced by the theme's file filed under that module:
+ *
+ * ```
+ * themes/noel/overrides/shop/banner.png    the module shop's `banner`, while noel is in place
+ * ```
  *
  * The themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest first):
  * the highest that draws an image wins (`kitThemeStack`).
@@ -138,6 +146,10 @@ type Bytes = Uint8Array | null | undefined;
 export interface KitTheme {
   /** The names of the images this theme redraws. */
   drawings: readonly string[];
+  /** The theme's drawing of the module `module`'s image `name` (`overrides/<module>/`); `null` when it has none. */
+  drawingIn(module: string, name: string): Promise<Uint8Array | null>;
+  /** The module `module`'s image `name`, whose PNG is `png`, as the theme shows it. */
+  shownIn(module: string, name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The kit image `name`, whose PNG is `png`, as the theme shows it: its own drawing, else `png`. */
   shown(name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The theme's own drawing of `name`, when it has one as large as `png`; `null` otherwise. */
@@ -157,12 +169,12 @@ const sizeOf = (png: Uint8Array) => {
 export function kitTheme(
   redrawn: ReadonlyMap<string, string>,
   binary: (path: string) => Bytes | Promise<Bytes>,
+  modules: ReadonlyMap<string, ReadonlyMap<string, string>> = new Map(),
 ): KitTheme {
   const files = new Map<string, Promise<Bytes>>();
-  // The theme's file of `name`, whatever its size (ADR `resources-one-screen`, decision 4);
+  // The theme's file at `path`, whatever its size (ADR `resources-one-screen`, decision 4);
   // one that is no PNG is left out.
-  const drawing = async (name: string) => {
-    const path = redrawn.get(name);
+  const read = async (path: string | undefined) => {
     if (path === undefined) return null;
     if (!files.has(path))
       files.set(
@@ -174,9 +186,12 @@ export function kitTheme(
     const mine = await files.get(path);
     return mine && sizeOf(mine) ? mine : null;
   };
+  const drawing = (name: string) => read(redrawn.get(name));
   return {
     drawings: [...redrawn.keys()],
     drawing,
+    drawingIn: (module, name) => read(modules.get(module)?.get(name)),
+    shownIn: async (module, name, png) => (await read(modules.get(module)?.get(name))) ?? png,
     shown: async (name, png) => (await drawing(name)) ?? png,
   };
 }
@@ -221,20 +236,55 @@ export function ownThemeDrawings(binaries: readonly string[]): Map<string, strin
   return out;
 }
 
+/** `overrides/<module>/<image>.png`: the module's folder and the image's name; `null` for any other path. */
+function moduleDrawing(path: string): { module: string; name: string } | null {
+  if (!path.startsWith(THEME_OVERRIDES_DIR) || path.startsWith(THEME_COMMON_DIR)) return null;
+  const [module, file, ...deeper] = path.slice(THEME_OVERRIDES_DIR.length).split("/");
+  if (!module || !file || deeper.length > 0) return null;
+  if (!file.endsWith(".png") || file.length === ".png".length) return null;
+  return { module, name: file.slice(0, -".png".length) };
+}
+
+/**
+ * The images of modules a theme of its own folder replaces among its `binaries`, by module
+ * folder then by name (ADR `themes-reach-modules`): `overrides/<module>/<image>.png`.
+ */
+export function themeModuleDrawings(binaries: readonly string[]): Map<string, Map<string, string>> {
+  const out = new Map<string, Map<string, string>>();
+  for (const path of [...binaries].sort(byCodeUnit)) {
+    const at = moduleDrawing(path);
+    if (!at) continue;
+    const images = out.get(at.module) ?? new Map<string, string>();
+    images.set(at.name, path);
+    out.set(at.module, images);
+  }
+  return out;
+}
+
+/** The path of the theme's own drawing of the module `module`'s image `name`. */
+export const themeModuleDrawingPath = (module: string, name: string): string =>
+  `${THEME_OVERRIDES_DIR}${module}/${name}.png`;
+
 /**
  * What a theme of its own folder holds that is no longer read (ADR `resources-one-screen`,
- * migration): its table of colours and its redraws aimed at a module (`overrides/<module>/`),
- * among the paths of its files, sorted.
+ * migration): its table of colours and whatever else `overrides/` holds that is not an image
+ * of the common ones or of a module, among the paths of its files, sorted.
  */
 export function themeUnread(paths: readonly string[]): string[] {
   return paths
-    .filter((path) => path.startsWith(THEME_OVERRIDES_DIR) && !path.startsWith(THEME_COMMON_DIR))
+    .filter(
+      (path) =>
+        path.startsWith(THEME_OVERRIDES_DIR) &&
+        !path.startsWith(THEME_COMMON_DIR) &&
+        !moduleDrawing(path),
+    )
     .sort(byCodeUnit);
 }
 
-/** A theme that is its own Project: its redraws of the common images. One that holds none changes nothing. */
+/** A theme that is its own Project: its images of the common names and of modules. One that holds none changes nothing. */
 export function readOwnTheme(theme: ThemeFiles): KitTheme {
-  return kitTheme(ownThemeDrawings(theme.binaries.map((b) => b.path)), theme.binary);
+  const paths = theme.binaries.map((b) => b.path);
+  return kitTheme(ownThemeDrawings(paths), theme.binary, themeModuleDrawings(paths));
 }
 
 /** What the builders ask of the themes in place, as one look. */
@@ -243,6 +293,8 @@ export interface ThemeLook {
   shown(name: string, png: Uint8Array): Promise<Uint8Array>;
   /** The themes' drawing of `name`: `null` unless one draws it at `png`'s size. */
   drawing(name: string): Promise<Uint8Array | null>;
+  /** The module `module`'s image `name`, whose PNG is `png`, as the themes show it. */
+  shownIn(module: string, name: string, png: Uint8Array): Promise<Uint8Array>;
 }
 
 /**
@@ -258,7 +310,18 @@ export function kitThemeStack(themes: readonly KitTheme[]): ThemeLook | null {
     }
     return null;
   };
-  return { drawing, shown: async (name, png) => (await drawing(name)) ?? png };
+  const drawingIn = async (module: string, name: string) => {
+    for (const theme of [...themes].reverse()) {
+      const drawn = await theme.drawingIn(module, name);
+      if (drawn) return drawn;
+    }
+    return null;
+  };
+  return {
+    drawing,
+    shown: async (name, png) => (await drawing(name)) ?? png,
+    shownIn: async (module, name, png) => (await drawingIn(module, name)) ?? png,
+  };
 }
 
 /**

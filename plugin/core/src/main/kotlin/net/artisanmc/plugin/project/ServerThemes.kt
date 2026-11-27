@@ -68,8 +68,8 @@ object ServerThemes {
                 val unread = unread(File(roots.themesRoot, name))
                 if (unread.isNotEmpty()) logger?.warning(
                     "[Artisan] The theme '$name' holds files that are no longer read: ${unread.joinToString(", ")}. A theme changes an image " +
-                        "by holding an image under the common image's name (${FORMER_IMAGE_DIRS.first()}/): its colours repaint nothing, and a module's own image " +
-                        "is changed in the module. Delete them.",
+                        "by holding an image under the common image's name (${FORMER_IMAGE_DIRS.first()}/), or a module's image under $OVERRIDES/<module>/: " +
+                        "its colours repaint nothing. Delete them.",
                 )
             }
             free
@@ -104,14 +104,15 @@ object ServerThemes {
     }
 
     /**
-     * What the theme's folder [dir] holds that is no longer read: everything in its `overrides/`
-     * but its redraws of the common images (a table of colours, a folder aimed at a module),
-     * each by its path in the theme, a folder ending with `/`, sorted.
+     * What the theme's folder [dir] holds that is no longer read: the files at the top of its
+     * `overrides/` (a table of colours), each by its path in the theme, sorted. A folder there
+     * is read: the images of the module of that name the theme replaces (ADR
+     * `themes-reach-modules`).
      */
     fun unread(dir: File): List<String> =
         File(dir, OVERRIDES).listFiles().orEmpty()
-            .filter { it.name != ArtisanTheme.NAME && !it.name.startsWith(".") }
-            .map { "$OVERRIDES/${it.name}" + if (it.isDirectory) "/" else "" }
+            .filter { it.isFile && !it.name.startsWith(".") }
+            .map { "$OVERRIDES/${it.name}" }
             .sorted()
 
     /**

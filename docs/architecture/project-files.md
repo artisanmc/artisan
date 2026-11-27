@@ -43,8 +43,9 @@ it holds its images like a module, under `assets/` (`assets/textures/<image>.png
 `assets/glyphs/`): one named like a common image is its drawing of it, taken when it has that
 image's size. A redraw at its former place, `overrides/artisan/<image>.png`, is still read (the
 one in `assets/` wins) and moves to `assets/textures/` at start (`ServerThemes.settle`). A theme changes an image by holding an image (ADR `resources-one-screen`):
-`overrides/colors.yml`, `scope:` in it and `overrides/<module>/` (a redraw aimed at a module)
-are no longer read, and the load says which of them a theme still holds (`ServerThemes.unread`).
+`overrides/colors.yml` and `scope:` in it are no longer read, and the load says which a theme
+still holds (`ServerThemes.unread`). `overrides/<module>/<image>.png` replaces that module's
+image of the name while the theme is in place (ADR `themes-reach-modules`).
 Its name is lowercase letters, digits, `_` and `-`. It
 holds no Document: the server loads no menu, command or Trigger from it
 (`ProjectRoots.holdsDocuments`). A folder named like a module of the server is not registered

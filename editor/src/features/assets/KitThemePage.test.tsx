@@ -70,11 +70,10 @@ describe("KitThemePage", () => {
     expect(
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
-    // Its table of colours and its redraw aimed at a module are no longer read, and said so.
+    // Its table of colours is no longer read, and said so; its image of a module's is read.
     const unread = within(screen.getByTestId("kit-theme-unread"));
     expect(unread.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
       "overrides/colors.yml",
-      "overrides/guilds/banner.png",
     ]);
     // Its files are its own folder's, not the common images'.
     expect(

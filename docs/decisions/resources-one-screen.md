@@ -1,6 +1,8 @@
 # Resources: one rule to find an image, one screen to see it
 
-**Status:** accepted (2026-11-26), amended 2026-11-27 on the owner's first look: Artisan's
+**Status:** accepted (2026-11-26), amended 2026-11-27 by `themes-reach-modules` (decision 2
+is replaced: a theme replaces a module's image by a file filed under that module; a module is
+no longer a place to save an added image into), and the same day on the owner's first look: Artisan's
 base and the server's own theme are one place on the left, **Base** (two rows were not told
 apart), opened on the same Resources screen as any place; the base's own page and its trial
 menu are gone (two interfaces, and a menu has fewer slots than a base can have pieces).

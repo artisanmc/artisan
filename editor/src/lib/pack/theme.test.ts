@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { type RgbaImage, createImage, encodePng } from "./png";
 import {
   configuredThemes,
+  kitThemeStack,
   ownThemeDrawings,
   readKitTheme,
   readKitThemes,
@@ -11,6 +12,8 @@ import {
   themeChange,
   themeDrawings,
   themeNames,
+  themeModuleDrawingPath,
+  themeModuleDrawings,
   themeUnread,
   themesMoved,
   themesRenamed,
@@ -181,11 +184,20 @@ describe("kit themes", () => {
     expect(theme.drawings).toEqual(["close", "star"]);
     expect(await readOwnTheme(kit({})).shown("x", green)).toBe(green);
     // What it holds that is no longer read is named, for the editor to say.
-    expect(themeUnread(["overrides/colors.yml", ...paths])).toEqual([
-      "overrides/close.png",
-      "overrides/colors.yml",
-      "overrides/guilds/banner.png",
+    expect(
+      themeUnread(["overrides/colors.yml", "overrides/guilds/deep/banner.png", ...paths]),
+    ).toEqual(["overrides/close.png", "overrides/colors.yml", "overrides/guilds/deep/banner.png"]);
+    // Its image filed under a module replaces that module's image of the name, and no other's.
+    expect([...themeModuleDrawings(paths)].map(([m, images]) => [m, [...images]])).toEqual([
+      ["guilds", [["banner", "overrides/guilds/banner.png"]]],
     ]);
+    expect(themeModuleDrawingPath("guilds", "banner")).toBe("overrides/guilds/banner.png");
+    expect(await theme.shownIn("guilds", "banner", green)).toBe(drawn);
+    expect(await theme.shownIn("shop", "banner", green)).toBe(green);
+    expect(await theme.shownIn("guilds", "close", green)).toBe(green);
+    const stack = kitThemeStack([readOwnTheme(kit({})), theme, readOwnTheme(kit({}))]);
+    expect(await stack?.shownIn("guilds", "banner", green)).toBe(drawn);
+    expect(await stack?.shownIn("shop", "banner", green)).toBe(green);
   });
 
   test("a theme in place is the Project of its name, else the folder the common images keep", async () => {

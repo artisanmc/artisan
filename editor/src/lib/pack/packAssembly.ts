@@ -245,9 +245,18 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
           composed.push({ row, project, recipe: a.compose, own, slices, name: a.row.name });
           continue;
         }
-        // A module's own image is the module's: no theme changes it.
-        const bytes = await project.binary(a.path);
-        if (!bytes) continue;
+        // A module's own image is the module's: a theme changes it only by an image filed
+        // under that module (`overrides/<module>/`, ADR `themes-reach-modules`), taken as it
+        // is, with its own size.
+        const file = await project.binary(a.path);
+        if (!file) continue;
+        const bytes = theme && !common ? await theme.shownIn(folder, a.row.name, file) : file;
+        const drawn = bytes === file ? null : pixelSize(bytes);
+        const filed = drawn ? pixelSize(file) : null;
+        if (drawn && (drawn.width !== filed?.width || drawn.height !== filed?.height)) {
+          row.width = drawn.width;
+          row.height = drawn.height;
+        }
         glyphPngs.set(row.id, bytes);
         imagesByRef.push({ ref: `${project.id}:${a.row.name}`, bytes });
         own.set(a.row.name, bytes);
