@@ -128,7 +128,36 @@ async function generation(env: Env, id: string): Promise<number> {
   return raw ? (JSON.parse(raw) as Location).gen : 0;
 }
 
+/**
+ * The editor's `assets/`, which the hub names by their hash and marks `public, immutable` (EditorAssets),
+ * are kept in Cloudflare's cache under their full address: the next browser gets them without reaching
+ * the address's object, each request of which is billed. A new editor build has new file names, so
+ * nothing is ever stale; `index.html` (`no-cache`) always goes to the hub. Only `assets/`: packs, also
+ * immutable, can weigh 100 MB, too much to copy into the cache through a Worker.
+ */
+function cacheable(request: Request): boolean {
+  return request.method === "GET" && new URL(request.url).pathname.startsWith("/assets/")
+    && !request.headers.has("Range") && request.headers.get("Upgrade") === null;
+}
+
+function shareable(response: Response): boolean {
+  const control = (response.headers.get("Cache-Control") ?? "").toLowerCase();
+  return response.status === 200 && control.includes("public") && control.includes("immutable")
+    && !control.includes("private") && !control.includes("no-store") && !response.headers.has("Set-Cookie");
+}
+
 async function browser(request: Request, env: Env, ctx: ExecutionContext, host: string, label: string): Promise<Response> {
+  const key = cacheable(request) ? new Request(request.url) : null;
+  if (key) {
+    const hit = await caches.default.match(key).catch(() => undefined);
+    if (hit) return hit;
+  }
+  const response = await throughTunnel(request, env, ctx, host, label);
+  if (key && shareable(response)) ctx.waitUntil(caches.default.put(key, response.clone()).catch(() => {}));
+  return response;
+}
+
+async function throughTunnel(request: Request, env: Env, ctx: ExecutionContext, host: string, label: string): Promise<Response> {
   const id = looksLikeId(label) ? label : await cachedGet(env, `name:${label}`);
   if (!id || (absent.get(id) ?? 0) > Date.now()) return fallback(request, env, host, "offline");
   const gen = await generation(env, id);

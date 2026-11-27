@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { config, publicUrl, textResponse, type Config, type Env } from "./config";
 import { offlinePage } from "./offline";
 import {
-  CHUNK, HOP_BY_HOP, T, decode, encode, encodeJson, json, text,
+  CHUNK, HOP_BY_HOP, T, decode, encode, encodeJson, json, text, whole,
   type Frame, type HeaderList, type Hello, type NameRequest, type RequestHead, type ResponseHead, type WsClose,
 } from "./protocol";
 
@@ -100,7 +100,7 @@ export class TunnelObject extends DurableObject<Env> {
     if (plugins.length === 0) return;
     const id = plugins[0].tag.id;
     const name = await this.names().nameOf(id);
-    const hello: Hello = { url: publicUrl(name ?? id, this.cfg), name, names: true };
+    const hello: Hello = { url: publicUrl(name ?? id, this.cfg), name, names: true, whole: true };
     for (const { ws } of plugins) this.send(ws, encodeJson(T.HELLO, 0, hello));
   }
 
@@ -355,6 +355,20 @@ export class TunnelObject extends DurableObject<Env> {
         this.toStream(frame);
         this.opening.get(frame.stream)?.answer(frame);
         if (frame.type === T.RESET) this.browserSocket(frame.stream)?.close(1011, "server reset");
+        break;
+      }
+      case T.RESPONSE_WHOLE: {
+        // One frame for RESPONSE, RESPONSE_BODY and RESPONSE_END: each frame the plugin sends is billed.
+        let parts: { head: ResponseHead; body: Uint8Array };
+        try {
+          parts = whole(frame);
+        } catch {
+          break;
+        }
+        const stream = frame.stream;
+        this.toStream({ type: T.RESPONSE, stream, payload: new TextEncoder().encode(JSON.stringify(parts.head)) });
+        if (parts.body.byteLength > 0) this.toStream({ type: T.RESPONSE_BODY, stream, payload: parts.body });
+        this.toStream({ type: T.RESPONSE_END, stream, payload: new Uint8Array(0) });
         break;
       }
       case T.WS_OPENED:

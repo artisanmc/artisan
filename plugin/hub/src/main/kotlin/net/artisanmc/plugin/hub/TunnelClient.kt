@@ -69,6 +69,8 @@ class TunnelClient(
         private set
     @Volatile override var names: Boolean = false
         private set
+    /** The tunnel server reads [Frame.Type.RESPONSE_WHOLE] ([Hello.whole]). */
+    @Volatile private var whole: Boolean = false
     private val nameRequests = ConcurrentHashMap<Int, CompletableFuture<NameResult>>()
     private val nextNameRequest = AtomicInteger(1)
 
@@ -101,6 +103,7 @@ class TunnelClient(
 
     private fun reconnect() {
         url = null
+        whole = false
         onUrl(null)
         closeStreams()
         if (stopped) return
@@ -159,6 +162,7 @@ class TunnelClient(
                 url = hello.url
                 name = hello.name
                 names = hello.names
+                whole = hello.whole
                 onUrl(hello.url)
             }
             Frame.Type.NAME_RESULT -> nameRequests.remove(id)?.complete(frame.json<NameResult>())
@@ -213,11 +217,19 @@ class TunnelClient(
         var started = false
         try {
             local.newCall(request).execute().use { response ->
-                send(Frame.json(Frame.Type.RESPONSE, id, ResponseHead(response.code, headerList(response.headers))))
-                started = true
+                val head = ResponseHead(response.code, headerList(response.headers))
                 val source = response.body?.byteStream()
+                val buffer = ByteArray(Frame.CHUNK)
+                // A body that fits in one chunk goes in one frame when the tunnel server reads it.
+                val first = source?.let { readUpTo(it, buffer) } ?: 0
+                if (whole && (source == null || first < buffer.size)) {
+                    send(Frame.whole(id, head, buffer.copyOf(first)))
+                    return
+                }
+                send(Frame.json(Frame.Type.RESPONSE, id, head))
+                started = true
+                if (first > 0) send(Frame(Frame.Type.RESPONSE_BODY, id, buffer.copyOf(first)), wait = true)
                 if (source != null) {
-                    val buffer = ByteArray(Frame.CHUNK)
                     while (true) {
                         val read = source.read(buffer)
                         if (read < 0) break
@@ -233,8 +245,20 @@ class TunnelClient(
     }
 
     private fun respond(id: Int, status: Int) {
+        if (whole) return send(Frame.whole(id, ResponseHead(status), Frame.EMPTY))
         send(Frame.json(Frame.Type.RESPONSE, id, ResponseHead(status)))
         send(Frame(Frame.Type.RESPONSE_END, id))
+    }
+
+    /** Fills [buffer] from [source] until it is full or the body ends: how many bytes it holds. */
+    private fun readUpTo(source: java.io.InputStream, buffer: ByteArray): Int {
+        var filled = 0
+        while (filled < buffer.size) {
+            val read = source.read(buffer, filled, buffer.size - filled)
+            if (read < 0) break
+            filled += read
+        }
+        return filled
     }
 
     private fun openSocket(id: Int, head: RequestHead) {

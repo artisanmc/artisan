@@ -37,7 +37,14 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
          * every tunnel of the address, with the new one.
          */
         NAME(13),
-        NAME_RESULT(14);
+        NAME_RESULT(14),
+        /**
+         * Plugin → tunnel server, only when its [Hello.whole] says it reads them: a whole response in one
+         * frame, `[head length:4][ResponseHead JSON][body]`, for a body under [CHUNK]. Stands for
+         * [RESPONSE], [RESPONSE_BODY] and [RESPONSE_END]: on the Cloudflare tunnel each frame a plugin sends
+         * is billed, and most editor responses are small.
+         */
+        RESPONSE_WHOLE(15);
 
         companion object {
             private val byCode = entries.associateBy { it.code }
@@ -51,6 +58,15 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
     fun text(): String = payload.toString(Charsets.UTF_8)
 
     inline fun <reified T> json(): T = mapper.readValue(payload)
+
+    /** The head and body of a [Type.RESPONSE_WHOLE] frame. */
+    fun whole(): Pair<ResponseHead, ByteArray> {
+        val buffer = ByteBuffer.wrap(payload)
+        val length = buffer.getInt()
+        require(length in 0..buffer.remaining()) { "bad head length $length" }
+        val head = mapper.readValue(payload, 4, length, ResponseHead::class.java)
+        return head to payload.copyOfRange(4 + length, payload.size)
+    }
 
     companion object {
         const val HEADER = 5
@@ -70,15 +86,22 @@ class Frame(val type: Type, val stream: Int, val payload: ByteArray = EMPTY) {
         }
 
         fun json(type: Type, stream: Int, value: Any): Frame = Frame(type, stream, mapper.writeValueAsBytes(value))
+
+        /** A [Type.RESPONSE_WHOLE] frame: [head] and the whole [body]. */
+        fun whole(stream: Int, head: ResponseHead, body: ByteArray): Frame {
+            val json = mapper.writeValueAsBytes(head)
+            val payload = ByteBuffer.allocate(4 + json.size + body.size).putInt(json.size).put(json).put(body).array()
+            return Frame(Type.RESPONSE_WHOLE, stream, payload)
+        }
     }
 }
 
 /**
  * What the tunnel server tells a plugin once its tunnel is accepted: the address browsers use,
  * `<name>.<domain>` when the address has a [name], else `<id>.<domain>` (both keep working).
- * [names]: false when this tunnel server keeps no names.
+ * [names]: false when this tunnel server keeps no names. [whole]: it reads [Frame.Type.RESPONSE_WHOLE].
  */
-data class Hello(val url: String, val name: String? = null, val names: Boolean = false)
+data class Hello(val url: String, val name: String? = null, val names: Boolean = false, val whole: Boolean = false)
 
 /** Takes [name] for the tunnel's address, or only says whether it could ([check]). An empty [name] gives the name back. */
 data class NameRequest(val name: String, val check: Boolean = false)

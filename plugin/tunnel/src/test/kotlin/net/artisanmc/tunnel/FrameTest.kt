@@ -40,4 +40,19 @@ class FrameTest {
         val frame = Frame(Frame.Type.HELLO, 0, """{"url":"https://a.b","name":"x","later":1}""".toByteArray())
         assertEquals(Hello("https://a.b", "x"), frame.json<Hello>())
     }
+
+    @Test
+    fun `a whole response keeps its head and body`() {
+        val head = ResponseHead(200, listOf(listOf("Content-Type", "application/json")))
+        val body = "{\"ok\":true}".toByteArray()
+        val frame = Frame.decode(Frame.whole(7, head, body).encode())
+        kotlin.test.assertEquals(Frame.Type.RESPONSE_WHOLE, frame.type)
+        kotlin.test.assertEquals(7, frame.stream)
+        val (readHead, readBody) = frame.whole()
+        kotlin.test.assertEquals(head, readHead)
+        kotlin.test.assertContentEquals(body, readBody)
+        val (emptyHead, emptyBody) = Frame.decode(Frame.whole(1, ResponseHead(204), Frame.EMPTY).encode()).whole()
+        kotlin.test.assertEquals(204, emptyHead.status)
+        kotlin.test.assertEquals(0, emptyBody.size)
+    }
 }
