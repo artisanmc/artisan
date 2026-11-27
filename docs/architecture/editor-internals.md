@@ -1557,6 +1557,7 @@ a +/− summary and an expandable `FileDiff` per file. `components/ui/tooltip.ts
 version aligned with the primitives already installed): instant arrowed bubble on hover
 and focus, inverted `--text`/`--surface` colors, to be preferred over the native `title`.
 `components/ui/reset-button.tsx` (`ResetButton`): the small reset next to a field that starts from an original value (module command, system element), disabled as long as the field equals the original, which shows modified fields at a glance.
+`components/ui/color-input.tsx` (`ColorInput`): a colour picked in the browser's picker, shown as a square swatch beside its field (a theme's palette on its page).
 `components/ui/filled-icons.tsx` carries the filled icons that Lucide does not provide. In the list, `FileDiff wrap` folds
 long lines and has no max height: a single container scrolls, the file
 header stays stuck at the top. Nested scroll areas made the end of long diffs unreadable. Identical contents and missing files

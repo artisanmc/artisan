@@ -326,6 +326,13 @@ primary: "#b3261e"
 With that theme in place every `button.primary.3x1` turns red, in every module, without a new
 image. A theme that redraws `button.neutral.3x1` changes the shape of all three at once. A
 theme or the library that holds an image named `button.primary.3x1` shows that image as drawn.
+
+A theme's colours are also picked without writing the file: in the server's **Resources**, open
+the theme and use **Its colours**. Each name has a colour picker; the menu shown with the theme
+follows at once. The change goes to your draft of the theme: open the theme's folder and deploy
+it to see it in game. The arrow beside a name takes the theme's colour off, and the name goes
+back to the library's colour.
+
 `button.3x1` and `button.danger.3x1` are drawn images and do not follow the palette.
 
 ```yaml

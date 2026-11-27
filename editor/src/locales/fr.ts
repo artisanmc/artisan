@@ -468,6 +468,17 @@ const fr: typeof en = {
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/assets/textures/<pièce>.png est une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
       filesOwn:
         "Ce thème est un dossier du serveur, themes/{{name}}/ : assets/ contient ses images ; celle qui porte le nom d'une image commune la remplace, à la taille de cette image. Il se lit ici une fois déployé.",
+      palette: {
+        title: "Ses couleurs",
+        hint: "La couleur de chaque nom dans ce thème. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un nom laissé tel quel garde la couleur de la bibliothèque.",
+        colourOf: "Couleur de {{name}}",
+        reset: "Revenir à la couleur sans ce thème",
+        newName: "Nom d'une nouvelle couleur",
+        add: "Ajouter",
+        drafted:
+          "Ces couleurs sont dans votre brouillon du thème : ouvrez son dossier et déployez-le pour les voir en jeu.",
+        failed: "Les couleurs n'ont pas pu être enregistrées dans votre brouillon : {{detail}}",
+      },
       compare: "Sans et avec, dans un menu",
       putHint:
         "Mettre en place pose le thème au-dessus de ceux qui y sont déjà et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le retirer se fait d'ici aussi.",
