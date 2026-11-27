@@ -5,11 +5,10 @@ import { imageButtonRect, imageButtonSize, rectanglePositions } from "@/domain/i
 import type { Appearance, Element, LText, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
-import { useImageAsset } from "@/features/assets/kitAssets";
+import { imageSlots, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { TextSizeSelector } from "@/features/canvas/title/composer/TextSizeSelector";
 import { cx } from "@/lib/cx";
-import { kitFootprint } from "@/lib/pack/kit";
 import type { PartsEdit } from "@/state/projects/elementsSlice";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useId, useState } from "react";
@@ -84,7 +83,7 @@ export function PartsEditor({
     let positions: string | undefined;
     if (!drawsImage) {
       if (!rect) throw new Error(t("imageButton.rectangleRequired"));
-      const size = kitFootprint(picked.id) ?? imageButtonSize(picked.width, picked.height);
+      const size = imageSlots(picked) ?? imageButtonSize(picked.width, picked.height);
       positions = rectanglePositions(
         rect.slot,
         size.width,

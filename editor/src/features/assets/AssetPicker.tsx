@@ -8,7 +8,7 @@ import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectS
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { pixelSize } from "@/lib/pack/imageFunction";
-import { KIT_FOLDER, moduleImageKey } from "@/lib/pack/kit";
+import { KIT_FOLDER, kitNameOf, moduleImageKey } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
@@ -19,7 +19,7 @@ import { AssetUploadDialog } from "./AssetUploadDialog";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
-import { useCommonImageRef } from "./kitAssets";
+import { useCommonImageRef, useKitAssets, useThemesOwnImages } from "./kitAssets";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
 interface AssetPickerProps {
@@ -43,7 +43,8 @@ interface AssetPickerProps {
    * The caller writes the picked image's `id` where the pack reads a name (a button's image, a
    * title layer): another module's image may then be named where it is, `<module>:<name>`,
    * instead of copied in (ADR `common-images-and-themes`, decision 3). The copy stays the
-   * default.
+   * default. The server's library is then listed first, each image picked under the name a
+   * menu writes for it, nothing copied (ADR `themes-reach-modules`, decision 1).
    */
   named?: boolean;
 }
@@ -102,6 +103,34 @@ export function AssetPicker({
       selectionEpoch.current += 1;
     };
   }, [open, projectId, usage]);
+  // The server's library, then the themes' own images: what a menu names without holding it.
+  const kit = useKitAssets();
+  const themed = useThemesOwnImages();
+  const libraryName = (asset: Asset) => kitNameOf(asset.id) ?? asset.id;
+  const library =
+    named && projectId && !sourceId
+      ? [...kit.filter((a) => a.width > 0 && a.height > 0), ...themed].filter(
+          (a) =>
+            // A window is a menu's background, not a button's image.
+            !(usage === "button" && a.id.startsWith("kit:window.")) &&
+            libraryName(a).toLowerCase().includes(search.toLowerCase()),
+        )
+      : [];
+  /** One of the library: named where it is, measured first when its descriptor says no size. */
+  const pickNamed = async (picked: Asset) => {
+    if (busy) return;
+    setError(null);
+    let size: { width: number; height: number } | null = null;
+    if (!(picked.width > 0 && picked.height > 0)) {
+      setBusy(true);
+      const epoch = selectionEpoch.current;
+      size = await assetBytes(picked).then(pixelSize, () => null);
+      if (selectionEpoch.current !== epoch) return;
+      setBusy(false);
+    }
+    onPick({ ...picked, ...size, id: commonRef(picked) });
+    onClose();
+  };
   const pick = async (picked: Asset) => {
     if (busy) return;
     setError(null);
@@ -238,6 +267,27 @@ export function AssetPicker({
           </p>
         )}
         <div className="grid min-h-0 grid-cols-6 gap-1.5 overflow-y-auto pb-2">
+          {library.length > 0 && (
+            <>
+              <p className="eyebrow col-span-6">{t("imageButton.fromLibrary")}</p>
+              {library.map((asset) => (
+                <button
+                  key={`library:${asset.id}`}
+                  type="button"
+                  title={libraryName(asset)}
+                  disabled={busy}
+                  onClick={() => void pickNamed(asset)}
+                  className={cx(
+                    "group relative flex aspect-square cursor-pointer items-center justify-center",
+                    "rounded-[8px] border border-[var(--border-soft)] bg-[var(--surface-raised)] hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]",
+                  )}
+                >
+                  <AssetPreview asset={asset} lazy className="h-3/4 w-3/4 object-contain" />
+                </button>
+              ))}
+              <p className="eyebrow col-span-6">{t("imageButton.fromModule")}</p>
+            </>
+          )}
           {matches.map((asset) => (
             <button
               key={`${asset.projectId}:${asset.id}`}

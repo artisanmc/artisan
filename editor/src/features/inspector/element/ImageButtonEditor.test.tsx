@@ -1,5 +1,3 @@
-import { useAssetStore } from "@/features/assets/assetStore";
-import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { ImageButtonEditor } from "./ImageButtonEditor";
@@ -10,12 +8,29 @@ vi.mock("@/features/assets/AssetPicker", () => ({
     onPick,
   }: { open: boolean; onPick: (asset: { id: string; name: string }) => void }) =>
     open ? (
-      <button
-        type="button"
-        onClick={() => onPick({ id: "buy", name: "Buy", width: 16, height: 48 } as never)}
-      >
-        Choose Buy
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => onPick({ id: "buy", name: "Buy", width: 16, height: 48 } as never)}
+        >
+          Choose Buy
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            // As the picker gives one of the library: the name a menu writes, 16 px tall.
+            onPick({
+              id: "artisan:button.3x1",
+              projectId: "artisan",
+              name: "button.3x1",
+              width: 16,
+              height: 16,
+            } as never)
+          }
+        >
+          Choose Common
+        </button>
+      </>
     ) : null,
 }));
 
@@ -61,7 +76,7 @@ it("converts an item with the image's natural footprint and edits pixel offsets"
   expect(onImage).toHaveBeenCalledWith({ asset: "buy", fit: "native", offset_x: 0, offset_y: 0 });
 });
 
-const pickCommon = () => {
+it("takes an image of the library at the footprint its name says, under the name it was picked by", () => {
   const onImage = vi.fn();
   render(
     <ImageButtonEditor
@@ -73,80 +88,9 @@ const pickCommon = () => {
       onItem={vi.fn()}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
-  // The base is there on any server; a window is no button's image.
-  expect(screen.queryByTitle(/^window\.6/)).toBeNull();
-  fireEvent.click(screen.getByTitle(/^button\.3x1 /));
-  return onImage;
-};
-
-it("takes a common image by its name alone, at its natural footprint", () => {
-  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
-  useAssetStore.getState().reset();
-  expect(pickCommon()).toHaveBeenCalledWith({ asset: "button.3x1", fit: "native" }, "1-3");
-});
-
-it("names the common image with artisan: when the module holds an image of that name", () => {
-  useKitStore.setState({ read: { projectId: "artisan", files: {}, binaries: [], byName: true } });
-  useAssetStore.getState().reset();
-  useAssetStore
-    .getState()
-    .setAssets([
-      { id: "button.3x1", projectId: "p", type: "texture", name: "button.3x1" } as never,
-    ]);
-  expect(pickCommon()).toHaveBeenCalledWith({ asset: "artisan:button.3x1", fit: "native" }, "1-3");
-  useAssetStore.getState().reset();
-});
-
-it("keeps kit: on a server older than the common images", () => {
-  useKitStore.setState({ read: undefined });
-  expect(pickCommon()).toHaveBeenCalledWith({ asset: "kit:button.3x1", fit: "native" }, "1-3");
-});
-
-it("takes a theme's own image by its name with the theme, measured when its descriptor says no size", async () => {
-  const { encodePng, createImage } = await import("@/lib/pack/png");
-  const fetched = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValue(
-      new Response(encodePng(createImage(40, 20)) as unknown as BodyInit, { status: 200 }),
-    );
-  useKitStore.setState({
-    read: { projectId: "artisan", files: {}, binaries: [], byName: true },
-    modules: [],
-    own: {
-      noel: {
-        projectId: "srv.noel",
-        files: { "assets/textures/star.yml": "width: 54\nheight: 18\n" },
-        binaries: [
-          { path: "assets/textures/star.png", hash: "h1" },
-          { path: "assets/textures/garland.png", hash: "h2" },
-        ],
-      },
-    },
-  });
-  useAssetStore.getState().reset();
-  const onImage = vi.fn();
-  render(
-    <ImageButtonEditor
-      projectId={"p" as never}
-      menu={{ rows: 3, inventoryType: "chest" } as never}
-      element={{ positions: "1" } as never}
-      onImage={onImage}
-      onPositions={vi.fn()}
-      onItem={vi.fn()}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
-  // Its size is in its descriptor: taken at once, three slots wide.
-  fireEvent.click(screen.getByTitle(/^noel:star /));
-  expect(onImage).toHaveBeenCalledWith({ asset: "noel:star", fit: "native" }, "1-3");
-  expect(fetched).not.toHaveBeenCalled();
-  // No descriptor: its PNG is read for its size.
-  fireEvent.click(screen.getByRole("button", { name: "Communes" }));
-  fireEvent.click(screen.getByTitle("noel:garland"));
-  await vi.waitFor(() =>
-    expect(onImage).toHaveBeenCalledWith({ asset: "noel:garland", fit: "native" }, "1-3,10-12"),
-  );
-  fetched.mockRestore();
-  useKitStore.setState({ own: {} });
+  // One button: the picker lists the library itself.
+  expect(screen.queryByRole("button", { name: "Communes" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Image" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose Common" }));
+  expect(onImage).toHaveBeenCalledWith({ asset: "artisan:button.3x1", fit: "native" }, "1-3");
 });

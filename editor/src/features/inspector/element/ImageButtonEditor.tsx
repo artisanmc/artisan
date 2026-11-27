@@ -6,16 +6,13 @@ import type { Appearance, Element, Menu, ProjectId } from "@/domain/types";
 import { AssetPicker } from "@/features/assets/AssetPicker";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { ImageReachNote } from "@/features/assets/ImageReachNote";
-import { KitPicker } from "@/features/assets/KitPicker";
-import { useCommonImageRef, useImageAsset } from "@/features/assets/kitAssets";
+import { imageSlots, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
-import { kitFootprint } from "@/lib/pack/kit";
 import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /** The slots an image covers: a kit image's name says them, another's size gives them. */
-const footprint = (asset: Asset) =>
-  kitFootprint(asset.id) ?? imageButtonSize(asset.width, asset.height);
+const footprint = (asset: Asset) => imageSlots(asset) ?? imageButtonSize(asset.width, asset.height);
 
 export function ImageButtonEditor({
   projectId,
@@ -39,10 +36,8 @@ export function ImageButtonEditor({
   const { t } = useTranslation();
   const controlId = useId();
   const [picking, setPicking] = useState(false);
-  const [pickingKit, setPickingKit] = useState(false);
   const [error, setError] = useState("");
   const asset = useImageAsset(projectId, image?.asset);
-  const commonRef = useCommonImageRef(projectId);
   const type = menu.inventoryType ?? "chest";
   const rect = imageButtonRect(element.positions, type, menu.rows, menu.playerInventory);
   const perform = (action: () => void) => {
@@ -61,7 +56,8 @@ export function ImageButtonEditor({
       );
     });
   /** The image chosen: kept at the button's fit, or a first image at its natural size. */
-  const pick = (picked: Asset, done: () => void, ref: string = picked.id) => {
+  const pick = (picked: Asset, done: () => void) => {
+    const ref = picked.id;
     if (image) onImage({ ...image, asset: ref });
     else {
       if (!rect) throw new Error(t("imageButton.rectangleRequired"));
@@ -99,14 +95,6 @@ export function ImageButtonEditor({
           onClick={() => setPicking(true)}
         >
           {t("imageButton.image")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={!!element.iterates || !!element.places}
-          onClick={() => setPickingKit(true)}
-        >
-          {t("kit.fromKit")}
         </Button>
       </div>
       {image && (
@@ -219,15 +207,6 @@ export function ImageButtonEditor({
         onClose={() => setPicking(false)}
         title={t("imageButton.choose")}
         onPick={(picked) => perform(() => pick(picked, () => setPicking(false)))}
-      />
-      <KitPicker
-        open={pickingKit}
-        onClose={() => setPickingKit(false)}
-        // A window is a menu's background, not a button's image.
-        only={(entry) => !entry.id.startsWith("kit:window.")}
-        onPick={(picked) =>
-          perform(() => pick(picked, () => setPickingKit(false), commonRef(picked)))
-        }
       />
     </div>
   );
