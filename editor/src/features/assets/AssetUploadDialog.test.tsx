@@ -1,8 +1,10 @@
 import * as userAssetsApi from "@/lib/api/userAssets";
+import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetUploadDialog } from "./AssetUploadDialog";
 import { useAssetStore } from "./assetStore";
+import * as libraryDraft from "./libraryDraft";
 
 let mockCurrentUser: { id: string } | null = { id: "u1" };
 
@@ -131,5 +133,98 @@ describe("AssetUploadDialog", () => {
     fireEvent.change(screen.getByLabelText(/fichier/i), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: /importer/i }));
     await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(fakeAsset));
+  });
+});
+
+describe("AssetUploadDialog, for a menu to name", () => {
+  const library = { projectId: "srv.artisan", files: {}, binaries: [], byName: true };
+  const pick = (name: string) => {
+    fireEvent.change(screen.getByLabelText(/fichier/i), {
+      target: { files: [new File(["png"], `${name}.png`, { type: "image/png" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Importer$/ }));
+  };
+  beforeEach(() => {
+    useAssetStore.getState().reset();
+    vi.restoreAllMocks();
+    useKitStore.setState({ read: library, own: {} });
+    vi.spyOn(libraryDraft, "openLibraryDraft").mockResolvedValue();
+  });
+
+  it("leaves the image in the module when the library's draft cannot be opened", async () => {
+    vi.spyOn(libraryDraft, "openLibraryDraft").mockRejectedValue(new Error("draft_unavailable"));
+    const add = vi.spyOn(libraryDraft, "addToLibrary");
+    const upload = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockResolvedValue({ id: "crest", projectId: "srv.shop" } as never);
+    render(<AssetUploadDialog projectId={"srv.shop" as never} open onClose={() => {}} toLibrary />);
+    pick("crest");
+    await waitFor(() => expect(upload).toHaveBeenCalledWith("srv.shop", expect.anything()));
+    expect(add).not.toHaveBeenCalled();
+  });
+  afterEach(() => useKitStore.setState({ read: undefined, own: {} }));
+
+  it("writes the image into the server's library and hands it over as a common image", async () => {
+    const upload = vi.spyOn(userAssetsApi, "uploadAsset");
+    const add = vi.spyOn(libraryDraft, "addToLibrary").mockResolvedValue({
+      id: "crest",
+      projectId: "srv.artisan",
+      type: "glyph",
+      name: "crest",
+      width: 40,
+      height: 12,
+      contentHash: "h",
+      previewUrl: "blob:crest",
+    } as never);
+    const onUploaded = vi.fn();
+    render(
+      <AssetUploadDialog
+        projectId={"srv.shop" as never}
+        open
+        onClose={() => {}}
+        usage="button"
+        toLibrary
+        onUploaded={onUploaded}
+      />,
+    );
+    expect(screen.getByText(/bibliothèque du serveur/)).toBeTruthy();
+    pick("crest");
+    await waitFor(() => expect(onUploaded).toHaveBeenCalled());
+    expect(add).toHaveBeenCalledWith(
+      "srv.artisan",
+      expect.objectContaining({ name: "crest", usages: ["button"] }),
+    );
+    expect(upload).not.toHaveBeenCalled();
+    expect(onUploaded.mock.calls[0]?.[0]).toMatchObject({
+      id: "kit:crest",
+      projectId: "artisan",
+      width: 40,
+      height: 12,
+    });
+    expect(useAssetStore.getState().assets).toEqual([]);
+  });
+
+  it("refuses a name the module holds, which its menus would show instead", async () => {
+    const add = vi.spyOn(libraryDraft, "addToLibrary");
+    useAssetStore.setState({
+      assets: [{ id: "crest", projectId: "srv.shop", name: "crest" } as never],
+    });
+    render(<AssetUploadDialog projectId={"srv.shop" as never} open onClose={() => {}} toLibrary />);
+    pick("crest");
+    expect(await screen.findByText(/Ce module a déjà une image de ce nom/)).toBeTruthy();
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("stays in the module on a server without a library a module writes in, and in the library itself", async () => {
+    const upload = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockResolvedValue({ id: "crest", projectId: "srv.artisan" } as never);
+    const add = vi.spyOn(libraryDraft, "addToLibrary");
+    render(
+      <AssetUploadDialog projectId={"srv.artisan" as never} open onClose={() => {}} toLibrary />,
+    );
+    pick("crest");
+    await waitFor(() => expect(upload).toHaveBeenCalledWith("srv.artisan", expect.anything()));
+    expect(add).not.toHaveBeenCalled();
   });
 });

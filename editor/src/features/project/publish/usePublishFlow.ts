@@ -11,6 +11,7 @@
  * live in `publishReducer` (pure).
  */
 import type { ProjectId } from "@/domain/types";
+import { libraryFor } from "@/features/assets/libraryDraft";
 import { isKitModule } from "@/features/assets/localAssets";
 import { OPEN_DEPLOY_REVIEW } from "@/features/project/ProjectHistory";
 import { hasDraftChanges } from "@/features/project/draft";
@@ -231,7 +232,14 @@ export function usePublishFlow(
     });
     // The other Projects' drafts, and this one's other drafts: listed under it.
     setIncludeCurrent(true);
-    others.load(current?.remote?.id, preselect);
+    // An image added from a menu is in the player's draft of the library: it goes out with
+    // the menu that names it (ADR `themes-reach-modules`, decision 1), unless unpicked.
+    const library = libraryFor(projectId);
+    const libraryDraft = library ? useProjectDraftStore.getState().get(library)?.remote : undefined;
+    others.load(
+      current?.remote?.id,
+      libraryDraft?.revision ? [...preselect, libraryDraft.id] : preselect,
+    );
     // The check Deploy runs before writing, asked now: the problems show in the review.
     const { files, deletes } = deploymentDelta(changes.before, changes.after);
     if (Object.keys(files).length === 0 && deletes.length === 0) {

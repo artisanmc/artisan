@@ -2102,6 +2102,11 @@ const fr: typeof en = {
     namePlaceholder: "minuscules, chiffres, _ et - uniquement",
     cancel: "Annuler",
     submit: "Importer",
+    toLibrary:
+      "L’image va dans la bibliothèque du serveur : tous ses menus peuvent la nommer. Elle part sur le serveur avec le menu, au déploiement.",
+    nameInModule:
+      "Ce module a déjà une image de ce nom, que ses menus montrent en premier. Choisissez un autre nom.",
+    nameInLibrary: "La bibliothèque a déjà une image de ce nom. Choisissez un autre nom.",
   },
   assetPicker: {
     inPlace: "La nommer dans son module, sans copie",

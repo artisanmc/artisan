@@ -2068,6 +2068,11 @@ export default {
     namePlaceholder: "lowercase, digits, _ and - only",
     cancel: "Cancel",
     submit: "Upload",
+    toLibrary:
+      "The image goes to the server's library: every menu of the server can name it. It reaches the server with the menu, on deploy.",
+    nameInModule:
+      "This module already has an image of that name, which its menus show first. Choose another name.",
+    nameInLibrary: "The library already has an image of that name. Choose another name.",
   },
   assetPicker: {
     inPlace: "Name it in its module, without a copy",

@@ -9,6 +9,10 @@ Open **Buttons → Images**, upload a PNG if needed, then drag its thumbnail
 onto the menu. The button automatically occupies the slots it needs to fit, a slot being 18
 pixels from the next: 54×18 uses 3×1 slots; 54×36 uses 3×2; 16×16 uses one; 48×16 uses 3×1.
 You can also convert an existing item by choosing **Image** in its appearance card.
+An image uploaded from that card's chooser goes to the server's library, not to the menu's
+module: every menu of the server can name it, and the menu shows it at once. It is in your
+draft of the library until you deploy: **Deploy** ticks that draft along with the menu.
+A name the module already has is refused, since the module's image of a name is shown first.
 While dragging, the image preview uses its native pixel dimensions at the current
 canvas zoom, matching its size after placement instead of a fixed-size thumbnail.
 The preview is centered on the pointer whether you grab the thumbnail, name or slot label.
