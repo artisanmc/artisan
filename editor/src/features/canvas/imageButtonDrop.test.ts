@@ -44,3 +44,17 @@ it("copies nothing when released off the grid, and places nothing when the copy 
   expect(await dropCopiedImageButton(PID, source, 0, 0)).toBe(false);
   expect(add).not.toHaveBeenCalled();
 });
+
+it("names an image of the server's library where it is: nothing is copied", async () => {
+  const { dropImageButton } = await import("./imageButtonDrop");
+  vi.spyOn((await import("@/state/selectionStore")).useSelectionStore, "getState").mockReturnValue({
+    set: vi.fn(),
+  } as never);
+  hit.mockReturnValue({ menuId: "m1", position: 4 });
+  const common = { id: "crest", projectId: "artisan", width: 40, height: 12 } as Asset;
+  expect(dropImageButton(PID, common, 10, 20)).toBe(true);
+  expect(copyInto).not.toHaveBeenCalled();
+  expect(add).toHaveBeenCalledWith({ projectId: PID, menuId: "m1", position: 4, asset: common });
+  // Another module's image is still not placed without its copy.
+  expect(dropImageButton(PID, source, 10, 20)).toBe(false);
+});

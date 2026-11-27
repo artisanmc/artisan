@@ -2,9 +2,12 @@
 
 **Status:** accepted (2026-11-27). Being built: steps 1 (the two pack builders) and 2 (**Save
 as**, a theme's Resources, the canvas, the MCP tools) are in the code. Of step 3, an image
-uploaded from a button's image chooser goes to the library, the menu shows it from the draft,
-and Deploy picks that draft with the menu (the start of step 5); the other places that add an
-image, the one picker and **Move to the library** are not. Step 4 is not. Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
+uploaded from a button's image chooser or from the canvas's image list goes to the library, that
+list shows the library first, the menu shows the image from the draft, and Deploy picks that
+draft with the menu (the start of step 5); a module's Resources, a new drawn image, the one
+picker in the inspector and **Move to the library** are not. Step 4 needed nothing new: the
+export already copies the library's images a module names, and the import keeps the copies the
+server lacks (ADR `common-images-and-themes`, decision 10). Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
 theme no longer aims at a module") and the part of its decision 7 that offers a module as a
 place to save an image into. Its other decisions stand, colour tables and `scope` stay gone.
 

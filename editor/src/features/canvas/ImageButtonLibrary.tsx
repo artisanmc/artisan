@@ -7,9 +7,12 @@ import type { Project, ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
+import { useCommonImageRef, useKitAssets } from "@/features/assets/kitAssets";
+import { useLibraryFor } from "@/features/assets/libraryDraft";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { ProjectSource } from "@/features/project/ProjectSource";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
+import { kitNameOf } from "@/lib/pack/kit";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useDraggable } from "@dnd-kit/core";
 import { Upload } from "lucide-react";
@@ -30,7 +33,8 @@ export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: 
   );
 }
 
-function ImageTile({ asset, from }: { asset: Asset; from?: string }) {
+function ImageTile({ asset, from, label }: { asset: Asset; from?: string; label?: string }) {
+  const name = label ?? asset.name;
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
     draggableProps({ kind: "imageButton", asset }),
@@ -44,10 +48,10 @@ function ImageTile({ asset, from }: { asset: Asset; from?: string }) {
       variant="outline"
       className="h-auto min-w-0 touch-none flex-col gap-1 p-2 cursor-grab active:cursor-grabbing"
       style={{ opacity: isDragging ? 0.4 : 1, height: "auto", minHeight: 108 }}
-      title={`${asset.name} · ${asset.width} × ${asset.height} px${from ? ` · ${from}` : ""}`}
+      title={`${name} · ${asset.width} × ${asset.height} px${from ? ` · ${from}` : ""}`}
     >
       <AssetPreview asset={asset} lazy className="h-12 w-full object-contain pointer-events-none" />
-      <span className="w-full truncate text-xs">{asset.name}</span>
+      <span className="w-full truncate text-xs">{name}</span>
       {from && <span className="w-full truncate text-[11px] text-[var(--text-faint)]">{from}</span>}
       <span className="text-[11px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
     </Button>
@@ -98,6 +102,21 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
   const error = source ? (withHere ? ownError : other.error) : ownError;
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  // The server's library first (ADR `themes-reach-modules`, decision 1): what a menu names
+  // without holding it. A window is a menu's background, not a button's image.
+  const library = useLibraryFor(projectId);
+  const kit = useKitAssets();
+  const commonRef = useCommonImageRef(projectId);
+  const common =
+    library && !source
+      ? kit.filter(
+          (asset) =>
+            asset.width > 0 &&
+            asset.height > 0 &&
+            !asset.id.startsWith("kit:window.") &&
+            (kitNameOf(asset.id) ?? asset.name).toLowerCase().includes(search.toLowerCase()),
+        )
+      : [];
   const images = assets.filter(
     (asset) =>
       (source ? owners.has(asset.projectId) : asset.projectId === projectId) &&
@@ -131,6 +150,18 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
         )}
       </p>
       <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto">
+        {common.length > 0 && <p className="eyebrow col-span-3">{t("imageButton.fromLibrary")}</p>}
+        {common.map((asset) => (
+          <ImageTile
+            key={asset.id}
+            // Dragged as the menu will name it: its name alone, unless the module has one.
+            asset={{ ...asset, id: commonRef(asset) }}
+            label={kitNameOf(asset.id) ?? asset.name}
+          />
+        ))}
+        {common.length > 0 && images.length > 0 && (
+          <p className="eyebrow col-span-3">{t("imageButton.fromModule")}</p>
+        )}
         {images.map((asset) => (
           <ImageTile
             key={`${asset.projectId}:${asset.id}`}
@@ -144,7 +175,7 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
             }
           />
         ))}
-        {(loading || error || !images.length) && (
+        {(loading || error || (!images.length && !common.length)) && (
           <p
             role={error ? "alert" : "status"}
             className="col-span-3 py-4 text-sm text-[var(--text-mut)]"
@@ -164,6 +195,7 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
       {!source && (
         <AssetUploadDialog
           usage="button"
+          toLibrary
           projectId={projectId}
           open={uploadOpen}
           onClose={() => setUploadOpen(false)}

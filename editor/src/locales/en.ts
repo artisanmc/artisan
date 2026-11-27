@@ -499,6 +499,8 @@ export default {
   },
   imageButton: {
     search: "Search images…",
+    fromLibrary: "The server's library",
+    fromModule: "This module's images",
     native: "Natural size",
     offsetX: "Horizontal offset (px)",
     offsetY: "Vertical offset (px)",
