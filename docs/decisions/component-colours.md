@@ -1,7 +1,7 @@
 # A component takes a colour from the theme's palette
 
-**Status:** proposed (2026-11-27). Nothing is built. Follows `themes-reach-modules` ("Left
-open: colour").
+**Status:** accepted (2026-11-27). Being built from step 1. Follows `themes-reach-modules`
+("Left open: colour").
 
 ## Context
 
