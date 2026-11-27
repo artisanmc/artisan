@@ -5,7 +5,6 @@ import { TopBarKebabMenu } from "./TopBarKebabMenu";
 
 describe("TopBarKebabMenu", () => {
   const baseProps = {
-    onOpenProjectSettings: vi.fn(),
     onImport: vi.fn(),
     onExportZip: vi.fn(),
     onOpenPatterns: vi.fn(),
@@ -46,13 +45,11 @@ describe("TopBarKebabMenu", () => {
    * The edit panel only appears on selection: project settings, which match no
    * selection, need explicit entry points — the kebab is one.
    */
-  it("exposes the project settings", async () => {
+  it("leaves the project settings to the module's header", async () => {
     const user = userEvent.setup();
-    const onOpenProjectSettings = vi.fn();
-    render(<TopBarKebabMenu {...baseProps} onOpenProjectSettings={onOpenProjectSettings} />);
+    render(<TopBarKebabMenu {...baseProps} />);
     await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
-    await user.click(screen.getByText(/Paramètres du module|Module settings/i));
-    expect(onOpenProjectSettings).toHaveBeenCalled();
+    expect(screen.queryByText(/Paramètres du module|Module settings/i)).toBeNull();
   });
 
   it("calls onDelete when Delete item is clicked", async () => {

@@ -170,12 +170,12 @@ describe("ProjectSidebar", () => {
       expect(tree).toHaveTextContent("/heal");
     });
 
-    it("puts settings and creation on the open project's row, no more 'Settings' row", async () => {
+    it("puts creation on the open project's row; its settings are a view of its header", async () => {
       mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       const tree = await screen.findByRole("group", { name: /pack_a/ });
       const row = screen.getByRole("link", { name: /pack_a/ }).parentElement as HTMLElement;
-      expect(within(row).getByTestId("project-settings")).toBeInTheDocument();
+      expect(within(row).queryByTestId("project-settings")).toBeNull();
       expect(within(row).getByTestId("project-create")).toBeInTheDocument();
       expect(within(tree).queryByTestId("project-settings")).toBeNull();
       expect(tree).not.toHaveTextContent(/Paramètres du projet/);
@@ -295,7 +295,7 @@ describe("ProjectSidebar", () => {
     ).toBeTruthy();
   });
 
-  it("lists a module's screens as rows of their own once the module is opened, without a header", async () => {
+  it("leaves the screens of a module's folder to the folder's header: the sidebar lists places", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["boutique_shop"],
@@ -327,53 +327,49 @@ describe("ProjectSidebar", () => {
     const toggle = screen.getByRole("button", { name: "Afficher les documents de Boutique" });
     expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
     fireEvent.click(toggle);
-    expect(await screen.findByRole("link", { name: "Catalogue" })).toBeInTheDocument();
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "true"));
+    expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
     expect(screen.queryByText("Autres")).toBeNull();
   });
 
-  it("opens a screen of the module's folder inside that folder, which stays open on it", async () => {
-    vi.mocked(listServerProjects).mockResolvedValue({
-      ok: true,
-      projectIds: ["boutique_shop"],
-      projects: [
-        {
-          id: "boutique_shop",
-          name: "boutique_shop",
-          externalId: "boutique_shop",
-          hash: "",
-          serverKeyId: "sk_1",
-          ownerModule: "boutique",
-        },
-      ],
-    } as never);
+  it("lists the screens of a module without a folder, its only pages", async () => {
     useServerScreensStore.setState({
-      screens: [
-        {
-          id: "boutique:settings",
-          moduleId: "boutique",
-          label: "Réglages",
-          table: "data/shop_settings",
-          projectId: "boutique_shop",
-        },
-      ],
+      screens: [{ id: "boutique:settings", moduleId: "boutique", label: "Réglages", table: "t" }],
     } as never);
-    // The screen's page is the project's child route: the folder is the active project.
-    mockParams.current = {
-      serverId: "sk_1",
-      projectId: "boutique_shop",
-      screenId: "boutique:settings",
-    } as never;
     render(<ProjectSidebar />);
-    // Once the disk listing names the folder, the link leads into it.
-    await waitFor(() =>
-      expect(screen.getByRole("link", { name: "Réglages" }).getAttribute("href")).toBe(
-        "/servers/$serverId/projects/$projectId/screen/$screenId",
-      ),
+    fireEvent.click(await screen.findByRole("button", { name: "Boutique" }));
+    expect(await screen.findByRole("link", { name: "Réglages" })).toHaveAttribute(
+      "href",
+      "/servers/$serverId/screens/$screenId",
     );
-    // Shown without unfolding anything: the folder is open on its screen.
-    expect(
-      screen.getByRole("button", { name: "Afficher les documents de Boutique" }),
-    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("opens with a row for the server, highlighted on its own views only", async () => {
+    mockParams.current = { serverId: "sk_1" };
+    const { unmount } = render(<ProjectSidebar />);
+    const row = await screen.findByTestId("sidebar-server");
+    expect(row).toHaveAttribute("aria-current", "page");
+    unmount();
+    mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
+    render(<ProjectSidebar />);
+    expect(await screen.findByTestId("sidebar-server")).not.toHaveAttribute("aria-current");
+  });
+
+  it("switches servers from the server row's chevron, only when there are several", async () => {
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
+    mockParams.current = { serverId: "sk_1" };
+    const { unmount } = render(<ProjectSidebar />);
+    await screen.findByTestId("sidebar-server");
+    expect(screen.queryByRole("button", { name: /Changer de serveur|Switch server/ })).toBeNull();
+    unmount();
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([
+      srv("sk_1", "Survival"),
+      srv("sk_2", "Lobby"),
+    ]);
+    render(<ProjectSidebar />);
+    const chevron = await screen.findByRole("button", { name: /Changer de serveur|Switch server/ });
+    fireEvent.keyDown(chevron, { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: "Lobby" })).toBeInTheDocument();
   });
 
   it("shows no Modules section when no module has anything to configure", async () => {

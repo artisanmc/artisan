@@ -27,21 +27,19 @@ beforeEach(() => {
   ]);
 });
 
-it("switches server from a menu (its label in the tooltip), and ends on the project", async () => {
-  render(<ProjectBreadcrumb serverRef="sk_1" projectName="main" />);
-  const server = await screen.findByRole("button", { name: /Survie/ });
-  expect(server).toHaveAttribute("title", "Survie");
-  fireEvent.keyDown(server, { key: "Enter" });
-  fireEvent.click(screen.getByRole("menuitem", { name: "Lobby" }));
-  expect(navigate).toHaveBeenCalledWith({
-    to: "/servers/$serverId",
-    params: { serverId: "sk_2" },
-  });
+it("names the module alone: the server is the sidebar's row", () => {
+  render(<ProjectBreadcrumb projectName="main" />);
+  expect(screen.queryByText("Survie")).toBeNull();
   expect(screen.getByText("main")).toHaveAttribute("aria-current", "page");
 });
 
-it("shows only the project outside a server (demo)", () => {
-  render(<ProjectBreadcrumb serverRef={null} projectName="Welcome" />);
+it("puts the server's state before the module", () => {
+  render(<ProjectBreadcrumb projectName="main" status={<span>down</span>} />);
+  expect(screen.getByText("down")).toBeInTheDocument();
+});
+
+it("shows only the project (demo)", () => {
+  render(<ProjectBreadcrumb projectName="Welcome" />);
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.getByText("Welcome")).toHaveAttribute("aria-current", "page");
 });
@@ -51,7 +49,6 @@ it("with a Document open, leads back to the project and its collection, and ends
   const open = vi.fn();
   render(
     <ProjectBreadcrumb
-      serverRef={null}
       projectName="conversations"
       trail={{ toProject, collection: { label: "Modes d'affichage", open }, label: "<gold>HUD" }}
     />,
@@ -68,7 +65,6 @@ it("with a part of the Document selected, the Document leads back to itself and 
   const close = vi.fn();
   render(
     <ProjectBreadcrumb
-      serverRef={null}
       projectName="quests"
       trail={{ toProject: vi.fn(), label: "Guild levels", part: { label: "Level 2", close } }}
     />,

@@ -2229,6 +2229,7 @@ const fr: typeof en = {
     offlineRetry: "Réessayer",
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     tabs: {
+      label: "Vues du module",
       home: "Accueil",
       resources: "Ressources",
       canvas: "Canvas",
@@ -2255,6 +2256,7 @@ const fr: typeof en = {
     updateRequired: "Mise à jour requise",
   },
   sidebar: {
+    switchServer: "Changer de serveur",
     projectDocuments: "Documents de {{name}}",
     showDocuments: "Afficher les documents de {{name}}",
     settings: "Paramètres",

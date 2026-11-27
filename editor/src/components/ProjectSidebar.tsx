@@ -70,6 +70,7 @@ import {
   CircleArrowUp,
   Folder,
   FolderOpen,
+  Server,
   Settings,
   Table2,
   type Terminal,
@@ -79,6 +80,7 @@ import { NewProjectDialog } from "./NewProjectDialog";
 import { SidebarSearch } from "./SidebarSearch";
 import { UserMenu } from "./UserMenu";
 import type { ServerEntry } from "./serverEntry";
+import { BreadcrumbSwitcher } from "./ui/breadcrumb";
 import { useServersStatus } from "./useServersStatus";
 
 export function ProjectSidebar() {
@@ -297,6 +299,15 @@ export function ProjectSidebar() {
       {urlParams.serverId && <SidebarSearch />}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        {srvParam && activeServer && (
+          <ServerRow
+            serverId={srvParam}
+            label={activeServer.serverLabel}
+            online={activeServer.online === true}
+            current={activeServer.serverId}
+            servers={allServerEntries}
+          />
+        )}
         {openProjectId && !openIsListed && (
           <UnlistedOpenProject urlId={openProjectId} serverId={srvParam} />
         )}
@@ -379,6 +390,83 @@ export function ProjectSidebar() {
 
       <UserMenu serverLabel={activeServerLabel} />
     </nav>
+  );
+}
+
+/**
+ * The server itself, first of the places: highlighted on its own views (its header's
+ * tabs), as a module's row is on the module's. The sidebar lists the places, the header
+ * the views of the one highlighted here.
+ */
+function ServerRow({
+  serverId,
+  label,
+  online,
+  current,
+  servers,
+}: {
+  serverId: string;
+  label: string;
+  online: boolean;
+  /** The server's id, among `servers`. */
+  current: string;
+  /** Every server of the hub: with more than one, a chevron switches to another. */
+  servers: ServerEntry[];
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const params = useParams({ strict: false }) as { projectId?: string; screenId?: string };
+  const active = !params.projectId && !params.screenId;
+  return (
+    <div
+      className={`mb-3 flex shrink-0 items-center gap-0.5 rounded-[10px] pr-1.5 transition-colors ${
+        active ? "bg-[var(--surface-hover)]" : "hover:bg-[var(--surface-hover)]"
+      }`}
+    >
+      <Link
+        to="/servers/$serverId"
+        params={{ serverId }}
+        onClick={() => useSidebarStore.getState().close()}
+        aria-current={active ? "page" : undefined}
+        data-testid="sidebar-server"
+        title={online ? t("serverDetail.stateOnline") : t("serverDetail.stateOffline")}
+        className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-[13px] transition-colors ${
+          active
+            ? "font-semibold text-[var(--text)]"
+            : "font-medium text-[var(--text-mut)] hover:text-[var(--text)]"
+        }`}
+      >
+        <Server className="size-[15px] shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span
+          aria-hidden
+          className="size-1.5 shrink-0 rounded-full"
+          style={{ background: online ? "var(--success)" : "var(--text-faint)" }}
+        />
+      </Link>
+      {servers.length > 1 && (
+        <BreadcrumbSwitcher
+          current={current}
+          chevronOnly={t("sidebar.switchServer")}
+          searchPlaceholder={t("breadcrumb.searchServers")}
+          items={servers.map((s) => ({
+            id: s.serverId,
+            label: s.serverLabel,
+            leading: (
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full"
+                style={{ background: s.online ? "var(--success)" : "var(--text-faint)" }}
+              />
+            ),
+          }))}
+          onSelect={(id) => {
+            useSidebarStore.getState().close();
+            void navigate({ to: "/servers/$serverId", params: { serverId: id } });
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -784,7 +872,9 @@ function PluginModuleItem({
   const [expanded, setExpanded] = useState(showsChild);
   // A module that ships no icon, or whose brand the hub has not announced yet, shows Artisan's.
   const icon = useModuleBrand(module.id)?.icon ?? DEFAULT_MODULE_ICON;
-  const entries = module.entries.length > 0 && (
+  // A module's screens are views of its folder (its header's **More**): listed here only for
+  // a module without a folder, whose screens are then its only pages.
+  const entries = module.projects.length === 0 && module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
   const [only] = module.projects;

@@ -5,7 +5,9 @@ import { useAuthStore } from "@/state/authStore";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useUiStore } from "@/state/uiStore";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
 
@@ -207,6 +209,23 @@ describe("ProjectTopBarControls", () => {
     // drafts session.
     expect(screen.getByRole("button", { name: /^(Deploy|Déployer)/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^(Save|Enregistrer)$/ })).toBeNull();
+  });
+
+  it("puts the module's settings under More, as the server's tabs do", async () => {
+    const project = {
+      id: "p1",
+      name: "Test",
+      defaultLang: "en",
+      i18nKeys: {},
+      documents: { menu: [], command: [], dialog: [] },
+      assets: [],
+    } as any;
+    useUiStore.setState({ projectSettingsOpen: false });
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
+    const nav = screen.getByTestId("project-view-navigation");
+    await userEvent.click(within(nav).getByRole("button", { name: /^(More|Plus)$/ }));
+    await userEvent.click(await screen.findByTestId("open-view-settings"));
+    expect(useUiStore.getState().projectSettingsOpen).toBe(true);
   });
 
   it("renders the workspace view buttons with a missing-translations badge", () => {

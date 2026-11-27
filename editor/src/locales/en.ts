@@ -2194,6 +2194,7 @@ export default {
     offlineRetry: "Retry",
     serverOfflineExport: "Server offline — cannot export the files",
     tabs: {
+      label: "Module views",
       home: "Home",
       resources: "Resources",
       canvas: "Canvas",
@@ -2220,6 +2221,7 @@ export default {
     updateRequired: "Update required",
   },
   sidebar: {
+    switchServer: "Switch server",
     projectDocuments: "Documents of {{name}}",
     showDocuments: "Show the documents of {{name}}",
     settings: "Settings",

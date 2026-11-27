@@ -19,9 +19,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ScopeHeader, type ScopeTab, ScopeTabs } from "@/components/ui/scope-header";
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
+import { moduleScreensOf } from "@/features/project/moduleScreens";
 import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
@@ -33,23 +35,15 @@ import {
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { isTypingTarget } from "@/lib/keyboard";
+import { screenDestination } from "@/lib/projectNavigation";
 import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useSidebarStore } from "@/state/sidebarStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
-import { Link, useParams, useSearch } from "@tanstack/react-router";
-import {
-  Gamepad2,
-  History as HistoryIcon,
-  House,
-  Images,
-  Languages as LanguagesIcon,
-  LayoutDashboard,
-  Redo2,
-  Undo2,
-} from "lucide-react";
-import { useEffect } from "react";
+import { Link, type LinkProps, useParams, useSearch } from "@tanstack/react-router";
+import { ArrowUpRight, Gamepad2, Redo2, Undo2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -104,7 +98,6 @@ export function ProjectTopBarControls({
   const currentProject = liveProject ?? project;
   const displayName = liveProject?.name ?? projectName ?? project.name;
   const { t } = useTranslation();
-  const navigationPinned = useSidebarStore((s) => s.pinned);
   const { tab } = useSearch({ strict: false }) as { tab?: string };
   const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
@@ -121,31 +114,20 @@ export function ProjectTopBarControls({
     : undefined;
 
   return (
-    <header
-      className={cn(
-        "project-topbar shrink-0 py-2 pl-2 pr-2 lg:pl-24 lg:pr-3",
-        navigationPinned && "lg:pl-3",
-      )}
-    >
-      <div
-        data-testid="project-header"
-        className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-lg)] bg-[var(--surface)] px-2 py-1 lg:flex-nowrap lg:gap-x-3"
-      >
-        <div
-          className={cn(
-            "flex min-h-9 min-w-0 basis-full items-center gap-2 pl-11 lg:basis-auto lg:pl-0",
-            trail ? "lg:max-w-2xl" : "lg:max-w-md",
-          )}
-        >
+    // The server's header too: where you are, the views of this module, then its tools.
+    <ScopeHeader
+      testId="project-header"
+      title={
+        <>
           <ProjectBreadcrumb
-            serverRef={serverRef}
             projectName={displayName}
             trail={trail}
-            serverStatus={
+            status={
               <LinkedServersDropdown
                 currentServerKeyId={project.serverKeyId ?? undefined}
                 downHint={pushStatusHint}
                 offline={offline}
+                onlyWhenDown
               />
             }
           />
@@ -161,32 +143,30 @@ export function ProjectTopBarControls({
               {t("yamlView.tab")}
             </button>
           )}
-        </div>
-        <div
-          data-testid="project-view-navigation"
-          data-tour="tabs"
-          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[var(--surface)] px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:min-w-0 lg:flex-1 lg:overflow-x-auto lg:border-0 lg:bg-transparent lg:p-0"
-        >
-          <WorkspaceViewNav project={currentProject} />
-        </div>
-        <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
-          {(!tab || tab === "board") && <UndoRedoButtons />}
-          {(!tab || tab === "board" || tab === "translations") && (
-            <LangSwitcher project={currentProject} />
-          )}
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+        </>
+      }
+      nav={<WorkspaceViewNav project={currentProject} onOpenSettings={openProjectSettings} />}
+      end={
+        <div className="project-topbar flex items-center gap-1">
+          <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
+            {(!tab || tab === "board") && <UndoRedoButtons />}
+            {(!tab || tab === "board" || tab === "translations") && (
+              <LangSwitcher project={currentProject} />
+            )}
+          </div>
           {serverRef && (
+            // A link to the server's Play tab, this module first: it says so, it is no tool here.
             <Link
               to="/servers/$serverId/play"
               params={{ serverId: serverRef }}
               search={{ project: currentProject.diskId ?? currentProject.id }}
-              className="btn btn-ghost btn-icon btn-sm"
-              aria-label={t("play.open")}
+              className="btn btn-ghost btn-sm shrink-0"
               title={t("play.openHint")}
               data-testid="project-play"
             >
-              <Gamepad2 className="size-4" />
+              <Gamepad2 className="size-4" aria-hidden />
+              <span className="hidden 2xl:inline">{t("play.open")}</span>
+              <ArrowUpRight className="size-3.5 opacity-60" aria-hidden />
             </Link>
           )}
           <AssistantButton />
@@ -203,7 +183,6 @@ export function ProjectTopBarControls({
             renderTrigger={(onRefresh) => (
               <TopBarKebabMenu
                 onRefresh={onRefresh}
-                onOpenProjectSettings={openProjectSettings}
                 onImport={onImport}
                 onExportZip={onExportZip ?? (() => {})}
                 onOpenPatterns={onOpenPatterns ?? (() => {})}
@@ -214,8 +193,8 @@ export function ProjectTopBarControls({
             )}
           />
         </div>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
@@ -230,77 +209,100 @@ export function ProjectTopBarControls({
  * existence of the new code in the i18n map.
  */
 /**
- * Segmented view switcher on the LEFT of the topbar. Each entry navigates via
- * `?tab=` (deep links / back-button keep working) and the active one is
- * highlighted — Home (the module's entry view) first, then Canvas (`board`).
- * Selecting a secondary view REPLACES the canvas in the center region
- * (see WorkspaceView). The missing-translations badge rides on the
- * Translations entry. Order (and thus the hotbar digit shortcut) comes from
- * WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
+ * The module's views, the same tabs as the server's (`ScopeTabs`). Each entry navigates
+ * via `?tab=` (deep links / back-button keep working); Home (the module's entry view)
+ * first, then the board. History, the module's settings screens and its settings sit
+ * under **More**. The missing-translations badge rides on the Translations entry. The
+ * hotbar digit shortcut follows WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
-const TAB_META: Record<WorkspaceViewTab, { labelKey: string; Icon: typeof LanguagesIcon }> = {
-  home: { labelKey: "project.tabs.home", Icon: House },
-  board: { labelKey: "project.tabs.canvas", Icon: LayoutDashboard },
-  translations: { labelKey: "project.tabs.translations", Icon: LanguagesIcon },
-  resources: { labelKey: "project.tabs.resources", Icon: Images },
-  history: { labelKey: "project.tabs.history", Icon: HistoryIcon },
+const TAB_LABEL: Record<WorkspaceViewTab, string> = {
+  home: "project.tabs.home",
+  board: "project.tabs.canvas",
+  translations: "project.tabs.translations",
+  resources: "project.tabs.resources",
+  history: "project.tabs.history",
 };
 
-function WorkspaceViewNav({ project }: { project: Project }) {
+function WorkspaceViewNav({
+  project,
+  onOpenSettings,
+}: {
+  project: Project;
+  onOpenSettings: () => void;
+}) {
   const runtime = useProjectRuntime(project.id);
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
+  const { serverId, screenId } = useParams({ strict: false }) as {
+    serverId?: string;
+    screenId?: string;
+  };
   const tourActive = useTourPresentation((s) => s.step !== null);
   const childOpen = useChildPageOpen();
-  const active: WorkspaceViewTab = tourActive ? "board" : effectiveTab(search.tab, childOpen);
+  const allScreens = useServerScreensStore((s) => s.screens);
+  const screens = useMemo(() => moduleScreensOf(project, allScreens), [project, allScreens]);
   const go = useGoToWorkspaceTab();
+  const shownScreen = screens.find((s) => s.id === screenId);
+  const active = tourActive
+    ? "board"
+    : shownScreen
+      ? `screen:${shownScreen.id}`
+      : effectiveTab(search.tab, childOpen);
   // Versions only exist for a server Project.
-  const views = WORKSPACE_VIEW_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId).map(
-    (tab) => ({
-      tab,
-      label: t(TAB_META[tab].labelKey),
-      Icon: TAB_META[tab].Icon,
-      badge: tab === "translations" ? missing : 0,
-      // The digit follows WORKSPACE_VIEW_TABS, like the shortcut, even if a tab is hidden.
-      hotkey: WORKSPACE_VIEW_TABS.indexOf(tab) + 1,
-    }),
-  );
-  return (
-    <div className="flex w-full items-center gap-1 lg:w-max lg:rounded-[var(--r-md)] lg:bg-[var(--surface-raised)] lg:p-1">
-      {views.map((v) => {
-        const isActive = active === v.tab;
-        return (
-          <button
-            key={v.tab}
-            type="button"
-            // Tooltip carries the hotbar digit for discoverability.
-            title={`${v.label} (${v.hotkey})`}
-            aria-label={v.label}
-            aria-current={isActive ? "page" : undefined}
-            data-testid={`open-view-${v.tab}`}
-            onClick={() => go(v.tab)}
-            className={cn(
-              "relative flex h-11 flex-1 items-center justify-center gap-1.5 rounded-[var(--r-md)] px-2.5 text-[13px] transition-colors lg:h-8 lg:flex-none",
-              isActive
-                ? "bg-[var(--surface)] text-[var(--text)] shadow-[var(--shadow-sm)]"
-                : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
-            )}
+  const views: ScopeTab[] = WORKSPACE_VIEW_TABS.filter(
+    (tab) => tab !== "history" || !!runtime?.serverId,
+  ).map((tab) => {
+    const label = t(TAB_LABEL[tab]);
+    const badge = tab === "translations" ? missing : 0;
+    return {
+      id: tab,
+      label,
+      more: tab === "history",
+      onSelect: () => go(tab),
+      testId: `open-view-${tab}`,
+      // Tooltip carries the hotbar digit (the digit follows WORKSPACE_VIEW_TABS).
+      title: `${label} (${WORKSPACE_VIEW_TABS.indexOf(tab) + 1})`,
+      badge:
+        badge > 0 ? (
+          <span
+            title={t("project.tabs.missingTranslations", { count: badge })}
+            className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[9.5px] text-[var(--warning-fg)]"
           >
-            <v.Icon className="size-4 shrink-0" />
-            {v.badge > 0 ? (
-              <span
-                title={t("project.tabs.missingTranslations", { count: v.badge })}
-                className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[9.5px] text-[var(--warning-fg)]"
-              >
-                {v.badge}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+            {badge}
+          </span>
+        ) : undefined,
+    };
+  });
+  const screenTabs: ScopeTab[] = serverId
+    ? screens.map((screen) => ({
+        id: `screen:${screen.id}`,
+        label: screen.label,
+        more: true,
+        link: screenDestination(screen, serverId, [project]) as LinkProps,
+        testId: `open-screen-${screen.id}`,
+      }))
+    : [];
+  return (
+    <ScopeTabs
+      label={t("project.tabs.label")}
+      moreLabel={t("serverDetail.tabs.more")}
+      testId="project-view-navigation"
+      tour="tabs"
+      active={active}
+      tabs={[
+        ...views,
+        ...screenTabs,
+        {
+          id: "settings",
+          label: t("projectProperties.title"),
+          more: true,
+          onSelect: onOpenSettings,
+          testId: "open-view-settings",
+        },
+      ]}
+    />
   );
 }
 

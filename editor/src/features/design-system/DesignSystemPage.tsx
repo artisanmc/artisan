@@ -59,8 +59,8 @@ import { Markdown } from "@/components/ui/markdown";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ResetButton } from "@/components/ui/reset-button";
 import { ResizeHandle } from "@/components/ui/resize-handle";
+import { ScopeHeader, ScopeTabs } from "@/components/ui/scope-header";
 import { Segmented } from "@/components/ui/segmented";
-import { ToolRail } from "@/components/ui/tool-rail";
 import {
   Sheet,
   SheetBody,
@@ -79,6 +79,7 @@ import { TBody, TD, TH, THead, TR, Table } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagInput } from "@/components/ui/tag-input";
 import { TimeChart } from "@/components/ui/time-chart";
+import { ToolRail } from "@/components/ui/tool-rail";
 import { Tooltip } from "@/components/ui/tooltip";
 import { WorkspaceView } from "@/components/ui/workspace-view";
 import { YamlCodeEditor } from "@/components/ui/yaml-code-editor";
@@ -411,6 +412,20 @@ export function DesignSystemPage() {
           />
           <BreadcrumbCurrent>main</BreadcrumbCurrent>
         </Breadcrumb>
+        <div className="mt-3 flex items-center gap-2 text-[13px]">
+          <span className="mono text-[11px] text-[var(--text-faint)]">chevronOnly</span>
+          <span>Survival</span>
+          <BreadcrumbSwitcher
+            current="survival"
+            chevronOnly={t("sidebar.switchServer")}
+            items={[
+              { id: "lobby", label: "Lobby" },
+              { id: "survival", label: "Survival" },
+            ]}
+            onSelect={() => {}}
+            searchPlaceholder={t("breadcrumb.searchServers")}
+          />
+        </div>
       </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff
@@ -639,6 +654,12 @@ export function DesignSystemPage() {
                 <Pencil className="size-[15px]" />
               </Button>
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="mono text-[11px] text-[var(--text-faint)]">
+              {"<ScopeHeader title nav={<ScopeTabs tabs active />} end>"}
+            </span>
+            <ScopeHeaderSpecimen />
           </div>
           <div className="flex flex-col gap-2">
             <span className="mono text-[11px] text-[var(--text-faint)]">{"<Input>"}</span>
@@ -1189,6 +1210,41 @@ export function DesignSystemPage() {
  *  History, Assistant) — REPLACES the canvas in the center region instead of
  *  floating as a modal. Opaque, keep-alive; Esc / × return to the canvas. Shown
  *  here inside a relative demo box (it absolutely fills its positioned parent). */
+/** The header of the server and of a module: where you are, its views, its actions. */
+function ScopeHeaderSpecimen() {
+  const [active, setActive] = useState("home");
+  const tab = (id: string, label: string, more?: boolean) => ({
+    id,
+    label,
+    more,
+    onSelect: () => setActive(id),
+  });
+  return (
+    <div className="overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)]">
+      <ScopeHeader
+        title={
+          <span className="text-[15px] font-semibold text-[var(--text)]">Survival / shop</span>
+        }
+        nav={
+          <ScopeTabs
+            label="Views"
+            moreLabel="More"
+            active={active}
+            tabs={[
+              tab("home", "Home"),
+              tab("board", "Board"),
+              tab("translations", "Translations"),
+              tab("history", "History", true),
+              tab("settings", "Settings", true),
+            ]}
+          />
+        }
+        end={<Button size="sm">Deploy</Button>}
+      />
+    </div>
+  );
+}
+
 function FileDropzoneSpecimen() {
   const [file, setFile] = useState<File | null>(null);
   return (
