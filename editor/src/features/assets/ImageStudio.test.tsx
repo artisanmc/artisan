@@ -2,9 +2,16 @@ import type { Asset } from "@/domain/asset";
 import * as userAssetsApi from "@/lib/api/userAssets";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImageStudio, useStudioPrefs } from "./ImageStudio";
 import { useAssetStore } from "./assetStore";
+
+/** Picks what a new layer is, in the menu of "Ajouter un calque". */
+async function addLayer(kind: string) {
+  await userEvent.click(screen.getByRole("button", { name: "Ajouter un calque" }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: kind }));
+}
 
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
@@ -15,11 +22,9 @@ vi.mock("@/lib/useAuthenticatedImage", () => ({
 }));
 
 const toLayers = vi.fn();
-const flatten = vi.fn();
 vi.mock("./imageLayers", async (original) => ({
   ...(await original<typeof import("./imageLayers")>()),
   toLayers: (...args: unknown[]) => toLayers(...args),
-  flatten: (...args: unknown[]) => flatten(...args),
 }));
 
 const composed = (name: string, width: number, height: number, image: string): Asset =>
@@ -44,7 +49,6 @@ describe("ImageStudio", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     toLayers.mockReset();
-    flatten.mockReset();
     useAssetStore.getState().reset();
     useProjectBaselineStore.setState({ binaryBaselines: {} } as never);
     useStudioPrefs.setState({ hidden: [], situation: true });
@@ -89,7 +93,7 @@ describe("ImageStudio", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("adds a layer to a PNG, which becomes layers under its name, and flattens layers after a second click", async () => {
+  it("adds a layer to a PNG, which becomes layers under its name, with no Flatten: a flat copy is made with Save as", async () => {
     const png = { ...composed("go", 54, 18, "x"), compose: undefined } as Asset;
     const layered = composed("go", 54, 18, "go_layer");
     toLayers.mockResolvedValue({
@@ -105,7 +109,7 @@ describe("ImageStudio", () => {
     const { unmount } = render(
       <ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />,
     );
-    // A PNG is listed as its one layer, with nothing to flatten.
+    // A PNG is listed as its one layer.
     expect(within(screen.getByTestId("studio-layers")).getAllByRole("listitem")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Aplatir" })).toBeNull();
     expect(
@@ -113,7 +117,7 @@ describe("ImageStudio", () => {
         name: "Déplacer le calque",
       }),
     ).toHaveAttribute("aria-disabled", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
+    await addLayer("Image du module");
     fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
     // The layer is set over the PNG here; nothing is written before the image is saved.
     await waitFor(() =>
@@ -138,12 +142,8 @@ describe("ImageStudio", () => {
     );
     unmount();
 
-    flatten.mockResolvedValue(png);
     render(<ImageStudio projectId={"p1" as never} asset={layered} onClose={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Aplatir" }));
-    expect(flatten).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Aplatir en un seul dessin ?" }));
-    await waitFor(() => expect(flatten).toHaveBeenCalledWith("p1", layered));
+    expect(screen.queryByRole("button", { name: "Aplatir" })).toBeNull();
   });
 
   it("copies an image the module ships as the first layer, the owner holding no file of it", async () => {
@@ -159,7 +159,7 @@ describe("ImageStudio", () => {
     } as never);
     useAssetStore.getState().setAssets([png, { ...png, id: "icon", name: "icon" }]);
     render(<ImageStudio projectId={"p1" as never} asset={png} onClose={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
+    await addLayer("Image du module");
     fireEvent.click(within(await screen.findByRole("dialog")).getByTitle(/^icon/));
     fireEvent.click(await screen.findByRole("button", { name: "Enregistrer" }));
     await waitFor(() => expect(toLayers).toHaveBeenCalledTimes(1));

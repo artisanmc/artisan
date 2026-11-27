@@ -214,7 +214,8 @@ export default {
     newCreate: "Create",
     layers: "Layers",
     layerLabel: "Layer {{n}}: {{name}}",
-    addKit: "Common image",
+    addLayer: "Add a layer",
+    addKit: "Server image",
     addImage: "Module image",
     addDrawn: "Drawing",
     retouchLayer: "Draw on this layer",
@@ -243,6 +244,8 @@ export default {
     width: "Width",
     height: "Height",
     sizeHint: "Without a fixed size, the image is as large as its bottom layer.",
+    anchored:
+      'This layer gives the image its size: it does not move. Tick "Fixed size" to place it freely.',
     dragHint:
       "Drag a layer; Shift puts it on the slots. Arrow keys move the selected layer, with Shift to the next slot.",
     nothing: "None of the layers can be drawn.",
@@ -300,7 +303,6 @@ export default {
     title: "Save as",
     button: "Save as…",
     hint: "A copy in the server's library or in a theme. The image you started from does not change.",
-    saveFirst: "Save your changes first: the copy is made of the saved image.",
     name: "Name",
     place: "Where",
     save: "Save",
@@ -340,14 +342,10 @@ export default {
     moveSingle: "One layer only: add another to move it.",
     noDrawing: "No drawing of this module among the layers: add a “Drawing” layer.",
     layer: "Selected layer",
-    commonLayer: "common",
-    commonHint: "A common image is placed here; it is redrawn among the server's common images.",
+    commonLayer: "server",
+    commonHint: "A server image is placed here; it is redrawn in the server's resources.",
     size: "Image size",
     fit: "Fit to the room available",
-    flatten: "Flatten",
-    flattenConfirm: "Flatten into one drawing?",
-    flattenHint:
-      "The layers become a single drawing of the same name. It no longer follows the common images; the layers stay in the module as images. Save first: the image as saved is what is flattened.",
     failed: "That did not work: {{detail}}",
     slice: {
       label: "Fixed edges",

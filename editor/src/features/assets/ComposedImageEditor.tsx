@@ -10,11 +10,12 @@ import {
   COMPOSE_MAX_SIDE,
   type ComposeLayer,
   type ComposeRecipe,
+  composeImage,
   composeSize,
 } from "@/lib/pack/compose";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
 import { tintOf } from "@/lib/pack/palette";
-import { createImage, encodePng } from "@/lib/pack/png";
+import { type RgbaImage, createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { slicesAt } from "@/lib/pack/slice";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -49,6 +50,7 @@ import {
   undoKey,
   useStageZoom,
 } from "./StudioFrame";
+import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { type GuideName, SLOT, nextSlot, slotOrigin, snapToSlot } from "./guideRules";
 import { sameRecipe, useImageDocument } from "./imageDocument";
@@ -271,12 +273,14 @@ function NumberField({
   value,
   min,
   max,
+  disabled,
   onChange,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   return (
@@ -288,6 +292,7 @@ function NumberField({
         min={min}
         max={max}
         value={value}
+        disabled={disabled}
         onChange={(event) => {
           const next = Number.parseInt(event.target.value, 10);
           if (Number.isFinite(next)) onChange(clamp(next, min, max));
@@ -333,8 +338,11 @@ export function ComposedImageEditor({
   guides?: readonly GuideName[];
   /** Shows the image where a player sees it (`SituationPreview`). */
   situation?: boolean;
-  /** Under the list of layers: what is done to them as a whole; `dirty` when something is unsaved. */
-  footer?: (dirty: boolean) => ReactNode;
+  /**
+   * Under the list of layers: what is done to them as a whole. `picture` gives the PNG of the
+   * image as it is shown now, saved or not: what a copy is made of.
+   */
+  footer?: (picture: () => Promise<Uint8Array>) => ReactNode;
   layout: (parts: StudioParts) => ReactNode;
 }) {
   const { t } = useTranslation();
@@ -472,6 +480,12 @@ export function ComposedImageEditor({
       },
       gesture,
     );
+  const fixed = recipe.width !== null && recipe.height !== null;
+  /**
+   * The layer the image takes its size from when it has no fixed one (`composeSize`: the lowest
+   * that can be drawn). It stays where it is: moved, it would grow or crop the whole image.
+   */
+  const anchor = fixed ? -1 : recipe.layers.findIndex((layer) => sizeOf(layer.image));
   // The slots' grid of the image: what Shift lines a layer up with.
   const grid = slotOrigin(size?.width ?? 0, size?.height ?? 0);
   /** The layer the tools act on. One that cannot be drawn on is moved: the move tool takes over. */
@@ -533,7 +547,7 @@ export function ComposedImageEditor({
     },
     onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
       const dragged = drag.current;
-      if (!dragged || dragged.index !== index) return;
+      if (!dragged || dragged.index !== index || index === anchor) return;
       // Whole pixels of the game; Shift puts the layer on the slots' grid, wherever it was.
       const x = dragged.left + Math.round((event.clientX - dragged.x) / scale);
       const y = dragged.top + Math.round((event.clientY - dragged.y) / scale);
@@ -556,7 +570,7 @@ export function ComposedImageEditor({
         ArrowDown: [0, 1],
       };
       const delta = by[event.key];
-      if (!delta) return;
+      if (!delta || index === anchor) return;
       event.preventDefault();
       // A pixel; with Shift, the next line of the slots' grid that way.
       const to = (value: number, sign: 1 | -1 | 0, origin: number) =>
@@ -572,6 +586,24 @@ export function ComposedImageEditor({
     .filter((d) => (lone && d.asset.id === asset.id) || usedNames.has(d.asset.name));
   const dirty =
     !sameRecipe(recipe, saved) || usedDrawings.some((d) => d.draft || history.dirty(d.asset.id));
+  /** The PNG of the image as it is shown now: its layers as drawn here, saved or not. */
+  const picture = async (): Promise<Uint8Array> => {
+    const pixels = new Map<string, RgbaImage>();
+    for (const { image: name } of recipe.layers) {
+      const image = imageOf(name);
+      if (!image || pixels.has(name)) continue;
+      const drawing = history.drawing(image.id);
+      pixels.set(name, drawing ? drawing.image : decodePng(await assetBytes(image)));
+    }
+    const drawn = composeImage(
+      recipe,
+      (name) => pixels.get(name),
+      (name) => imageOf(name)?.slice,
+      palette,
+    );
+    if (!drawn) throw new Error("image_unavailable");
+    return encodePng(drawn);
+  };
   /**
    * Saves the whole image: the layers drawn here get their files, the pixels changed are
    * written, then the layers. `false` when a step failed: what is not written stays in hand.
@@ -686,7 +718,6 @@ export function ComposedImageEditor({
   const stretches = !!current && resizable(currentImage, current);
   const currentBox =
     current && currentImage && currentSize ? layerBox(currentImage, current, currentSize) : null;
-  const fixed = recipe.width !== null && recipe.height !== null;
   const full = recipe.layers.length >= COMPOSE_MAX_LAYERS;
 
   const target = held !== "move" && drawingAt(selected) ? selected : null;
@@ -743,11 +774,13 @@ export function ComposedImageEditor({
                   module: () => setPicker("module"),
                   drawn: draw,
                   disabled: !user || busy || full,
+                  // A PNG says what a first layer makes of it.
+                  hint: lone ? t("studio.toLayersHint") : undefined,
                 }
               : undefined
           }
         >
-          {footer?.(dirty)}
+          {footer?.(picture)}
         </LayersPanel>
 
         {current && selected !== null && !alone && (
@@ -758,6 +791,7 @@ export function ComposedImageEditor({
                 value={current.x}
                 min={-COMPOSE_MAX_SIDE}
                 max={COMPOSE_MAX_SIDE}
+                disabled={selected === anchor}
                 onChange={(x) => update(selected, { x }, `field:${selected}:x`)}
               />
               <NumberField
@@ -765,6 +799,7 @@ export function ComposedImageEditor({
                 value={current.y}
                 min={-COMPOSE_MAX_SIDE}
                 max={COMPOSE_MAX_SIDE}
+                disabled={selected === anchor}
                 onChange={(y) => update(selected, { y }, `field:${selected}:y`)}
               />
               {stretches ? (
@@ -805,6 +840,11 @@ export function ComposedImageEditor({
                 </>
               )}
             </div>
+            {selected === anchor ? (
+              <p className="text-[11px] text-[var(--text-faint)]" data-testid="compose-anchored">
+                {t("compose.anchored")}
+              </p>
+            ) : null}
             {stretches ? (
               <p className="text-[11px] text-[var(--text-faint)]">{t("compose.resizeHint")}</p>
             ) : null}

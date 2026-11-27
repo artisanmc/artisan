@@ -1,4 +1,10 @@
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { type Asset, assetPreviewUrl } from "@/domain/asset";
 import { cx } from "@/lib/cx";
 import { useAuthenticatedImageUrl } from "@/lib/useAuthenticatedImage";
@@ -66,7 +72,14 @@ export function LayersPanel({
   onMove?: (index: number, to: number) => void;
   onRemove?: (index: number) => void;
   /** What adds a layer; `disabled` when no more can be added now. */
-  add?: { common: () => void; module: () => void; drawn: () => void; disabled?: boolean };
+  add?: {
+    common: () => void;
+    module: () => void;
+    drawn: () => void;
+    disabled?: boolean;
+    /** Said when the button is pointed at. */
+    hint?: string;
+  };
   /** Under the list: what is said or done about the layers as a whole. */
   children?: ReactNode;
 }) {
@@ -75,26 +88,33 @@ export function LayersPanel({
   return (
     <StudioSection title={t("compose.layers")} testId="studio-layers">
       {add ? (
-        <div className="flex flex-wrap gap-1.5">
-          {(
-            [
-              ["common", "compose.addKit"],
-              ["module", "compose.addImage"],
-              ["drawn", "compose.addDrawn"],
-            ] as const
-          ).map(([kind, label]) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              key={kind}
               size="sm"
               variant="outline"
+              className="self-start"
               disabled={add.disabled}
-              onClick={add[kind]}
+              title={add.hint}
             >
               <Plus className="size-3.5" />
-              {t(label)}
+              {t("compose.addLayer")}
             </Button>
-          ))}
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {(
+              [
+                ["common", "compose.addKit"],
+                ["module", "compose.addImage"],
+                ["drawn", "compose.addDrawn"],
+              ] as const
+            ).map(([kind, label]) => (
+              <DropdownMenuItem key={kind} onSelect={add[kind]}>
+                {t(label)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
       <ul className="flex flex-col gap-1">
         {rows

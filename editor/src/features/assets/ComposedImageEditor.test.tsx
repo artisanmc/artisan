@@ -3,12 +3,19 @@ import * as userAssetsApi from "@/lib/api/userAssets";
 import type { ComposeRecipe } from "@/lib/pack/compose";
 import { createImage, decodePng, encodePng } from "@/lib/pack/png";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
+import userEvent from "@testing-library/user-event";
+import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposedImageEditor } from "./ComposedImageEditor";
 import type { StudioTool } from "./StudioFrame";
 import { useAssetStore } from "./assetStore";
 import { layerRef } from "./imageLayers";
+
+/** Picks what a new layer is, in the menu of "Ajouter un calque". */
+async function addLayer(kind: string) {
+  await userEvent.click(screen.getByRole("button", { name: "Ajouter un calque" }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: kind }));
+}
 
 vi.mock("@/state/authStore", () => ({
   useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
@@ -61,7 +68,13 @@ const tool = (name: string) =>
   within(screen.getByRole("group", { name: "Outil" })).getByRole("button", { name });
 
 /** The editor's parts one under the other, the tool held as the atelier holds it. */
-function Stand({ asset = composed }: { asset?: Asset }) {
+function Stand({
+  asset = composed,
+  footer,
+}: {
+  asset?: Asset;
+  footer?: (picture: () => Promise<Uint8Array>) => ReactNode;
+}) {
   const [held, setHeld] = useState<StudioTool>("move");
   const current = useAssetStore((s) => s.assets.find((a) => a.id === asset.id)) ?? asset;
   return (
@@ -70,6 +83,7 @@ function Stand({ asset = composed }: { asset?: Asset }) {
       asset={asset === composed ? current : asset}
       tool={held}
       onTool={setHeld}
+      footer={footer}
       layout={(parts) => (
         <div onKeyDown={parts.keys}>
           {parts.rail}
@@ -110,8 +124,8 @@ describe("ComposedImageEditor", () => {
     const items = screen.getAllByRole("listitem");
     expect(items.map((item) => within(item).getAllByRole("button")[0]!.textContent)).toEqual([
       "icon",
-      "cell9 × 3commune",
-      "window.3commune",
+      "cell9 × 3serveur",
+      "window.3serveur",
     ]);
   });
 
@@ -140,6 +154,75 @@ describe("ComposedImageEditor", () => {
     expect(place()).toEqual(nudged);
     fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
     expect(place()).toEqual(dragged);
+  });
+
+  it("keeps the layer the image takes its size from where it is, until the size is fixed", () => {
+    render(<Stand />);
+    const stage = screen.getByTestId("compose-stage");
+    const before = [stage.style.width, stage.style.height];
+    const bottom = layers()[0]!;
+    fireEvent.pointerDown(bottom, { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(bottom, { clientX: 140, clientY: 120, pointerId: 1 });
+    fireEvent.pointerUp(bottom, { pointerId: 1 });
+    fireEvent.keyDown(layers()[0]!, { key: "ArrowRight" });
+    // Moved, it would grow or crop the whole image.
+    expect([layers()[0]!.style.left, layers()[0]!.style.top]).toEqual(["0px", "0px"]);
+    expect([stage.style.width, stage.style.height]).toEqual(before);
+    expect(screen.getByTestId("compose-anchored")).toBeInTheDocument();
+    expect(screen.getByLabelText("X")).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("Taille fixe"));
+    expect(screen.queryByTestId("compose-anchored")).toBeNull();
+    fireEvent.keyDown(layers()[0]!, { key: "ArrowRight" });
+    expect(layers()[0]!.style.left).toBe("2px");
+    expect([stage.style.width, stage.style.height]).toEqual(before);
+  });
+
+  it("gives the picture of the image as shown, a layer moved and not saved, for a copy", async () => {
+    const flat = (width: number, height: number, rgba: [number, number, number, number]) => {
+      const drawn = createImage(width, height);
+      for (let i = 0; i < drawn.data.length; i += 4) drawn.data.set(rgba, i);
+      return encodePng(drawn);
+    };
+    files.back = flat(4, 2, [255, 0, 0, 255]);
+    files.dot = flat(1, 1, [0, 0, 255, 255]);
+    const two = image("two", 4, 2, {
+      compose: {
+        width: null,
+        height: null,
+        layers: [
+          { image: "back", x: 0, y: 0, columns: 1, rows: 1 },
+          { image: "dot", x: 0, y: 0, columns: 1, rows: 1 },
+        ],
+      },
+      previewUrl: "data:,",
+    });
+    useAssetStore.getState().setAssets([two, image("back", 4, 2), image("dot", 1, 1)]);
+    let copy: Uint8Array | undefined;
+    render(
+      <Stand
+        asset={two}
+        footer={(picture) => (
+          <button
+            type="button"
+            onClick={async () => {
+              copy = await picture();
+            }}
+          >
+            copy
+          </button>
+        )}
+      />,
+    );
+    fireEvent.keyDown(layers()[1]!, { key: "ArrowRight" });
+    fireEvent.click(screen.getByRole("button", { name: "copy" }));
+    await waitFor(() => expect(copy).toBeDefined());
+    const drawn = decodePng(copy!);
+    expect([drawn.width, drawn.height]).toEqual([4, 2]);
+    // The dot is where it was moved to, though nothing was saved.
+    expect([...drawn.data.subarray(0, 4)]).toEqual([255, 0, 0, 255]);
+    expect([...drawn.data.subarray(4, 8)]).toEqual([0, 0, 255, 255]);
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
   });
 
   it("moves a layer with the pointer and the keys, by pixels or by slots, and saves the recipe", async () => {
@@ -290,7 +373,7 @@ describe("ComposedImageEditor", () => {
     ]);
   });
 
-  it("reorders and removes layers, and adds a module image that is not a composed one", () => {
+  it("reorders and removes layers, and adds a module image that is not a composed one", async () => {
     render(<Stand />);
     fireEvent.click(screen.getByRole("button", { name: "Reculer icon" }));
     fireEvent.click(screen.getByRole("button", { name: "Retirer window.3" }));
@@ -301,7 +384,7 @@ describe("ComposedImageEditor", () => {
     // The bottom layer is now the icon: the image is as large as it reaches.
     expect(px(screen.getByTestId("compose-stage").style.width)).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Image du module" }));
+    await addLayer("Image du module");
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByTitle(/^other/)).toBeNull();
     expect(within(dialog).queryByTitle(/^hall/)).toBeNull();
@@ -334,7 +417,7 @@ describe("ComposedImageEditor", () => {
         compose: patch.compose as ComposeRecipe,
       }));
     render(<Stand />);
-    fireEvent.click(screen.getByRole("button", { name: "Dessin" }));
+    await addLayer("Dessin");
     // The new layer is selected with a pencil in hand: it is drawn among the others.
     await waitFor(() => expect(tool("Crayon")).toHaveAttribute("aria-pressed", "true"));
     expect(screen.queryByTestId("compose-stage")).toBeNull();

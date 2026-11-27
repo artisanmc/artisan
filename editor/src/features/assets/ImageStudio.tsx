@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Asset } from "@/domain/asset";
 import type { ProjectId } from "@/domain/types";
 import { cx } from "@/lib/cx";
@@ -17,9 +18,7 @@ import {
   type StudioTool,
   useStudioView,
 } from "./StudioFrame";
-import { useAssetStore } from "./assetStore";
 import { type GuideName, guideNames, imageGuides } from "./guideRules";
-import { canHaveLayers, flatten } from "./imageLayers";
 
 /** The guides and the preview the atelier shows, kept between images and sessions. */
 export const useStudioPrefs = create<{
@@ -101,34 +100,12 @@ export function ImageStudio({
   const prefs = useStudioPrefs();
   const user = useProjectPrincipalId(projectId);
   const [tool, setTool] = useState<StudioTool>(asset.compose ? "move" : "pencil");
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [savingAs, setSavingAs] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // Another image opens fitted to the room it has.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the image open, not the store's setter
   useEffect(() => {
     useStudioView.getState().setZoom(null);
   }, [asset.id]);
-  const run = async (work: () => Promise<void>) => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-      setConfirming(false);
-    }
-  };
-  const flattenLayers = () =>
-    run(async () => {
-      useAssetStore.getState().upsertAsset(await flatten(projectId, asset));
-      setTool("pencil");
-    });
-
   const offered = guideNames(asset.width, asset.height);
   const shown = offered.filter((guide) => !prefs.hidden.includes(guide));
   const kind = imageGuides(asset.width, asset.height);
@@ -141,7 +118,6 @@ export function ImageStudio({
       : kind?.kind === "area"
         ? t("studio.area", { columns: kind.columns, rows: kind.rows })
         : t("studio.single");
-  const failed = error ? t("studio.failed", { detail: error }) : null;
 
   const frame = (parts: StudioParts) => (
     <StudioFrame
@@ -189,68 +165,27 @@ export function ImageStudio({
       onTool={setTool}
       guides={shown}
       situation={situation}
-      layout={(parts) =>
-        frame({
-          ...parts,
-          actions: (
-            <>
-              {failed ? (
-                <span role="alert" className="max-w-xs text-xs text-[var(--danger)]">
-                  {failed}
-                </span>
-              ) : null}
-              {parts.actions}
-            </>
-          ),
-        })
-      }
-      footer={(dirty) => (
-        <div className="flex flex-col items-start gap-3">
-          {server ? (
-            <div className="flex flex-col items-start gap-1" data-testid="studio-save-as">
-              {/* What is copied is the image as saved. */}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy || dirty}
-                onClick={() => setSavingAs(true)}
-              >
+      layout={frame}
+      footer={(picture) =>
+        server ? (
+          <div data-testid="studio-save-as">
+            <Tooltip content={t("saveAs.hint")} side="top">
+              <Button variant="outline" size="sm" onClick={() => setSavingAs(true)}>
                 {t("saveAs.button")}
               </Button>
-              <p className="text-[11px] text-[var(--text-faint)]">
-                {t(dirty ? "saveAs.saveFirst" : "saveAs.hint")}
-              </p>
-              {savingAs ? (
-                <SaveAsDialog
-                  projectId={projectId}
-                  asset={asset}
-                  server={server}
-                  onClose={() => setSavingAs(false)}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          {!asset.compose ? (
-            canHaveLayers(asset) ? (
-              <p className="text-[11px] text-[var(--text-faint)]">{t("studio.toLayersHint")}</p>
-            ) : null
-          ) : (
-            <div className="flex flex-col items-start gap-1">
-              <Button
-                variant={confirming ? "default" : "outline"}
-                size="sm"
-                // What is flattened is the image as saved.
-                disabled={!user || busy || dirty}
-                onClick={() => (confirming ? void flattenLayers() : setConfirming(true))}
-                onBlur={() => setConfirming(false)}
-              >
-                {t(confirming ? "studio.flattenConfirm" : "studio.flatten")}
-              </Button>
-              <p className="text-[11px] text-[var(--text-faint)]">{t("studio.flattenHint")}</p>
-            </div>
-          )}
-        </div>
-      )}
+            </Tooltip>
+            {savingAs ? (
+              <SaveAsDialog
+                projectId={projectId}
+                asset={asset}
+                picture={picture}
+                server={server}
+                onClose={() => setSavingAs(false)}
+              />
+            ) : null}
+          </div>
+        ) : null
+      }
     />
   );
 }

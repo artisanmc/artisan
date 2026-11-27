@@ -1,6 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { canHaveLayers, flatten, layerName, toLayers } from "./imageLayers";
+import { canHaveLayers, layerName, toLayers } from "./imageLayers";
 
 const patchAsset = vi.fn();
 const composeAsset = vi.fn();
@@ -44,18 +44,13 @@ describe("image layers", () => {
     expect(canHaveLayers(image("go", { type: "font" }))).toBe(false);
   });
 
-  it("keeps a texture a texture: its layer, the image it becomes, and its PNG once flattened", async () => {
+  it("keeps a texture a texture: its layer, the image it becomes", async () => {
     const texture = image("gem", { type: "texture", ascent: null, usages: [] });
     patchAsset.mockResolvedValue({ ...texture, name: "gem_layer" });
     composeAsset.mockResolvedValue({ ...texture, compose: recipe });
     await toLayers("p1", texture, new Set(["gem"]));
     expect(composeAsset.mock.calls[0]?.[1]).toMatchObject({ name: "gem", type: "texture" });
     expect(composeAsset.mock.calls[0]?.[1]).not.toHaveProperty("ascent");
-
-    const composed = { ...texture, compose: recipe, previewUrl: "data:image/png;base64,AQID" };
-    uploadAsset.mockResolvedValue(texture);
-    await flatten("p1", composed);
-    expect(uploadAsset.mock.calls[0]?.[1]).toMatchObject({ name: "gem", type: "texture" });
   });
 
   it("names the layer after the image, free, without a kit piece's dots", () => {
@@ -134,29 +129,6 @@ describe("image layers", () => {
     expect(patchAsset).toHaveBeenLastCalledWith("p1", "go_layer", {
       name: "go",
       usages: ["button"],
-    });
-  });
-
-  it("flattens a composed image into one PNG of its name, the recipe put back on a failure", async () => {
-    const composed = image("go", { compose: recipe, previewUrl: "data:image/png;base64,AQID" });
-    uploadAsset.mockResolvedValue(image("go"));
-    expect((await flatten("p1", composed)).compose).toBeUndefined();
-    expect(deleteAsset).toHaveBeenCalledWith("p1", "go");
-    expect(uploadAsset.mock.calls[0]?.[1]).toMatchObject({
-      name: "go",
-      type: "glyph",
-      usages: ["button"],
-      ascent: 8,
-    });
-    uploadAsset.mockRejectedValue(new Error("offline"));
-    composeAsset.mockResolvedValue(composed);
-    await expect(flatten("p1", composed)).rejects.toThrow("offline");
-    expect(composeAsset).toHaveBeenCalledWith("p1", {
-      type: "glyph",
-      name: "go",
-      recipe,
-      usages: ["button"],
-      ascent: 8,
     });
   });
 });

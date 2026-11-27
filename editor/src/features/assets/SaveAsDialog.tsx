@@ -29,17 +29,21 @@ const USAGES: readonly string[] = ["button", "menu"];
  * server's library, a theme, or a theme created on the way. Nothing else is asked: the dialog
  * says what the copy changes. A module's own image saved into a theme replaces that module's
  * image of the name while the theme is in place, and keeps its name (`Asset.under`); any other
- * copy is saved under a name. The copy is the image as saved, flat; the Resources of the place
+ * copy is saved under a name. The copy is the image as shown, flat (`picture`), and the image it
+ * is made from is not written; the Resources of the place
  * write it (`useSaveAsAsked`).
  */
 export function SaveAsDialog({
   projectId,
   asset,
+  picture,
   server,
   onClose,
 }: {
   projectId: string;
   asset: Asset;
+  /** The PNG to copy when it is not the saved file: the image as the atelier shows it now. */
+  picture?: () => Promise<Uint8Array>;
   server: SaveAsServer;
   onClose: () => void;
 }) {
@@ -93,7 +97,7 @@ export function SaveAsDialog({
     setBusy(true);
     setError(null);
     try {
-      const png = await assetBytes(asset);
+      const png = await (picture ?? (() => assetBytes(asset)))();
       let target = place?.projectId;
       if (!target) {
         target = (await createProject(server.serverKeyId, theme, "theme")).id;

@@ -160,6 +160,31 @@ describe("AssetsTab", () => {
     expect(screen.getByRole("dialog", { name: /importer une image/i })).toBeTruthy();
   });
 
+  it("marks as an override the base's image the server redrew, not one shipped and left alone", async () => {
+    const { useKitStore } = await import("@/state/kitStore");
+    useKitStore.setState({
+      read: { projectId: "p1", files: {}, binaries: [], byName: true },
+      own: {},
+    } as never);
+    const image = (id: string): Asset => ({ ...A1, id, name: id, contentHash: "h" });
+    useAssetStore.getState().setAssets([image("window.6"), image("window.3")]);
+    useProjectBaselineStore.setState({
+      baselines: { p1: {} },
+      binaryBaselines: {
+        p1: {
+          "originals/assets/textures/window.6.png": { hash: "o1", size: 1 },
+          "originals/assets/textures/window.3.png": { hash: "o2", size: 1 },
+          "assets/textures/window.3.png": { hash: "m2", size: 1 },
+        },
+      },
+    });
+    render(<AssetsTab projectId={"p1" as never} />);
+    expect(screen.getByLabelText(/^window\.3/)).toHaveTextContent("Surcharge");
+    expect(screen.getByTitle("window.6")).not.toHaveTextContent("Surcharge");
+    useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
+    useKitStore.setState({ read: undefined, own: {} } as never);
+  });
+
   it("sends an image uploaded in a module to the server's library, and turns to it", async () => {
     const { useKitStore } = await import("@/state/kitStore");
     const libraryDraft = await import("./libraryDraft");
