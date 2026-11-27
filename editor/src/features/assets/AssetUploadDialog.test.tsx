@@ -148,6 +148,19 @@ describe("AssetUploadDialog, for a menu to name", () => {
     useAssetStore.getState().reset();
     vi.restoreAllMocks();
     useKitStore.setState({ read: library, own: {} });
+    vi.spyOn(libraryDraft, "openLibraryDraft").mockResolvedValue();
+  });
+
+  it("leaves the image in the module when the library's draft cannot be opened", async () => {
+    vi.spyOn(libraryDraft, "openLibraryDraft").mockRejectedValue(new Error("draft_unavailable"));
+    const add = vi.spyOn(libraryDraft, "addToLibrary");
+    const upload = vi
+      .spyOn(userAssetsApi, "uploadAsset")
+      .mockResolvedValue({ id: "crest", projectId: "srv.shop" } as never);
+    render(<AssetUploadDialog projectId={"srv.shop" as never} open onClose={() => {}} toLibrary />);
+    pick("crest");
+    await waitFor(() => expect(upload).toHaveBeenCalledWith("srv.shop", expect.anything()));
+    expect(add).not.toHaveBeenCalled();
   });
   afterEach(() => useKitStore.setState({ read: undefined, own: {} }));
 

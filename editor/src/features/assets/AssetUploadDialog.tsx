@@ -9,7 +9,7 @@ import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAssetStore } from "./assetStore";
-import { addToLibrary, libraryImage, useLibraryFor } from "./libraryDraft";
+import { addToLibrary, libraryImage, openLibraryDraft, useLibraryFor } from "./libraryDraft";
 
 interface AssetUploadDialogProps {
   projectId: ProjectId;
@@ -87,7 +87,14 @@ export function AssetUploadDialog({
     setBusy(true);
     setError(null);
     try {
-      if (library) {
+      // A library whose draft cannot be opened from here leaves the image in the module, as before.
+      const reached = library
+        ? await openLibraryDraft(library).then(
+            () => true,
+            () => false,
+          )
+        : false;
+      if (library && reached) {
         // The module's image of a name is shown before the library's: the new one would not be.
         const own = useAssetStore.getState().assets;
         if (own.some((a) => a.projectId === projectId && !a.under && a.name === name))
