@@ -140,7 +140,9 @@ here once deployed. **New theme** creates one, empty, as a folder of its own on 
 images and is put in place. Its page says where its files are; the assistant fills it when
 asked ("make the buttons red in the theme noel"). A theme changes the common images only.
 
-A theme's images are under `assets/` of its folder (`assets/textures/`, `assets/glyphs/`). One
+A theme's images are under `assets/` of its folder (`assets/textures/`, `assets/glyphs/`). The
+folder does not decide what an image is for: one of either folder draws a button, a layer of
+another image or a menu's title. One
 named like a common image replaces it while the theme is in place, at that image's size. One
 of another name is the theme's alone, a garland for the winter look, say: a menu names it with
 its theme, `noel:garland`, never by its name alone. It is in the pack as long as the server has the
