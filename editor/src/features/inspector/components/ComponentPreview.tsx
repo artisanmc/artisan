@@ -93,8 +93,8 @@ export function ComponentPreview({
           }}
         >
           {Array.from({ length: columns * lines }, (_, slot) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: slots have no identity but their place
             <span
+              // biome-ignore lint/suspicious/noArrayIndexKey: slots have no identity but their place
               key={slot}
               className="outline outline-1 -outline-offset-[0.5px] outline-[var(--brand)]"
             />
