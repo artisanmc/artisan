@@ -1,8 +1,7 @@
 # A theme replaces an image where it lives
 
-**Status:** accepted (2026-11-27). Being built: step 1 (the two pack builders) and step 2 in the
-editor (**Save as**, a theme's Resources, the canvas) are in the code; the MCP tools of step 2,
-and steps 3 to 5, are not. Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
+**Status:** accepted (2026-11-27). Being built: steps 1 (the two pack builders) and 2 (**Save
+as**, a theme's Resources, the canvas, the MCP tools) are in the code; steps 3 to 5 are not. Amends `resources-one-screen` (2026-11-26): replaces its decision 2 ("a
 theme no longer aims at a module") and the part of its decision 7 that offers a module as a
 place to save an image into. Its other decisions stand, colour tables and `scope` stay gone.
 

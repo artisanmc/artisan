@@ -45,6 +45,9 @@ class KitTheme internal constructor(
     /** The names of the images this theme redraws. */
     val drawings: Set<String> get() = redrawn.keys
 
+    /** The modules' images this theme replaces, each as `<module>:<image>`, sorted. */
+    val moduleImages: List<String> get() = modules.flatMap { (module, images) -> images.keys.map { "$module:$it" } }.sorted()
+
     /** The kit image [name], whose PNG is [png], as the theme shows it: its own drawing, else [png]. */
     fun shown(name: String, png: ByteArray): ByteArray = drawing(name) ?: png
 

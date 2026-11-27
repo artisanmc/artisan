@@ -639,22 +639,31 @@ class McpTest {
         assertTrue(removed["structuredContent"]["deleted"].asBoolean(), removed.toString())
         assertEquals(plain, shown(render("theme" to "noel", "theme_draft_id" to themeDraft)))
 
-        // A module's image is the module's: a theme does not redraw it, deployed or drafted, and says where to change it.
+        // A theme replaces a module's own image for that module alone, named `<module>:<image>`: written under
+        // `overrides/<module>/`, shown by render_menu while the theme is asked for, listed by the survey.
         modules["guilds"] = McpFixtures.Module(images = mapOf("assets/textures/crest.png" to solid(18, 18, 0x101010)))
-        val aimed = theme("write_image", "name" to "guilds:crest", "png_base64" to png(18, 18, 0xaabbcc))
-        assertTrue(aimed["isError"].asBoolean() && "in a draft of that module" in aimed["structuredContent"]["message"].asText(), aimed.toString())
+        val missing = theme("write_image", "name" to "guilds:banner", "png_base64" to png(18, 18, 0xaabbcc))
+        assertTrue(missing["isError"].asBoolean() && "No image 'banner' in a module 'guilds'" in missing["structuredContent"]["message"].asText(), missing.toString())
+        val aimed = theme("write_image", "name" to "guilds:crest", "png_base64" to png(20, 18, 0xaabbcc))
+        assertFalse(aimed.has("isError"), aimed.toString())
+        assertEquals("overrides/guilds/crest.png", aimed["structuredContent"]["path"].asText())
+        assertTrue("the module `guilds` is 18x18, this image is 20x18" in aimed["structuredContent"]["other_size"].asText(), aimed.toString())
         assertEquals("assets/textures/cell.png", theme("write_image", "name" to "artisan:cell", "png_base64" to png(18, 18, 0x112233))["structuredContent"]["path"].asText())
         val crestMenu = "schema: menu/v1\nsize: 27\nelements:\n  - positions: \"0\"\n    image: { asset: \"guilds:crest\", fit: native }\n"
         assertFalse(tool(access, "write_document", "project" to "u-local.shop", "draft_id" to draftId, "path" to "menus/crest.yml", "content" to crestMenu).has("isError"))
         modules["noel"] = McpFixtures.Module(images = mapOf("overrides/guilds/crest.png" to solid(18, 18, 0xaabbcc)), role = "theme")
-        val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/crest.yml", "draft_id" to draftId, "scale" to 1, "theme" to "noel")
-        assertFalse(rendered.has("isError"), rendered.toString())
-        val window = rendered["structuredContent"]["window"]
-        val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
-        val at = ((window["y"].asInt() + 17 + 9) * picture.width + window["x"].asInt() + 7 + 9) * 4
-        assertEquals(listOf(0x10, 0x10, 0x10), picture.data.slice(at until at + 3).map { it.toInt() and 0xff })
+        fun crest(vararg args: Pair<String, Any?>): List<Int> {
+            val rendered = tool(access, "render_menu", "project" to "u-local.shop", "path" to "menus/crest.yml", "draft_id" to draftId, "scale" to 1, *args)
+            assertFalse(rendered.has("isError"), rendered.toString())
+            val window = rendered["structuredContent"]["window"]
+            val picture = net.artisanmc.plugin.pack.Png.decode(java.util.Base64.getDecoder().decode(rendered["content"][1]["data"].asText()))
+            val at = ((window["y"].asInt() + 17 + 9) * picture.width + window["x"].asInt() + 7 + 9) * 4
+            return picture.data.slice(at until at + 3).map { it.toInt() and 0xff }
+        }
+        assertEquals(listOf(0xaa, 0xbb, 0xcc), crest("theme" to "noel"))
+        assertEquals(listOf(0x10, 0x10, 0x10), crest("theme" to "none"))
         val survey = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]
-        assertFalse(survey["common"]["themes"].first { it["name"].asText() == "noel" }.has("module_redraws"))
+        assertEquals(listOf("guilds:crest"), survey["common"]["themes"].first { it["name"].asText() == "noel" }["module_images"].map { it.asText() })
     }
 
     @Test
