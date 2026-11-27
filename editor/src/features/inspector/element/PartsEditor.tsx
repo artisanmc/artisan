@@ -1,3 +1,4 @@
+import { MmEditor } from "@/components/minimessage/MmEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
@@ -9,6 +10,7 @@ import { imageSlots, useImageAsset } from "@/features/assets/kitAssets";
 import { colsFor, rowsFor } from "@/features/canvas/inventoryTypes";
 import { TextSizeSelector } from "@/features/canvas/title/composer/TextSizeSelector";
 import { cx } from "@/lib/cx";
+import { CONTAINER_TITLE } from "@/lib/mm/profiles";
 import type { PartsEdit } from "@/state/projects/elementsSlice";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useId, useState } from "react";
@@ -271,11 +273,15 @@ function PartRow({
           </Button>
         </div>
       ) : (
-        <Input
-          aria-label={t("parts.text")}
+        // A text takes colours and styles like any label of a menu: the toolbar shows on focus.
+        <MmEditor
           value={text}
+          onChange={onText}
+          aria-label={t("parts.text")}
+          profile={CONTAINER_TITLE}
           placeholder={t("elementLabel.placeholder")}
-          onChange={(event) => onText(event.target.value)}
+          toolbar="focus"
+          minHeight="0"
         />
       )}
       <div className="grid grid-cols-2 gap-2">

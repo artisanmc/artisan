@@ -1,3 +1,5 @@
+import { EditorView } from "@codemirror/view";
+import { act } from "@testing-library/react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { PartsEditor } from "./PartsEditor";
@@ -81,8 +83,12 @@ it("edits each part of the list: place, order, text, size of the button", () => 
   expect(image.getByRole("button", { name: "Mettre derrière" })).toBeDisabled();
 
   const text = within(rows[0]!);
-  expect(text.getByLabelText("Texte")).toHaveValue("Buy");
-  fireEvent.change(text.getByLabelText("Texte"), { target: { value: "Sell" } });
+  // The text is written in the rich editor, which gives it colours.
+  const written = rows[0]!.querySelector(".cm-content") as HTMLElement;
+  expect(written.textContent).toBe("Buy");
+  act(() =>
+    EditorView.findFromDOM(written)!.dispatch({ changes: { from: 0, to: 3, insert: "Sell" } }),
+  );
   expect(onEdit).toHaveBeenLastCalledWith({ type: "text", index: 1, lang: "en", value: "Sell" });
   fireEvent.change(text.getByLabelText("Place"), { target: { value: "center" } });
   expect(onEdit).toHaveBeenLastCalledWith({

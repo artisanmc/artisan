@@ -196,7 +196,7 @@ export function AssetsTab({
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
   useSaveAsAsked(projectId);
-  // The components are a module's own: the common images' Project and a picker show none.
+  // The components view is the page's: a picker gives none.
   const views: ResourcesView[] = [
     "files",
     ...(components ? (["components"] as const) : []),

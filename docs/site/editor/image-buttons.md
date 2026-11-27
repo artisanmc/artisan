@@ -524,13 +524,19 @@ Artisan changes them. To change one for the whole server, write a component of t
 in the theme `artisan`'s `components/` folder: it is read first. Since the base buttons keep
 their edges at any width, a component placed on four or five slots stays sharp.
 
-A module's **Resources** have a **Components** view: the list of its components. Clicking one
-opens it on the whole page, laid out as the atelier is: in the middle, the component as a
-menu draws it in a chest of six rows, on the slots picked with the width and height of its
-parts; on the right its parts, edited as a button's and listed as an image's layers are, its
+A module's **Resources** have a **Components** view: the list of its components, then the
+ones it ships and you left as they are (in the base, Artisan's four). Clicking one
+opens it on the whole page, laid out as the atelier is: in the middle, the component alone as
+a menu draws it, on the slots picked with the width and height of its parts, those slots
+lined in green over it (**Slots**, in the bar, takes the lines off); on the right its parts,
+edited as a button's and listed as an image's layers are, its
 **Parameters** (a name, a text or an image, a default) and the buttons of the module that
-name it. Click a part's title in the list to take it in hand, then drag on the menu to move
+name it. A text part is written in the same editor as a button's label: select words to give
+them a colour or a style. Click a part's title in the list to take it in hand, then drag on
+the component to move
 it, or use the arrow keys for one pixel at a time: its offsets from its anchor follow. A
+shipped component changes like any other: the first change writes your version, which is read
+first, and **Back to the original** takes your version off. A
 change is part of your draft at once, and the editor's undo takes it back, a drag as one
 step. **Components**, at the top left, goes back to the list. A component that buttons still
 name cannot be deleted.

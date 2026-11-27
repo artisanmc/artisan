@@ -24,6 +24,21 @@ export function projectComponents(project: Project | undefined): Record<string, 
   return out;
 }
 
+/**
+ * The components a Project ships, among its files `tree` (rel path to text): name to the text
+ * of `originals/components/<name>.yml`, which the server writes and the owner does not.
+ */
+export function shippedComponents(
+  tree: Record<string, string> | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, content] of Object.entries(tree ?? {})) {
+    const match = /^originals\/components\/([^/]+)\.ya?ml$/.exec(path);
+    if (match && !(match[1]! in out)) out[match[1]!] = content;
+  }
+  return out;
+}
+
 /** A component's text read as its file; an unreadable one is an empty component. */
 export function readComponent(content: string | undefined): ComponentFile {
   try {

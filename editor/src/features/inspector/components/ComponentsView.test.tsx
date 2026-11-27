@@ -7,8 +7,14 @@ import { parse } from "yaml";
 import { ComponentsView } from "./ComponentsView";
 
 vi.mock("./ComponentPreview", () => ({
-  ComponentPreview: ({ component, positions }: { component: string; positions: string }) => (
-    <div data-testid="component-preview">{`${component}@${positions}`}</div>
+  ComponentPreview: ({
+    component,
+    positions,
+    slots,
+  }: { component: string; positions: string; slots?: boolean }) => (
+    <div data-testid="component-preview" data-slots={String(slots)}>
+      {`${component}@${positions}`}
+    </div>
   ),
 }));
 vi.mock("@/features/assets/AssetPicker", () => ({ AssetPicker: () => null }));
@@ -29,6 +35,10 @@ it("creates a component, gives it a parameter and a text, and deletes it", () =>
   fireEvent.click(screen.getByRole("button", { name: "Créer" }));
   expect(parse(files()["confirm.yml"]!)).toEqual({ parts: [] });
   expect(screen.getByTestId("component-preview")).toHaveTextContent("confirm@0-2");
+  // No menu behind: the slots are lined over the component, and can be taken off.
+  expect(screen.getByTestId("component-preview")).toHaveAttribute("data-slots", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Slots" }));
+  expect(screen.getByTestId("component-preview")).toHaveAttribute("data-slots", "false");
 
   fireEvent.change(screen.getByLabelText("Nouveau paramètre"), { target: { value: "text" } });
   fireEvent.click(screen.getByRole("button", { name: "Ajouter" }));
@@ -89,4 +99,33 @@ it("moves the piece in hand on the menu, a drag being one step of the Project's 
   fireEvent.keyDown(scene, { key: "ArrowUp" });
   fireEvent.keyDown(scene, { key: "ArrowRight" });
   expect(parts()[0]).toEqual({ label: "under" });
+});
+
+it("lists the components the Project ships, and writes the owner's version on the first change", async () => {
+  const { useProjectBaselineStore } = await import("@/state/projectBaselineStore");
+  useProjectBaselineStore.getState().set(p, {
+    "originals/components/cancel.yml":
+      "params:\n  text: { type: text, default: Cancel }\nparts:\n  - label: '{text}'\n",
+  });
+  render(<ComponentsView projectId={p} />);
+  // Nothing of the owner's yet: the shipped one is listed apart, and no "none yet".
+  expect(screen.queryByText(/Aucun composant pour l’instant/)).toBeNull();
+  const shipped = within(screen.getByTestId("components-shipped"));
+  fireEvent.click(shipped.getByRole("button", { name: "cancel" }));
+  expect(screen.getByTestId("component-preview")).toHaveTextContent("cancel@0-2");
+  expect(screen.getByText(/Ce composant est livré tel quel/)).toBeInTheDocument();
+  expect(files()["cancel.yml"]).toBeUndefined();
+
+  fireEvent.change(screen.getByLabelText("Valeur par défaut de text"), {
+    target: { value: "No" },
+  });
+  expect(parse(files()["cancel.yml"]!)).toEqual({
+    params: { text: { type: "text", default: "No" } },
+    parts: [{ label: "{text}" }],
+  });
+  // The owner's version goes, the shipped one is back.
+  fireEvent.click(screen.getByRole("button", { name: "Revenir à l’original" }));
+  expect(files()["cancel.yml"]).toBeUndefined();
+  expect(screen.getByLabelText("Valeur par défaut de text")).toHaveValue("Cancel");
+  useProjectBaselineStore.getState().clear(p);
 });
