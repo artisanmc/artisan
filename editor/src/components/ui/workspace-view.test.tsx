@@ -61,4 +61,15 @@ describe("WorkspaceView keep-alive", () => {
     fireEvent.click(screen.getByLabelText("Close"));
     expect(screen.getByTestId("workspace-view").className).toContain("hidden");
   });
+
+  it("has no way out when it is the page itself", () => {
+    render(
+      <WorkspaceView active title="Test">
+        <Counter />
+      </WorkspaceView>,
+    );
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByText("count:0")).toBeInTheDocument();
+  });
 });

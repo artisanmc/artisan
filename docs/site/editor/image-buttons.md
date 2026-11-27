@@ -109,7 +109,9 @@ canvas shows the module's image as the theme draws it, like the resource pack; t
 Resources keep showing the image the module holds. A font is not saved as.
 
 **Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
-the same list of places on the left, in the order an image's name is looked up:
+the same list of places on the left. The base and a theme open under the server's own tabs:
+you stay on the server's page, with **Deploy** for what you changed in that place. A module
+opens as the module it is. The places, in the order an image's name is looked up:
 
 - **Server themes**: the themes in place, the highest first (drag one by its handle to change
   its place, **Put away** to take it off), then **Base**, Artisan's images and the server's own

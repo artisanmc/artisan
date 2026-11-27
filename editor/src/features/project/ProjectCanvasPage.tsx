@@ -20,7 +20,7 @@ import { CanvasWithInspector } from "@/features/project/CanvasWithInspector";
 import { DeleteProjectDialog } from "@/features/project/DeleteProjectDialog";
 import { ProjectHistory } from "@/features/project/ProjectHistory";
 import { ProjectLibraryWorkspace } from "@/features/project/ProjectLibrary";
-import { ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
+import { type PlaceHeader, ProjectTopBarControls } from "@/features/project/ProjectTopBarControls";
 import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanels";
 import {
   type ResourcePlace,
@@ -102,10 +102,13 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
 export function ProjectCanvasPage({
   projectRef,
   importTheme,
+  placeHeader,
 }: {
   projectRef?: string;
   /** What imports a theme from the Resources' places, given by the route. */
   importTheme?: ThemeImporter;
+  /** The server's header, shown when the Project is a place of its resources; given by the route. */
+  placeHeader?: PlaceHeader;
 } = {}) {
   const { serverId, projectId, documentId, screenId, collectionDir, dataSourceId } = useParams({
     strict: false,
@@ -162,7 +165,15 @@ export function ProjectCanvasPage({
   useActiveLangFallback(project);
   useCollectionsAtRoot(project);
   const childMatches = useChildMatches();
-  const presentedTab = tourPresenting ? "board" : effectiveTab(tab, childMatches.length > 0);
+  // The library and a theme are places of the server's resources, not modules to build: their
+  // page is their Resources, under the server's own tabs (`ProjectTopBarControls`).
+  const place = !!placeHeader && placeOf(pId).kind !== "module";
+  const presentedTab =
+    place && childMatches.length === 0
+      ? "resources"
+      : tourPresenting
+        ? "board"
+        : effectiveTab(tab, childMatches.length > 0);
   // Esc or × on a secondary view: back to the page's default view (the home at the root).
   const exitToCanvas = () =>
     navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: undefined }) });
@@ -176,7 +187,7 @@ export function ProjectCanvasPage({
   // A theme created from the Resources' places is read with the server's Projects again.
   const placesRereads = useServerIndexRereads((state) => state.count);
   useServerIndexLoader(serverId, !!project && !loadError, indexRereads + placesRereads);
-  useWorkspaceTabShortcuts(!!runtime?.serverId);
+  useWorkspaceTabShortcuts(!!runtime?.serverId, !place);
 
   const [patternsOpen, setPatternsOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -227,7 +238,7 @@ export function ProjectCanvasPage({
         ) : null}
         <WorkspaceView
           active={presentedTab === "resources"}
-          onExit={exitToCanvas}
+          onExit={place ? undefined : exitToCanvas}
           title={t("project.tabs.resources")}
         >
           <div className="flex h-full min-h-0 flex-col lg:flex-row">
@@ -388,6 +399,7 @@ export function ProjectCanvasPage({
         <ProjectTopBarControls
           project={project}
           projectId={pId}
+          place={place ? placeHeader : undefined}
           onExportZip={async () => {
             const res = await runExportZip(project, !!principalId, embedAsk.ask);
             // Given up where it asked: nothing was downloaded, nothing to say.

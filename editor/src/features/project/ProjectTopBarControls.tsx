@@ -69,6 +69,19 @@ export interface ProjectTopBarControlsProps {
   unpublished?: boolean;
   /** The last known version is on screen, the server's answer is awaited: Deploy waits. */
   checking?: boolean;
+  /**
+   * The Project is a place of the server's resources (its library, a theme), not a module to
+   * build: the header stays the server's (`title`: its name, `nav`: its tabs with Resources
+   * active, both given by the server's page), and keeps only what a place needs of a module's
+   * tools (its draft and Deploy, the assistant, the menu).
+   */
+  place?: PlaceHeader;
+}
+
+/** The server's header, shown on a place of its resources in place of a module's. */
+export interface PlaceHeader {
+  title: React.ReactNode;
+  nav: React.ReactNode;
 }
 
 /**
@@ -89,6 +102,7 @@ export function ProjectTopBarControls({
   offlineSince,
   unpublished,
   checking = false,
+  place,
 }: ProjectTopBarControlsProps) {
   // The `project` prop comes from `useProjectLoader`, frozen at load time: anything
   // that reflects an edit (Translations badge, languages) reads the live store.
@@ -102,6 +116,7 @@ export function ProjectTopBarControls({
   const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
   const trail = useDocumentTrailStore((s) => s.trail);
+  const server = place ?? null;
 
   // Offline is not a banner: the server badge already shows it in red, and the
   // tooltip gives the exact reason (copy date, draft, never-published).
@@ -119,18 +134,30 @@ export function ProjectTopBarControls({
       testId="project-header"
       title={
         <>
-          <ProjectBreadcrumb
-            projectName={displayName}
-            trail={trail}
-            status={
+          {server ? (
+            <>
+              {server.title}
               <LinkedServersDropdown
                 currentServerKeyId={project.serverKeyId ?? undefined}
                 downHint={pushStatusHint}
                 offline={offline}
                 onlyWhenDown
               />
-            }
-          />
+            </>
+          ) : (
+            <ProjectBreadcrumb
+              projectName={displayName}
+              trail={trail}
+              status={
+                <LinkedServersDropdown
+                  currentServerKeyId={project.serverKeyId ?? undefined}
+                  downHint={pushStatusHint}
+                  offline={offline}
+                  onlyWhenDown
+                />
+              }
+            />
+          )}
           {trail?.yaml && (
             <button
               type="button"
@@ -145,16 +172,24 @@ export function ProjectTopBarControls({
           )}
         </>
       }
-      nav={<WorkspaceViewNav project={currentProject} onOpenSettings={openProjectSettings} />}
+      nav={
+        server ? (
+          server.nav
+        ) : (
+          <WorkspaceViewNav project={currentProject} onOpenSettings={openProjectSettings} />
+        )
+      }
       end={
         <div className="project-topbar flex items-center gap-1">
-          <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
-            {(!tab || tab === "board") && <UndoRedoButtons />}
-            {(!tab || tab === "board" || tab === "translations") && (
-              <LangSwitcher project={currentProject} />
-            )}
-          </div>
-          {serverRef && (
+          {server ? null : (
+            <div data-testid="project-editing-tools" className="flex shrink-0 items-center gap-1">
+              {(!tab || tab === "board") && <UndoRedoButtons />}
+              {(!tab || tab === "board" || tab === "translations") && (
+                <LangSwitcher project={currentProject} />
+              )}
+            </div>
+          )}
+          {serverRef && !server && (
             // A link to the server's Play tab, this module first: it says so, it is no tool here.
             <Link
               to="/servers/$serverId/play"

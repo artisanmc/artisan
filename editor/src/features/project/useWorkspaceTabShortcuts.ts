@@ -14,12 +14,13 @@ import { WORKSPACE_VIEW_TABS } from "./workspaceTabs";
  * Ignored while typing in a field, when any modifier is held, or when the
  * search palette is open — so it never eats a keystroke the user meant for text.
  */
-export function useWorkspaceTabShortcuts(hasHistory = true): void {
+export function useWorkspaceTabShortcuts(hasHistory = true, enabled = true): void {
   // Read at the key press: the hook's function changes with the route.
   const goToTab = useGoToWorkspaceTab();
   const go = useRef(goToTab);
   go.current = goToTab;
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (isTypingTarget(e.target)) return;
@@ -34,5 +35,5 @@ export function useWorkspaceTabShortcuts(hasHistory = true): void {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hasHistory]);
+  }, [hasHistory, enabled]);
 }

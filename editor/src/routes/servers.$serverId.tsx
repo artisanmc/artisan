@@ -132,12 +132,13 @@ export default function ServerDetailPage() {
     <ServerSearch serverId={serverId} />
   );
   // A screen of the server: full screen, without the frame.
+  // It still knows its server: a place of the server's resources shows the server's tabs.
   if (child && !tab)
     return (
-      <>
+      <ServerFrameContext.Provider value={frame}>
         <Outlet />
         {search}
-      </>
+      </ServerFrameContext.Provider>
     );
 
   return (
