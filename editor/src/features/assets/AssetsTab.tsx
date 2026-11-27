@@ -637,8 +637,14 @@ function OwnAssets({
   const markOf = (asset: Asset): AssetMark | null => {
     const mark = marks(asset);
     if (mark) return imageMarkShown(mark, t);
-    const place = themePlace(asset);
-    return place ? { tone: "brand", label: t(`resources.mark.${place}`) } : null;
+    // An image a theme adds needs no mark: every image listed here is the theme's.
+    return themePlace(asset) === "replacesBase"
+      ? {
+          tone: "brand",
+          label: t("resources.mark.replacesBase"),
+          tag: t("resources.mark.override"),
+        }
+      : null;
   };
 
   const filtered = assets.filter((asset) =>

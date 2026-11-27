@@ -133,9 +133,15 @@ describe("AssetsTab", () => {
     });
     render(<AssetsTab projectId={"p1" as never} />);
     const mark = (title: RegExp) =>
-      screen.getByTitle(title).querySelector("[data-testid=asset-mark]")?.getAttribute("data-tone");
+      screen
+        .getByLabelText(title)
+        .querySelector("[data-testid=asset-mark]")
+        ?.getAttribute("data-tone");
     expect(mark(/^crest · Autre taille/)).toBe("warning");
     expect(mark(/^banner · Votre version d'une image/)).toBe("brand");
+    // What replaces an image below wears a word, not a dot.
+    expect(screen.getByLabelText(/^banner · /)).toHaveTextContent("Surcharge");
+    expect(screen.getByLabelText(/^crest · /)).not.toHaveTextContent("Surcharge");
     expect(mark(/^seal · Votre version : l'original du module a changé/)).toBe("warning");
     expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });

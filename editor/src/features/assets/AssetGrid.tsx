@@ -1,5 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cx } from "@/lib/cx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
@@ -30,24 +31,34 @@ interface AssetGridProps {
   keyOf?: (asset: Asset) => string;
   /** A tile's tooltip, the asset's name by default. */
   titleOf?: (asset: Asset) => string;
-  /** What a tile says of its image beside its name: a dot in its corner, its label in the tooltip. */
+  /**
+   * What a tile says of its image beside its name: a dot in its corner for something to look
+   * at, or a word under the image (`tag`); its label in a tooltip shown at once.
+   */
   markOf?: (asset: Asset) => AssetMark | null;
 }
 
 export interface AssetMark {
   tone: "danger" | "warning" | "brand";
   label: string;
+  /** A word written on the tile in place of the dot: what the image is, nothing to look at. */
+  tag?: string;
 }
 
 /**
  * How a list shows the mark of a module's image (`imageStanding.ts`): an image of another
- * size than its original as the image's panel says it, a changed original as its notice does.
+ * size than its original as the image's panel says it, a changed original as its notice does,
+ * the owner's version of a shipped image as an override.
  */
 export function imageMarkShown(mark: ImageMark, t: (key: string) => string): AssetMark {
   if (mark === "other_size") return { tone: "warning", label: t("resources.mark.otherSize") };
   if (mark === "original_changed")
     return { tone: "warning", label: t("resources.mark.originalChanged") };
-  return { tone: "brand", label: t("resources.mark.ownVersion") };
+  return {
+    tone: "brand",
+    label: t("resources.mark.ownVersion"),
+    tag: t("resources.mark.override"),
+  };
 }
 
 export function AssetGrid({
@@ -128,15 +139,18 @@ export function AssetGrid({
             {header(rows[vr.index])}
             {tilesOf(rows[vr.index]).map((asset) => {
               const mark = markOf?.(asset) ?? null;
-              return (
+              const tile = (
                 <button
                   key={keyOf(asset)}
                   type="button"
                   onClick={() => onSelect(keyOf(asset))}
-                  title={mark ? `${titleOf(asset)} · ${mark.label}` : titleOf(asset)}
+                  // A marked tile says its mark at once (`Tooltip`); the browser's own waits.
+                  {...(mark
+                    ? { "aria-label": `${titleOf(asset)} · ${mark.label}` }
+                    : { title: titleOf(asset) })}
                   style={{ width: TILE_SIZE, height: TILE_SIZE }}
                   className={cx(
-                    "relative shrink-0 rounded-[8px] border bg-[var(--surface-raised)] hover:border-[var(--border-strong)]",
+                    "relative shrink-0 overflow-hidden rounded-[8px] border bg-[var(--surface-raised)] hover:border-[var(--border-strong)]",
                     selectedId === keyOf(asset)
                       ? "border-[var(--brand)] ring-1 ring-[var(--brand)]"
                       : "border-[var(--border)]",
@@ -150,7 +164,16 @@ export function AssetGrid({
                     style={{ imageRendering: "pixelated" }}
                     loading="lazy"
                   />
-                  {mark && (
+                  {mark?.tag ? (
+                    <span
+                      data-testid="asset-mark"
+                      data-tone={mark.tone}
+                      className="absolute inset-x-0 bottom-0 truncate px-0.5 text-center text-[8px] font-semibold leading-[11px]"
+                      style={{ background: `var(--${mark.tone})`, color: "var(--brand-fg)" }}
+                    >
+                      {mark.tag}
+                    </span>
+                  ) : mark ? (
                     <span
                       data-testid="asset-mark"
                       data-tone={mark.tone}
@@ -161,8 +184,15 @@ export function AssetGrid({
                         boxShadow: "0 0 0 1.5px var(--surface-raised)",
                       }}
                     />
-                  )}
+                  ) : null}
                 </button>
+              );
+              return mark ? (
+                <Tooltip key={keyOf(asset)} content={`${titleOf(asset)} · ${mark.label}`}>
+                  {tile}
+                </Tooltip>
+              ) : (
+                tile
               );
             })}
           </div>

@@ -227,7 +227,7 @@ look (`serverTheme`: a theme's own Project, its images under `assets/` and the f
 that name; `serverThemeNames`: both places; `kitThemeStack`: each theme applied to what the
 ones below show). A theme changes an image by holding one of its name (ADR
 `resources-one-screen`): no colour is repainted. In the Resources of a theme's Project an
-image says **Replaces the base** or **Added here** (`themePlaceMark`), and `ThemeBar` leads to
+image that replaces one below wears **Override** (`themePlaceMark`; `AssetMark.tag`, a word on the tile, the dot kept for what needs a look), and `ThemeBar` leads to
 the theme's page. A theme's Project is
 no module: the pack assembly, the server's Resources and the Configuration page leave it out of
 the modules. `NewThemeDialog` creates one from the common images' page (`createProject` with
