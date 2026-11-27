@@ -181,6 +181,7 @@ export function SaveControls({
         current={flow.current}
         others={flow.others}
         onToggleOther={flow.toggleOther}
+        libraryId={flow.library}
         onCancel={flow.closeReview}
         onConfirm={flow.confirmReview}
       />

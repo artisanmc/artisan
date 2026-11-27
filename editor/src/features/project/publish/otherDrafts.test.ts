@@ -5,6 +5,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type OtherDraft,
+  libraryImagesNamed,
   loadOtherDrafts,
   publishOtherDraft,
   snapshotHasChanges,
@@ -200,5 +201,31 @@ describe("other Projects' drafts", () => {
 
     act(() => result.current.unselectProject("s1.guilds"));
     expect(state().selected).toEqual([otherShop]);
+  });
+});
+
+describe("libraryImagesNamed", () => {
+  const library = (added: string[]) => ({
+    before: {},
+    after: {},
+    binaryBefore: { "assets/glyphs/old.png": { hash: "h", size: 1 } },
+    binaryAfter: Object.fromEntries(
+      ["assets/glyphs/old.png", ...added].map((path) => [path, { hash: "h", size: 1 }]),
+    ),
+  });
+  const menus = (text: string) => ({ before: {}, after: { "menus/shop.yml": text } });
+
+  it("lists the added images a file names as a whole word", () => {
+    const added = [
+      "assets/glyphs/crest.png",
+      "assets/textures/star.2x1.png",
+      "overrides/shop/x.png",
+    ];
+    expect(
+      libraryImagesNamed(library(added), menus("asset: crest\nother: artisan:star.2x1\nold\n")),
+    ).toEqual(["crest", "star.2x1"]);
+    // Part of another name is not the name.
+    expect(libraryImagesNamed(library(added), menus("asset: crest_big\nstar-2x1\n"))).toEqual([]);
+    expect(libraryImagesNamed(library([]), menus("asset: crest\n"))).toEqual([]);
   });
 });

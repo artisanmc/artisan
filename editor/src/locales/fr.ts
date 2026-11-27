@@ -2504,6 +2504,10 @@ const fr: typeof en = {
     draft: "Brouillon",
     confirm: "Déployer sur le serveur",
     others: {
+      libraryLeftOut_one:
+        "Le brouillon de la bibliothèque n'est pas coché : l'image {{names}}, que ce module nomme, n'existe que là. Ses menus n'afficheront rien à sa place tant que la bibliothèque n'est pas déployée.",
+      libraryLeftOut_other:
+        "Le brouillon de la bibliothèque n'est pas coché : les images {{names}}, que ce module nomme, n'existent que là. Ses menus n'afficheront rien à leur place tant que la bibliothèque n'est pas déployée.",
       title: "Autres brouillons",
       loading: "Recherche de tes brouillons dans les autres modules…",
       none: "Aucun autre brouillon avec des changements.",

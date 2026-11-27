@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { libraryImagesNamed } from "@/features/project/publish/otherDrafts";
 import type { DocumentChecks } from "@/features/project/publish/publishFlow";
 import type { OtherDrafts } from "@/features/project/publish/useOtherDrafts";
 import { ServerChecksSection } from "@/features/serverIndex/ServerChecksSection";
@@ -26,6 +27,7 @@ export function DeployReviewDialog({
   others,
   onToggleOther,
   othersOnly = false,
+  libraryId,
   onConfirm,
   onCancel,
 }: {
@@ -45,6 +47,8 @@ export function DeployReviewDialog({
    * [others] is set.
    */
   othersOnly?: boolean;
+  /** The server's library, when the open Project is a module: its draft holds added images. */
+  libraryId?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -63,6 +67,17 @@ export function DeployReviewDialog({
       return check?.status === "ready" && check.problems.length > 0;
     });
   const count = (currentGoes ? 1 : 0) + pickedOthers.length;
+  // Images the menus going out name and only the library's draft, left out, holds.
+  const missing =
+    libraryId && currentGoes && changes && !pickedOthers.some((d) => d.projectId === libraryId)
+      ? [
+          ...new Set(
+            (othersReady?.drafts ?? [])
+              .filter((d) => d.projectId === libraryId)
+              .flatMap((d) => libraryImagesNamed(d.changes, changes)),
+          ),
+        ].sort()
+      : [];
   // What players lose in everything that goes out: confirmed as a whole, again when it changes.
   const losses = [
     ...(currentGoes ? impactsOf(documents) : []),
@@ -111,6 +126,14 @@ export function DeployReviewDialog({
             <OtherDraftsSection others={others} onToggle={onToggleOther} />
           )}
         </div>
+        {missing.length > 0 && (
+          <p role="alert" className="text-[13px] text-[var(--warning)]">
+            {t("deploy.others.libraryLeftOut", {
+              count: missing.length,
+              names: missing.join(", "),
+            })}
+          </p>
+        )}
         {losses.length > 0 && (
           <div className="flex items-start gap-2 text-[13px] text-[var(--text)]">
             <Checkbox

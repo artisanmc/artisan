@@ -2465,6 +2465,10 @@ export default {
     draft: "Draft",
     confirm: "Deploy to the server",
     others: {
+      libraryLeftOut_one:
+        "The library's draft is not picked: the image {{names}}, which this module names, is only there. Its menus will show nothing in its place until the library is deployed.",
+      libraryLeftOut_other:
+        "The library's draft is not picked: the images {{names}}, which this module names, are only there. Its menus will show nothing in their place until the library is deployed.",
       title: "Other drafts",
       loading: "Looking for your drafts in the other modules…",
       none: "No other draft with changes.",
