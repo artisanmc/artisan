@@ -71,20 +71,23 @@ export function ServerRow({
 }
 
 /**
- * Status dot (beside the server in the breadcrumb) + dropdown showing the
- * server holding the open project, with its live state and last-seen time.
- * Polls every 15s.
+ * Status dot + dropdown showing the server holding the open project, with its live
+ * state and last-seen time. Polls every 15s. A module's header shows it only while that
+ * server is down (`onlyWhenDown`): the sidebar's server row carries its state otherwise.
  */
 export function LinkedServersDropdown({
   currentServerKeyId,
   downHint,
   offline = false,
+  onlyWhenDown = false,
 }: {
   currentServerKeyId?: string;
   /** Why the current server is offline, shown as a tooltip on the badge. */
   downHint?: string;
   /** The open project could not reach its server: red at once, without waiting for the next poll. */
   offline?: boolean;
+  /** Nothing while the server is up. */
+  onlyWhenDown?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const { data } = useServersStatus();
@@ -99,6 +102,7 @@ export function LinkedServersDropdown({
   // YOUR server was the only one missing.
   const current = currentServerKeyId ? data.find((s) => s.id === currentServerKeyId) : undefined;
   const up = !offline && (current ? current.online && !current.updateRequired : online > 0);
+  if (onlyWhenDown && up) return null;
   const label = current
     ? t(
         current.updateRequired

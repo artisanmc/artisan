@@ -662,7 +662,7 @@ leaving the Project. A modified draft keeps its compare-and-swap base.
 From 2026-09-13 to 2026-10-28, a first open waited for a successful server read,
 even with a cache or local draft (see below). A disconnection preserves the already open buffer;
 backend transport failures and `fetch_timeout` are also retried.
-Since 2026-10-02, no more banner: the topbar's server badge carries the offline
+Since 2026-10-02, no more banner: the topbar's server badge (since 2026-11-27 shown only while the server is down) carries the offline
 state and its tooltip (`downHint` of `LinkedServersDropdown`) gives the exact
 reason (date of the copy, draft, never published). The state stays local to the
 topbar of the open Project.
@@ -1222,7 +1222,7 @@ The index shows the **published** state: the draft of a non-edited project is no
 
 ### Topbar breadcrumb (since 2026-10-02)
 
-`ProjectBreadcrumb` (`components/`) replaces the project name alone at the head of the topbar: **server › project**. The server is a `BreadcrumbSwitcher`: it opens the list of the network's servers (online/offline dot, search field beyond 7) and choosing one leads to its page. The network now appears only as the server's tooltip (2026-10-08), to leave room for the tabs; its page stays reachable from the `/networks` list and the account. The status dot before the server (`LinkedServersDropdown`) keeps its own menu. Outside a network (demo), only the project is shown. Rendered by `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher`, `breadcrumbLinkClass`; specimens on `/design`). The topbar tabs are `ScopeTabs`, named like the server's (the tooltip adds the digit shortcut).
+`ProjectBreadcrumb` (`components/`) heads the module's header with the module alone, then the open Document's levels (2026-11-27: the server is no longer a level; it is the sidebar's first row, `ServerRow`, whose chevron, shown when the hub has several servers, opens the list of servers: online/offline dot, search field beyond 7, choosing one leads to its page; the server page's title is its name alone). Before the module, `LinkedServersDropdown` with `onlyWhenDown` shows the red dot and its menu only while the module's server is down or needs an update, its tooltip saying why (copy date, draft, never published). Rendered by `components/ui/breadcrumb.tsx` (`Breadcrumb`, `BreadcrumbCurrent`, `BreadcrumbSwitcher` with its `chevronOnly` trigger, `breadcrumbLinkClass`; specimens on `/design`). The topbar tabs are `ScopeTabs`, named like the server's (the tooltip adds the digit shortcut).
 
 ## UI shell — Project + Settings (since 2026-05-27)
 
@@ -1239,7 +1239,7 @@ or project documents, then restore the previous view. Other dialogs suspend the
 tour; unavailable targets are skipped after layout settles. Mobile Elements uses
 its toggle to avoid opening another modal. The last step requires explicit completion.
 
-**Navigation rule (2026-11-27)**: the sidebar lists **places** (the server, its modules, the open module's Documents, collections and data sources); the header lists the **views of the place the sidebar highlights**. The server and a module share one header, `ScopeHeader` + `ScopeTabs` (`components/ui/scope-header.tsx`): where you are (server switcher or breadcrumb), the views (daily ones in the row, the rest under **More**, whose button names the view shown), then tools and actions. Server: Overview, Resources, Play, Assistant, Stats; More: Data, Updates, Imports, Settings (`ServerTabs`). Module: Home, Board, Translations, Resources; More: History, its Config screens, Module settings (`WorkspaceViewNav`). The module header's **Test in game** is a labelled link to the server's Play tab (arrow icon), the Assistant a panel that stays in the module. A view never becomes a sidebar row, a place never a tab.
+**Navigation rule (2026-11-27)**: the sidebar lists **places** (the server, its modules, the open module's Documents, collections and data sources); the header lists the **views of the place the sidebar highlights**. The server and a module share one header, `ScopeHeader` + `ScopeTabs` (`components/ui/scope-header.tsx`): where you are (the server's name, or the module's breadcrumb; switching servers is the sidebar server row's chevron), the views (daily ones in the row, the rest under **More**, whose button names the view shown), then tools and actions. Server: Overview, Resources, Play, Assistant, Stats; More: Data, Updates, Imports, Settings (`ServerTabs`). Module: Home, Board, Translations, Resources; More: History, its Config screens, Module settings (`WorkspaceViewNav`). The module header's **Test in game** is a labelled link to the server's Play tab (arrow icon), the Assistant a panel that stays in the module. A view never becomes a sidebar row, a place never a tab.
 
 Global navigation is wrapped by `NavigationSidebar` in `__root.tsx`:
 on desktop, an invisible 8 px hover zone with no space reserved at rest;

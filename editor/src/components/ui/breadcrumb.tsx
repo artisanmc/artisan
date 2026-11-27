@@ -79,6 +79,7 @@ export function BreadcrumbSwitcher({
   searchPlaceholder,
   title,
   className,
+  chevronOnly,
 }: {
   current: string;
   items: BreadcrumbSwitcherItem[];
@@ -87,6 +88,8 @@ export function BreadcrumbSwitcher({
   title?: string;
   /** Trigger styles over the breadcrumb link's (a page title that switches). */
   className?: string;
+  /** The trigger is the chevron alone, named by this label: the name is shown beside it. */
+  chevronOnly?: string;
 }) {
   const [query, setQuery] = useState("");
   const active = items.find((i) => i.id === current);
@@ -94,13 +97,26 @@ export function BreadcrumbSwitcher({
   const visible = q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
   return (
     <DropdownMenu onOpenChange={(open) => !open && setQuery("")}>
-      <DropdownMenuTrigger
-        title={title}
-        className={cn(breadcrumbLinkClass, "flex items-center gap-1.5", className)}
-      >
-        <span className="truncate">{active?.label ?? current}</span>
-        <ChevronDown aria-hidden className="size-3.5 shrink-0" />
-      </DropdownMenuTrigger>
+      {chevronOnly ? (
+        <DropdownMenuTrigger
+          title={chevronOnly}
+          aria-label={chevronOnly}
+          className={cn(
+            "flex size-6 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-faint)] hover:bg-[var(--surface-raised)] hover:text-[var(--text)]",
+            className,
+          )}
+        >
+          <ChevronDown aria-hidden className="size-3.5" />
+        </DropdownMenuTrigger>
+      ) : (
+        <DropdownMenuTrigger
+          title={title}
+          className={cn(breadcrumbLinkClass, "flex items-center gap-1.5", className)}
+        >
+          <span className="truncate">{active?.label ?? current}</span>
+          <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+        </DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align="start" className="min-w-56">
         {items.length > SWITCHER_SEARCH_THRESHOLD && (
           <Input

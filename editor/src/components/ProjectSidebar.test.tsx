@@ -355,6 +355,23 @@ describe("ProjectSidebar", () => {
     expect(await screen.findByTestId("sidebar-server")).not.toHaveAttribute("aria-current");
   });
 
+  it("switches servers from the server row's chevron, only when there are several", async () => {
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([srv("sk_1", "Survival")]);
+    mockParams.current = { serverId: "sk_1" };
+    const { unmount } = render(<ProjectSidebar />);
+    await screen.findByTestId("sidebar-server");
+    expect(screen.queryByRole("button", { name: /Changer de serveur|Switch server/ })).toBeNull();
+    unmount();
+    vi.spyOn(serversApi, "listServers").mockResolvedValue([
+      srv("sk_1", "Survival"),
+      srv("sk_2", "Lobby"),
+    ]);
+    render(<ProjectSidebar />);
+    const chevron = await screen.findByRole("button", { name: /Changer de serveur|Switch server/ });
+    fireEvent.keyDown(chevron, { key: "Enter" });
+    expect(await screen.findByRole("menuitem", { name: "Lobby" })).toBeInTheDocument();
+  });
+
   it("shows no Modules section when no module has anything to configure", async () => {
     vi.spyOn(serversApi, "listServers").mockResolvedValue([]);
     render(<ProjectSidebar />);

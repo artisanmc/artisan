@@ -1,7 +1,7 @@
 import "@/i18n";
 import * as api from "@/lib/api/servers";
 import type { ServerSummary } from "@/lib/api/servers";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LinkedServersDropdown, ServerRow, relTime } from "./LinkedServersDropdown";
 
@@ -124,6 +124,22 @@ describe("LinkedServersDropdown", () => {
     ]);
     render(<LinkedServersDropdown currentServerKeyId="lobby" />);
     expect(await screen.findByText(/Update required|Mise à jour requise/)).toBeInTheDocument();
+  });
+
+  it("in a module's header, shows only while the server is down", async () => {
+    vi.mocked(api.listServers).mockResolvedValue([
+      entry({ id: "a", online: true }),
+      entry({ id: "b", online: false }),
+    ]);
+    const { container, unmount } = render(
+      <LinkedServersDropdown currentServerKeyId="a" onlyWhenDown />,
+    );
+    await waitFor(() => expect(api.listServers).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container).toBeEmptyDOMElement();
+    unmount();
+    render(<LinkedServersDropdown currentServerKeyId="b" onlyWhenDown />);
+    expect(await screen.findByText(/Offline|Hors ligne/)).toBeInTheDocument();
   });
 
   it("renders nothing while the hub has not answered", () => {

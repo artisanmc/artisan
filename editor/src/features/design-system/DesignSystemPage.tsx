@@ -412,6 +412,20 @@ export function DesignSystemPage() {
           />
           <BreadcrumbCurrent>main</BreadcrumbCurrent>
         </Breadcrumb>
+        <div className="mt-3 flex items-center gap-2 text-[13px]">
+          <span className="mono text-[11px] text-[var(--text-faint)]">chevronOnly</span>
+          <span>Survival</span>
+          <BreadcrumbSwitcher
+            current="survival"
+            chevronOnly={t("sidebar.switchServer")}
+            items={[
+              { id: "lobby", label: "Lobby" },
+              { id: "survival", label: "Survival" },
+            ]}
+            onSelect={() => {}}
+            searchPlaceholder={t("breadcrumb.searchServers")}
+          />
+        </div>
       </Section>
       <Section id="file-diff" title={t("save.diffLabel")}>
         <FileDiff

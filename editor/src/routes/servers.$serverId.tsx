@@ -1,6 +1,5 @@
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { Badge } from "@/components/ui/badge";
-import { BreadcrumbSwitcher } from "@/components/ui/breadcrumb";
 import { listChanges } from "@/components/ui/change-list";
 import { ScopeHeader } from "@/components/ui/scope-header";
 import { ImportProjectDialog } from "@/features/import/ImportProjectDialog";
@@ -148,28 +147,12 @@ export default function ServerDetailPage() {
         <ScopeHeader
           title={
             <>
-              {/* The name is the server switcher, as in a module's breadcrumb. */}
-              <h1 className="min-w-0">
-                <BreadcrumbSwitcher
-                  current={serverId}
-                  title={summary ? displayServerLabel(summary) : serverId}
-                  searchPlaceholder={t("breadcrumb.searchServers")}
-                  className="text-[17px] font-semibold tracking-tight text-[var(--text)]"
-                  items={servers.map((k) => ({
-                    id: k.id,
-                    label: displayServerLabel(k),
-                    leading: (
-                      <span
-                        aria-hidden
-                        className="size-1.5 shrink-0 rounded-full"
-                        style={{ background: k.online ? "var(--success)" : "var(--text-faint)" }}
-                      />
-                    ),
-                  }))}
-                  onSelect={(id) =>
-                    navigate({ to: "/servers/$serverId", params: { serverId: id } })
-                  }
-                />
+              {/* The name alone: the sidebar's server row switches servers. */}
+              <h1
+                className="min-w-0 truncate text-[17px] font-semibold tracking-tight text-[var(--text)]"
+                title={summary ? displayServerLabel(summary) : serverId}
+              >
+                {summary ? displayServerLabel(summary) : serverId}
               </h1>
               {summary && <ServerStateBadge summary={summary} />}
             </>

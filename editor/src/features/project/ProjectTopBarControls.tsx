@@ -120,14 +120,14 @@ export function ProjectTopBarControls({
       title={
         <>
           <ProjectBreadcrumb
-            serverRef={serverRef}
             projectName={displayName}
             trail={trail}
-            serverStatus={
+            status={
               <LinkedServersDropdown
                 currentServerKeyId={project.serverKeyId ?? undefined}
                 downHint={pushStatusHint}
                 offline={offline}
+                onlyWhenDown
               />
             }
           />

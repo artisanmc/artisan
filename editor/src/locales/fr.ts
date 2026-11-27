@@ -2247,6 +2247,7 @@ const fr: typeof en = {
     updateRequired: "Mise à jour requise",
   },
   sidebar: {
+    switchServer: "Changer de serveur",
     projectDocuments: "Documents de {{name}}",
     showDocuments: "Afficher les documents de {{name}}",
     settings: "Paramètres",
