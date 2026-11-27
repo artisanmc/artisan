@@ -1,7 +1,5 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useSelectionStore } from "@/state/selectionStore";
-import { useUiStore } from "@/state/uiStore";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

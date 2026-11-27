@@ -33,7 +33,6 @@ describe("RefreshProjectButton", () => {
         renderTrigger={(onRefresh) => (
           <TopBarKebabMenu
             onRefresh={onRefresh}
-            onOpenProjectSettings={() => {}}
             onImport={() => {}}
             onExportZip={() => {}}
             onOpenPatterns={() => {}}
