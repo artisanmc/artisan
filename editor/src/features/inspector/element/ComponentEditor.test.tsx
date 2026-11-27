@@ -112,3 +112,52 @@ it("says so when no component answers the name", () => {
   expect(screen.getByText(/Aucun composant de ce nom/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Détacher" })).toBeDisabled();
 });
+
+it("offers the names of a choice in a list, the default first", () => {
+  const button =
+    'params:\n  color: { type: choice, default: green, values: { green: plate, red: plate_red } }\nparts:\n  - image: "{color}"\n';
+  const expandOf = packComponents([
+    { folder: "shop", files: [{ path: "components/button.yml", content: button }] },
+  ]);
+  setComponents(
+    new Map([
+      [
+        "p",
+        {
+          folder: "shop",
+          expand: expandOf("shop"),
+          list: [
+            {
+              name: "button",
+              common: false,
+              params: [
+                { name: "color", type: "choice", default: "green", values: ["green", "red"] },
+              ],
+            },
+          ],
+        },
+      ],
+    ]),
+  );
+  const on = handlers();
+  render(
+    <ComponentEditor
+      projectId={"p" as never}
+      appearance={{ component: { name: "button", color: "red" } }}
+      lang="fr"
+      {...on}
+    />,
+  );
+  const list = screen.getByLabelText("color") as HTMLSelectElement;
+  expect(list.value).toBe("red");
+  expect([...list.options].map((option) => option.textContent)).toEqual([
+    "Par défaut (green)",
+    "green",
+    "red",
+  ]);
+  fireEvent.change(list, { target: { value: "green" } });
+  expect(on.onComponent).toHaveBeenLastCalledWith({ name: "button", color: "green" });
+  // The default again: the look no longer gives the parameter.
+  fireEvent.change(list, { target: { value: "" } });
+  expect(on.onComponent).toHaveBeenLastCalledWith("button");
+});

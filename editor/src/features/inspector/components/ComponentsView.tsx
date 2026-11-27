@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { choiceNames } from "@/domain/components";
 import { imageButtonRect } from "@/domain/imageButton";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { StudioFrame } from "@/features/assets/StudioFrame";
@@ -343,7 +344,10 @@ function ParamsEditor({
       <span className="field-label !mb-0">{t("components.params")}</span>
       <p className="text-xs text-[var(--text-mut)]">{t("components.paramsHint")}</p>
       {params.map(([param, raw]) => {
-        const type = raw?.type === "image" ? "image" : "text";
+        const type = raw?.type === "image" ? "image" : raw?.type === "choice" ? "choice" : "text";
+        const values = raw?.values;
+        // Names mapped to what each writes are edited in the file: here the list of names alone.
+        const mapped = type === "choice" && !!values && !Array.isArray(values);
         const fallback = typeof raw?.default === "string" ? raw.default : "";
         return (
           <div key={param} className="flex items-end gap-2" data-testid="component-param">
@@ -355,22 +359,48 @@ function ParamsEditor({
               onChange={(event) =>
                 onChange(
                   setComponentParam(file, param, {
-                    type: event.target.value as "text" | "image",
+                    type: event.target.value as "text" | "image" | "choice",
                     default: fallback,
+                    values,
                   }),
                 )
               }
             >
               <option value="text">{t("components.text")}</option>
               <option value="image">{t("components.image")}</option>
+              <option value="choice">{t("components.choice")}</option>
             </select>
+            {type === "choice" && (
+              <Input
+                className="flex-1"
+                aria-label={t("components.paramValues", { name: param })}
+                placeholder={t("components.values")}
+                title={mapped ? t("components.valuesMapped") : undefined}
+                disabled={mapped}
+                value={choiceNames(values).join(", ")}
+                onChange={(event) =>
+                  onChange(
+                    setComponentParam(file, param, {
+                      type,
+                      default: fallback,
+                      values: event.target.value
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                    }),
+                  )
+                }
+              />
+            )}
             <Input
               className="flex-1"
               aria-label={t("components.paramDefault", { name: param })}
               placeholder={t("components.default")}
               value={fallback}
               onChange={(event) =>
-                onChange(setComponentParam(file, param, { type, default: event.target.value }))
+                onChange(
+                  setComponentParam(file, param, { type, default: event.target.value, values }),
+                )
               }
             />
             <button

@@ -52,11 +52,16 @@ class KitTest {
             val params = file["params"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
             val parts = file["parts"] as List<*>
             assertTrue(parts.isNotEmpty(), name)
-            for (part in parts) {
-                val image = (part as Map<*, *>)["image"] as? String ?: continue
-                val param = Regex("^\\{([a-z][a-z0-9_]*)}$").find(image)?.groupValues?.get(1)
-                val drawn = if (param == null) image else (params[param] as Map<*, *>)["default"] as String
-                assertTrue(Kit.slot(drawn) != null, "$name draws $drawn, which the base does not ship")
+            // Every look the component can take without an image of the menu's: each choice's names.
+            val looks = listOf(emptyMap<String, String>()) + params.entries.flatMap { (param, spec) ->
+                val values = (spec as? Map<*, *>)?.takeIf { it["type"] == "choice" }?.get("values")
+                ((values as? Map<*, *>)?.keys ?: values as? List<*> ?: emptyList<Any?>()).map { mapOf(param as String to it as String) }
+            }
+            for (look in looks) {
+                for (part in Components.parts(Components.Found(file, ""), look)) {
+                    val drawn = (part as Map<*, *>)["image"] as? String ?: continue
+                    assertTrue(Kit.slot(drawn) != null, "$name draws $drawn, which the base does not ship")
+                }
             }
         }
     }

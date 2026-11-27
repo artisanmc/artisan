@@ -154,6 +154,27 @@ export function ComponentEditor({
       {found?.params.map((param) => {
         const given = args[param.name];
         const fallback = typeof param.default === "string" ? param.default : "";
+        if (param.type === "choice")
+          return (
+            <label key={param.name} className="field-label !mb-0" htmlFor={`${id}-${param.name}`}>
+              {param.name}
+              <select
+                id={`${id}-${param.name}`}
+                className="input"
+                value={typeof given === "string" && param.values?.includes(given) ? given : ""}
+                onChange={(event) => perform(() => set(param.name, event.target.value))}
+              >
+                <option value="">
+                  {fallback ? t("component.choiceDefault", { name: fallback }) : "-"}
+                </option>
+                {param.values?.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
         if (param.type === "image")
           return (
             <div key={param.name} className="flex items-end gap-2">

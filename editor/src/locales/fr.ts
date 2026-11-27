@@ -136,6 +136,10 @@ const fr: typeof en = {
     paramsHint:
       "Ce que chaque bouton donne au composant. Écrivez {nom} dans un texte, ou seul comme image, pour y mettre la valeur.",
     paramType: "Nature de {{name}}",
+    choice: "Choix",
+    values: "primary, danger",
+    paramValues: "Noms proposés par {{name}}",
+    valuesMapped: "Ces noms sont associés à des valeurs dans le fichier : modifie-les là.",
     paramDefault: "Valeur par défaut de {{name}}",
     paramRemove: "Retirer le paramètre {{name}}",
     paramNew: "Nouveau paramètre",
@@ -159,6 +163,7 @@ const fr: typeof en = {
       "Les pièces passent dans un composant de ce module : chaque bouton qui le nomme les dessine, et le modifier les modifie tous.",
     named: "Composant : {{name}}",
     detach: "Détacher",
+    choiceDefault: "Par défaut ({{name}})",
     detachHint: "Garder ce que dessine le composant comme pièces propres à ce bouton",
     remove: "Retirer",
     unknown: "Aucun composant de ce nom : ce bouton ne dessine rien.",

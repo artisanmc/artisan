@@ -32,8 +32,26 @@ object MenuComponents {
         val file = found.file as? Map<*, *> ?: emptyMap<Any?, Any?>()
         val params = file["params"] as? Map<*, *> ?: emptyMap<Any?, Any?>()
         val given = args as? Map<*, *> ?: emptyMap<Any?, Any?>()
-        fun mine(name: String) = name != "name" && given[name] != null
-        fun value(name: String): Any? = if (mine(name)) given[name] else (params[name] as? Map<*, *>)?.get("default")
+        fun choice(name: String): Map<*, *>? = (params[name] as? Map<*, *>)?.takeIf { it["type"] == "choice" }
+        // A choice's value is written in the component's file: its owner's image, like a default.
+        fun mine(name: String) = name != "name" && given[name] != null && choice(name) == null
+        // A `choice`: `values` lists names (each its own value) or maps them to what is written in their place.
+        fun picked(p: Map<*, *>, name: Any?): Any? = when (val values = p["values"]) {
+            is List<*> -> (name as? String)?.takeIf { it in values }
+            is Map<*, *> -> (name as? String)?.let { values[it] as? String }
+            else -> null
+        }
+        fun value(name: String, within: List<String> = emptyList()): Any? {
+            choice(name)?.let { p -> return picked(p, if (name != "name") given[name] else null) ?: picked(p, p["default"]) }
+            if (mine(name)) return given[name]
+            val fallback = (params[name] as? Map<*, *>)?.get("default")
+            // A default that is a text may name other parameters, put in once.
+            if (fallback !is String) return fallback
+            return PARAM.replace(fallback) { m ->
+                val other = m.groupValues[1]
+                if (params.containsKey(other) && other != name && other !in within) text(value(other, within + name), null) else m.value
+            }
+        }
         fun owned(name: String) = if (found.owner.isNotEmpty() && !name.contains(':')) "${found.owner}:$name" else name
         fun fill(text: String, lang: String?): String =
             PARAM.replace(text) { m -> if (!params.containsKey(m.groupValues[1])) m.value else text(value(m.groupValues[1]), lang) }

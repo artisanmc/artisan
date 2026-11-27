@@ -133,6 +133,10 @@ export default {
     paramsHint:
       "What each button gives the component. Write {name} in a text, or alone as an image, to put the value there.",
     paramType: "Kind of {{name}}",
+    choice: "Choice",
+    values: "primary, danger",
+    paramValues: "Names {{name}} offers",
+    valuesMapped: "These names are mapped to values in the file: edit them there.",
     paramDefault: "Default of {{name}}",
     paramRemove: "Remove the parameter {{name}}",
     paramNew: "New parameter",
@@ -156,6 +160,7 @@ export default {
       "The parts move to a component of this module: every button that names it draws them, and a change to it changes them all.",
     named: "Component: {{name}}",
     detach: "Detach",
+    choiceDefault: "Default ({{name}})",
     detachHint: "Keep what the component draws as parts of this button alone",
     remove: "Remove",
     unknown: "No component of that name: this button draws nothing.",

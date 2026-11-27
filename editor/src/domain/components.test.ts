@@ -1,6 +1,6 @@
 import { packComponents } from "@/lib/pack/components";
 import { afterEach, expect, it } from "vitest";
-import { componentLook, setComponents } from "./components";
+import { choiceNames, componentLook, componentParams, setComponents } from "./components";
 import { appearanceImages, appearanceLabels, elementLabels } from "./imageButton";
 import type { Appearance, Menu } from "./types";
 
@@ -70,4 +70,25 @@ it("places a component's text over its element as a label", () => {
   expect(elementLabels(menu)).toMatchObject([
     { elementId: "buy", layer: { kind: "textarea", literal: "OK", alignment: "center" } },
   ]);
+});
+
+it("reads a component's parameters, a choice with the names it offers", () => {
+  expect(
+    componentParams({
+      params: {
+        text: { type: "text", default: "OK" },
+        color: { type: "choice", default: "green", values: { green: "a", red: "b" } },
+        size: { type: "choice", values: ["small", 3, "large"] },
+        icon: { type: "image" },
+        odd: null,
+      },
+    }),
+  ).toEqual([
+    { name: "text", type: "text", default: "OK" },
+    { name: "color", type: "choice", default: "green", values: ["green", "red"] },
+    { name: "size", type: "choice", values: ["small", "large"] },
+    { name: "icon", type: "image" },
+    { name: "odd", type: "text" },
+  ]);
+  expect(choiceNames(undefined)).toEqual([]);
 });
