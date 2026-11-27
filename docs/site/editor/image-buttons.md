@@ -333,6 +333,10 @@ follows at once. The change goes to your draft of the theme: open the theme's fo
 it to see it in game. The arrow beside a name takes the theme's colour off, and the name goes
 back to the library's colour.
 
+The server's own colours, under every theme, are picked the same way in the library: open
+**Resources**, the common images, and unfold **The server's colours**. The base's coloured
+buttons are shown there in the colours as picked.
+
 `button.3x1` and `button.danger.3x1` are drawn images and do not follow the palette.
 
 ```yaml

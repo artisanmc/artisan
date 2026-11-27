@@ -2,7 +2,7 @@ import { ColorInput } from "@/components/ui/color-input";
 import { ResetButton } from "@/components/ui/reset-button";
 import { DEFAULT_PALETTE, PALETTE_FILE, type Palette, readPalette } from "@/lib/pack/palette";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { stringify } from "yaml";
 import { writeDraftFile } from "./draftFile";
@@ -92,10 +92,16 @@ export function useThemePalette(
 export function ThemePalette({
   state,
   below,
+  place = "theme",
+  children,
 }: {
   state: ThemePaletteState;
   /** What a name is without this theme: the library's colour, else the default one. */
   below: Palette;
+  /** `library`: the server's own palette, shown in the library's Project under a title of its own. */
+  place?: "theme" | "library";
+  /** Shown under the hint: what the colours look like on the base's pieces. */
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [adding, setAdding] = useState("");
@@ -110,9 +116,15 @@ export function ThemePalette({
   const addable = NAME.test(name) && !names.includes(name);
 
   return (
-    <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-palette">
-      <h3 className="eyebrow">{t("kit.theme.palette.title")}</h3>
-      <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.palette.hint")}</p>
+    <section
+      className={place === "theme" ? "card flex flex-col gap-2 p-4" : "flex flex-col gap-2"}
+      data-testid="kit-theme-palette"
+    >
+      {place === "theme" ? <h3 className="eyebrow">{t("kit.theme.palette.title")}</h3> : null}
+      <p className="text-xs text-[var(--text-mut)]">
+        {t(place === "theme" ? "kit.theme.palette.hint" : "kit.theme.palette.libraryHint")}
+      </p>
+      {children}
       <ul className="flex flex-col gap-1">
         {names.map((entry) => {
           const own = state.colours.get(entry);
@@ -129,7 +141,9 @@ export function ThemePalette({
               <ResetButton
                 modified={own !== undefined}
                 onReset={() => state.set(entry, null)}
-                label={t("kit.theme.palette.reset")}
+                label={t(
+                  place === "theme" ? "kit.theme.palette.reset" : "kit.theme.palette.libraryReset",
+                )}
               />
             </li>
           );
@@ -161,7 +175,7 @@ export function ThemePalette({
         </p>
       ) : state.drafted ? (
         <p className="text-xs text-[var(--text-mut)]" data-testid="kit-theme-palette-drafted">
-          {t("kit.theme.palette.drafted")}
+          {t(place === "theme" ? "kit.theme.palette.drafted" : "kit.theme.palette.libraryDrafted")}
         </p>
       ) : null}
     </section>
