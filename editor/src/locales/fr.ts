@@ -97,6 +97,14 @@ const fr: typeof en = {
     delete: "Supprimer du module",
     confirmDelete:
       "Supprimer « {{name}} » du module ? Les menus qui l’utilisent perdront cette image.",
+    toLibrary: {
+      move: "Déplacer vers la bibliothèque",
+      hint: "La bibliothèque du serveur contient les images que tous les modules peuvent nommer. Les menus qui nomment celle-ci la gardent.",
+      confirm:
+        "Déplacer « {{name}} » vers la bibliothèque du serveur ? Elle quitte ce module ; les menus qui la nomment la lisent dans la bibliothèque. Déployez la bibliothèque avec le module.",
+      invalidName:
+        "La bibliothèque n’accepte que des noms en minuscules, chiffres, « _ » et « - ». Renommez d’abord l’image.",
+    },
     advanced: "Avancé",
     dimensions: "Dimensions",
     choose: "Choisir une image",
