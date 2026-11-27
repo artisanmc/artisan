@@ -1,8 +1,8 @@
 # A component takes a colour from the theme's palette
 
-**Status:** accepted (2026-11-27). Being built: steps 1 to 3 are in the code (a tint on a layer, a
-literal or a name of `palette.yml`; the base's neutral button and its variants `primary`,
-`success`, `warning`). Follows `themes-reach-modules`
+**Status:** accepted (2026-11-27). Being built: steps 1 to 4 are in the code (a tint on a layer, a
+literal or a name of `palette.yml`; the base's neutral button and its variants; the `choice`
+parameter and `color` on the base's `button`). Follows `themes-reach-modules`
 ("Left open: colour").
 
 ## Context
@@ -43,9 +43,12 @@ literal or a name of `palette.yml`; the base's neutral button and its variants `
    changes every coloured button by one line of `palette.yml`, or redraws one variant by
    holding a PNG of its name, as for any image.
 
-4. **A component declares a choice among names.** A parameter of type `choice` lists values;
-   the look of `button` takes `color` and names its image `button.<color>.<size>`. The
-   inspector shows a list, never a colour picker: the colour's value belongs to the theme.
+4. **A component declares a choice among names.** A parameter of type `choice` lists names,
+   each its own value or mapped to what is written in its place; a default may name another
+   parameter. The base's `button` takes `color` (`green` is `button.3x1`, `primary` is
+   `button.primary.3x1`, and so on) and keeps `image`, whose default is the colour's image,
+   so a menu that gave `image` reads as before. The inspector shows a list, never a colour
+   picker: the colour's value belongs to the theme.
 
 5. **A theme's sheet.** The theme's page shows each tintable piece in each palette name, in
    place of the single trial menu, without the theme and with it.

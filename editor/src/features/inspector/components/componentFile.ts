@@ -5,7 +5,7 @@ import { parse, stringify } from "yaml";
 
 /** A component's file as read: its parameters and its parts, anything else kept. */
 export interface ComponentFile {
-  params?: Record<string, { type?: string; default?: unknown } | null>;
+  params?: Record<string, { type?: string; default?: unknown; values?: unknown } | null>;
   parts?: unknown[];
   [key: string]: unknown;
 }
@@ -97,7 +97,7 @@ export function editComponentParts(
 export function setComponentParam(
   file: ComponentFile,
   name: string,
-  spec: { type: "text" | "image"; default?: string } | null,
+  spec: { type: "text" | "image" | "choice"; default?: string; values?: unknown } | null,
 ): ComponentFile {
   const params = { ...(file.params ?? {}) };
   if (spec === null) Reflect.deleteProperty(params, name);
@@ -105,6 +105,8 @@ export function setComponentParam(
     params[name] = {
       type: spec.type,
       ...(spec.default !== undefined && spec.default !== "" ? { default: spec.default } : {}),
+      // A choice keeps the names it offers: a list, or a map to what each writes.
+      ...(spec.type === "choice" ? { values: spec.values ?? [] } : {}),
     };
   const { params: _, ...rest } = file;
   return Object.keys(params).length ? { params, ...rest } : rest;

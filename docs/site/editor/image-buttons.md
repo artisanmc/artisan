@@ -448,6 +448,26 @@ component writes `{text}` in a label, and may be one text or a text per language
 parameter is an image's name, written as is. Positions, conditions, clicks, title and lore
 stay the button's.
 
+A `choice` parameter offers a list of names, and the button picks one:
+
+```yaml
+# components/button.yml
+params:
+  color:
+    type: choice
+    default: green
+    values: { green: button.3x1, primary: button.primary.3x1, danger: button.danger.3x1 }
+  image: { type: image, default: "{color}" }
+parts:
+  - image: "{image}"
+```
+
+`component: { name: button, color: primary }` draws `button.primary.3x1`. `values` is a map of
+names to what is written in their place, or a plain list (`values: [small, large]`) when the
+name is the value. A name the list does not have takes the default. A default may name
+another parameter, as `image` does here: the button's image is the colour's unless the
+button gives its own. The editor shows a choice as a list, with the default first.
+
 A bare name is this module's component, else one of the server's common ones (the
 `components/` folder of the theme `artisan`); `guilds:confirm` names another module's and
 `artisan:confirm` a common one. An image the component names belongs to the component's
@@ -470,7 +490,7 @@ name them without writing a file:
 |---|---|---|
 | `confirm` | the base button and a text | `text` (Confirm / Confirmer) |
 | `cancel` | the danger button and a text | `text` (Cancel / Annuler) |
-| `button` | a base button of your choice and a text | `text` (OK), `image` (`button.3x1`, else `button.plain.3x1`, `button.off.3x1` or `button.danger.3x1`) |
+| `button` | a base button of your choice and a text | `text` (OK), `color` (`green`, else `primary`, `success`, `warning`, `neutral`, which follow the palette, or `danger`, `plain`, `off`), `image` (another image instead) |
 | `value` | the value frame and a text | `text` (0) |
 
 ```yaml

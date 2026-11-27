@@ -2,7 +2,9 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { choiceNames } from "@/domain/components";
 import { describe, expect, test } from "vitest";
+import { componentParts } from "../../../../docs/schema/menu/v1/components";
 import { componentFiles, packComponents } from "./components";
 import { KIT_SLOTS } from "./kit";
 
@@ -40,15 +42,24 @@ describe("the components Artisan ships", () => {
     const base = new Set(KIT_SLOTS.map((slot) => slot.id));
     for (const [name, file] of read ?? []) {
       const { params = {}, parts } = file as {
-        params?: Record<string, { default?: unknown }>;
+        params?: Record<string, { type?: string; default?: unknown; values?: unknown }>;
         parts: { image?: string }[];
       };
       expect(parts.length, name).toBeGreaterThan(0);
-      for (const part of parts) {
-        if (part.image === undefined) continue;
-        const param = /^\{([a-z][a-z0-9_]*)\}$/.exec(part.image)?.[1];
-        const drawn = param ? params[param]?.default : part.image;
-        expect(base.has(String(drawn)), `${name} draws ${String(drawn)}`).toBe(true);
+      // Every look the component can take without an image of the menu's: each choice's names.
+      const looks: Record<string, string>[] = [{}];
+      for (const [param, spec] of Object.entries(params))
+        if (spec.type === "choice")
+          for (const value of choiceNames(spec.values)) looks.push({ [param]: value });
+      for (const look of looks) {
+        const drawn = componentParts({ file, owner: "" }, look) as { image?: string }[];
+        expect(drawn.filter((part) => part.image !== undefined).length, name).toBe(
+          parts.filter((part) => part.image !== undefined).length,
+        );
+        for (const part of drawn) {
+          if (part.image === undefined) continue;
+          expect(base.has(part.image), `${name} draws ${part.image}`).toBe(true);
+        }
       }
     }
   });

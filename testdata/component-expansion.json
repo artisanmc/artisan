@@ -516,6 +516,202 @@
           }
         ]
       }
+    },
+    {
+      "name": "choice: a look picks one of a parameter's names, written as the value the component gives it; a name it does not list is the default; a default names another parameter; what a choice gives is the owner's image",
+      "module": "shop",
+      "components": {
+        "": {
+          "button": {
+            "params": {
+              "text": {
+                "type": "text",
+                "default": "OK"
+              },
+              "color": {
+                "type": "choice",
+                "default": "green",
+                "values": {
+                  "green": "button.3x1",
+                  "primary": "button.primary.3x1",
+                  "danger": "button.danger.3x1"
+                }
+              },
+              "size": {
+                "type": "choice",
+                "values": [
+                  "small",
+                  "large"
+                ]
+              },
+              "image": {
+                "type": "image",
+                "default": "{color}"
+              }
+            },
+            "parts": [
+              {
+                "image": "{image}"
+              },
+              {
+                "label": "{text} {size}"
+              }
+            ]
+          }
+        },
+        "shop": {
+          "tab": {
+            "params": {
+              "state": {
+                "type": "choice",
+                "default": "off",
+                "values": [
+                  "on",
+                  "off"
+                ]
+              }
+            },
+            "parts": [
+              {
+                "image": "tab_{state}"
+              },
+              {
+                "image": "{state}"
+              }
+            ]
+          }
+        }
+      },
+      "menu": {
+        "id": "m",
+        "size": 9,
+        "elements": [
+          {
+            "id": "e0",
+            "positions": "0",
+            "component": "button"
+          },
+          {
+            "id": "e1",
+            "positions": "1",
+            "component": {
+              "name": "button",
+              "color": "primary",
+              "size": "large",
+              "text": "Go"
+            }
+          },
+          {
+            "id": "e2",
+            "positions": "2",
+            "component": {
+              "name": "button",
+              "color": "nowhere",
+              "size": "huge"
+            }
+          },
+          {
+            "id": "e3",
+            "positions": "3",
+            "component": {
+              "name": "button",
+              "color": "danger",
+              "image": "mine"
+            }
+          },
+          {
+            "id": "e4",
+            "positions": "4",
+            "component": "tab"
+          },
+          {
+            "id": "e5",
+            "positions": "5",
+            "component": {
+              "name": "tab",
+              "state": "on"
+            }
+          }
+        ]
+      },
+      "expanded": {
+        "id": "m",
+        "size": 9,
+        "elements": [
+          {
+            "id": "e0",
+            "positions": "0",
+            "parts": [
+              {
+                "image": "artisan:button.3x1"
+              },
+              {
+                "label": "OK "
+              }
+            ]
+          },
+          {
+            "id": "e1",
+            "positions": "1",
+            "parts": [
+              {
+                "image": "artisan:button.primary.3x1"
+              },
+              {
+                "label": "Go large"
+              }
+            ]
+          },
+          {
+            "id": "e2",
+            "positions": "2",
+            "parts": [
+              {
+                "image": "artisan:button.3x1"
+              },
+              {
+                "label": "OK "
+              }
+            ]
+          },
+          {
+            "id": "e3",
+            "positions": "3",
+            "parts": [
+              {
+                "image": "mine"
+              },
+              {
+                "label": "OK "
+              }
+            ]
+          },
+          {
+            "id": "e4",
+            "positions": "4",
+            "parts": [
+              {
+                "image": "shop:tab_{state}"
+              },
+              {
+                "image": "shop:off"
+              }
+            ]
+          },
+          {
+            "id": "e5",
+            "positions": "5",
+            "parts": [
+              {
+                "image": "shop:tab_{state}"
+              },
+              {
+                "image": "shop:on"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

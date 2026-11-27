@@ -23,14 +23,55 @@ export function componentName(look: unknown): string | null {
   return null;
 }
 
-/** A parameter's value for this look: what the look gives, else the component's default. */
-function valueOf(name: string, params: Json, args: Json): unknown {
-  if (name !== "name" && args[name] !== undefined && args[name] !== null) return args[name];
-  const p = params[name];
-  return isMap(p) ? p.default : undefined;
+const PARAM = /\{([a-z][a-z0-9_]*)\}/g;
+
+/** A parameter of type `choice`: the look picks one of the names its `values` list. */
+const isChoice = (p: unknown): p is Json => isMap(p) && p.type === "choice";
+
+/**
+ * What a `choice` parameter gives: `values` is a list of names (each its own value) or a map
+ * of names to what is written in their place. The look's name when `values` has it, else the
+ * default's; nothing when neither is one of them.
+ */
+function choiceValue(p: Json, given: unknown): unknown {
+  const pick = (name: unknown): unknown => {
+    if (typeof name !== "string") return undefined;
+    if (Array.isArray(p.values)) return p.values.includes(name) ? name : undefined;
+    const value = isMap(p.values) && Object.hasOwn(p.values, name) ? p.values[name] : undefined;
+    return typeof value === "string" ? value : undefined;
+  };
+  return pick(given) ?? pick(p.default);
 }
 
-const PARAM = /\{([a-z][a-z0-9_]*)\}/g;
+/** A value as a text: a per-language one by `lang`, else its first. */
+function textOf(v: unknown, lang?: string): string {
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (isMap(v)) {
+    const own = lang !== undefined ? v[lang] : undefined;
+    const first = Object.values(v).find((x) => typeof x === "string");
+    return typeof own === "string" ? own : typeof first === "string" ? first : "";
+  }
+  return "";
+}
+
+/**
+ * A parameter's value for this look: what the look gives, else the component's default. A
+ * default that is a text may name other parameters (`{color}`), put in once.
+ */
+function valueOf(name: string, params: Json, args: Json, within: readonly string[] = []): unknown {
+  const p = params[name];
+  const given = name !== "name" ? args[name] : undefined;
+  if (isChoice(p)) return choiceValue(p, given);
+  if (given !== undefined && given !== null) return given;
+  const fallback = isMap(p) ? p.default : undefined;
+  if (typeof fallback !== "string") return fallback;
+  return fallback.replace(PARAM, (whole, other: string) =>
+    other in params && other !== name && !within.includes(other)
+      ? textOf(valueOf(other, params, args, [...within, name]))
+      : whole,
+  );
+}
 
 /** `text` with each `{param}` of the component replaced; another `{…}` stays for the player's expressions. */
 function fill(
@@ -41,15 +82,7 @@ function fill(
 ): string {
   return text.replace(PARAM, (whole, name: string) => {
     if (!(name in params)) return whole;
-    const v = values(name);
-    if (typeof v === "string") return v;
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
-    if (isMap(v)) {
-      const own = lang !== undefined ? v[lang] : undefined;
-      const first = Object.values(v).find((x) => typeof x === "string");
-      return typeof own === "string" ? own : typeof first === "string" ? first : "";
-    }
-    return "";
+    return textOf(values(name), lang);
   });
 }
 
@@ -66,8 +99,8 @@ function languages(text: string, params: Json, values: (name: string) => unknown
 /**
  * The parts a component means for a look that gives it `args` (the look's `component` map; a
  * bare name gives none). An image's name is a literal or exactly one parameter: a bare name
- * written in the component's file is its owner's image (`<owner>:<name>`), a name the look
- * gives is read in the look's module. A part whose image has no value is left out.
+ * written in the component's file (a literal, a default, a `choice`'s value) is its owner's
+ * image (`<owner>:<name>`), a name the look gives is read in the look's module. A part whose image has no value is left out.
  */
 export function componentParts(found: FoundComponent, args: unknown): unknown[] {
   const file = isMap(found.file) ? found.file : {};
@@ -86,7 +119,12 @@ export function componentParts(found: FoundComponent, args: unknown): unknown[] 
         continue;
       }
       const name = ref[1]!;
-      const mine = name !== "name" && given[name] !== undefined && given[name] !== null;
+      // A choice's value is written in the component's file: its owner's image, like a default.
+      const mine =
+        name !== "name" &&
+        !isChoice(params[name]) &&
+        given[name] !== undefined &&
+        given[name] !== null;
       const value = values(name);
       if (typeof value !== "string" || !value) continue;
       out.push({ ...part, image: mine ? value : owned(value) });

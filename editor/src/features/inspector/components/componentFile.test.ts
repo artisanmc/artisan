@@ -63,6 +63,18 @@ it("declares, changes and removes a parameter", () => {
   expect(setComponentParam(added, "icon", { type: "image", default: "" }).params!.icon).toEqual({
     type: "image",
   });
+  // A choice keeps the names it offers, a list or a map to what each writes.
+  const map = { green: "button.3x1", red: "button.danger.3x1" };
+  const choice = setComponentParam(file, "color", {
+    type: "choice",
+    default: "green",
+    values: map,
+  });
+  expect(choice.params!.color).toEqual({ type: "choice", default: "green", values: map });
+  expect(setComponentParam(file, "size", { type: "choice" }).params!.size).toEqual({
+    type: "choice",
+    values: [],
+  });
   const none = setComponentParam(setComponentParam(added, "icon", null), "text", null);
   expect(none).not.toHaveProperty("params");
   expect(none.parts).toEqual(file.parts);

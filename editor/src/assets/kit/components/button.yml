@@ -1,8 +1,21 @@
-# A button of the base with a text. `image` picks its drawing: button.3x1 (default),
-# button.plain.3x1, button.off.3x1 or button.danger.3x1.
+# A button of the base with a text. `color` picks its drawing among the base's buttons: the
+# green one (default), the ones that follow the palette (primary, success, warning, neutral)
+# and the drawn ones (danger, plain, off). `image` names another image instead.
 params:
   text: { type: text, default: OK }
-  image: { type: image, default: button.3x1 }
+  color:
+    type: choice
+    default: green
+    values:
+      green: button.3x1
+      primary: button.primary.3x1
+      success: button.success.3x1
+      warning: button.warning.3x1
+      danger: button.danger.3x1
+      neutral: button.neutral.3x1
+      plain: button.plain.3x1
+      off: button.off.3x1
+  image: { type: image, default: "{color}" }
 parts:
   - image: "{image}"
   - label: "{text}"

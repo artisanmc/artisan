@@ -117,6 +117,9 @@ its font fixes, without wrapping or clipping, and its width is known to the serv
      - label: "{text}"
    ```
 
+   A parameter of type `choice` takes one of a list of names (ADR `component-colours`,
+   decision 4).
+
    An Element's look names it, and gives its parameters:
 
    ```yaml

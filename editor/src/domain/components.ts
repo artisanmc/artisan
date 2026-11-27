@@ -24,7 +24,19 @@ export interface KnownComponent {
   name: string;
   /** Whether it is one of the server's common ones (the theme `artisan`). */
   common: boolean;
-  params: readonly { name: string; type: "text" | "image"; default?: unknown }[];
+  params: readonly {
+    name: string;
+    type: "text" | "image" | "choice";
+    default?: unknown;
+    /** The names a `choice` offers, in the file's order. */
+    values?: readonly string[];
+  }[];
+}
+
+/** The names a `choice` parameter offers: its `values`, a list of names or a map by name. */
+export function choiceNames(values: unknown): string[] {
+  if (Array.isArray(values)) return values.filter((v): v is string => typeof v === "string");
+  return values && typeof values === "object" ? Object.keys(values) : [];
 }
 
 /** The parameters a component's file declares (`params`), in the file's order. */
@@ -32,7 +44,14 @@ export function componentParams(file: unknown): KnownComponent["params"] {
   const params = (file as { params?: unknown } | null)?.params;
   if (!params || typeof params !== "object" || Array.isArray(params)) return [];
   return Object.entries(params as Record<string, unknown>).map(([name, raw]) => {
-    const spec = (raw ?? {}) as { type?: unknown; default?: unknown };
+    const spec = (raw ?? {}) as { type?: unknown; default?: unknown; values?: unknown };
+    if (spec.type === "choice")
+      return {
+        name,
+        type: "choice" as const,
+        values: choiceNames(spec.values),
+        ...(spec.default !== undefined ? { default: spec.default } : {}),
+      };
     return {
       name,
       type: spec.type === "image" ? ("image" as const) : ("text" as const),
