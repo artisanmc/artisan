@@ -31,8 +31,17 @@ describe("KitThemePage", () => {
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
-    expect(screen.getByTestId("kit-theme-before")).toBeInTheDocument();
-    expect(screen.getByTestId("kit-theme-after")).toBeInTheDocument();
+    // Every image of the base, without the theme and with it: what it redraws comes first.
+    const rows = within(screen.getByTestId("kit-theme-sheet")).getAllByTestId(
+      "kit-theme-sheet-row",
+    );
+    expect(rows.length).toBeGreaterThan(10);
+    expect(rows[0]).toHaveTextContent("close.1x1");
+    expect(rows[0]).toHaveTextContent("Surcharge");
+    expect(rows[1]).not.toHaveTextContent("Surcharge");
+    fireEvent.change(screen.getByLabelText("Filtrer par nom"), { target: { value: "window" } });
+    for (const row of screen.getAllByTestId("kit-theme-sheet-row"))
+      expect(row).toHaveTextContent("window");
     fireEvent.click(screen.getByRole("button", { name: "Activer le thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", true));
   });

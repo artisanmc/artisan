@@ -125,8 +125,8 @@ A click opens the place on the right: a theme, a module or the base on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
 its Resources an image named like one of a place below wears the word **Override**; an image
 the theme adds wears nothing. The bar above a theme's Resources says whether it is in place and leads to its
-page (**Preview and settings of the theme**: the same menu without it and with it, put in
-place, rename, delete, export).
+page (**Preview and settings of the theme**: every image of the base without it and with it,
+enable, rename, delete, export).
 
 **Base** opens like any other place, on the same Resources screen: **Added or changed on this
 server** lists the images the server added and its versions of Artisan's, **Shipped with
@@ -155,7 +155,8 @@ module's folder moves to `plugins/Artisan/themes/artisan/`, and the menus that n
 keep working.
 
 **Themes.** A theme opens on what it changes (the pieces it redraws)
-and on the same menu without it and with it. **Enable the theme** sets the theme
+and on a sheet of every image of the base, without the theme and with it, the ones it redraws
+first; a field filters the sheet by name. **Enable the theme** sets the theme
 above the ones already in place and rebuilds the server's pack: players receive it at their
 next connection. Several themes stack: each changes what the ones below show, so the highest
 that redraws an image wins. **Disable the theme** takes that theme alone off; the list of
@@ -191,7 +192,7 @@ next start. The common images
 **Export** on that page downloads the theme as an archive (`<name>.theme.zip`): its folder as
 the server holds it, with its images. On another server, **Resources**, **Import a theme** reads the archive, proposes the theme's name (change it when the
 server already has a theme of that name) and creates the theme with its files. An imported
-theme is not put in place: open it, look at the menu with it, then put it in place. A
+theme is not enabled: open it, look at its sheet, then enable it. A
 module's archive is not a theme's: it is imported from the server's modules.
 
 A theme changes an image by holding an image of the same name. It no longer repaints colours,

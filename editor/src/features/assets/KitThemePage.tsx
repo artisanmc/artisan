@@ -7,16 +7,16 @@ import { useKitStore } from "@/state/kitStore";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
-import { KitTrialMenu } from "./KitTrialMenu";
 import { ThemeMoves } from "./ThemeMoves";
 import { ThemePalette, paletteFile, useThemePalette } from "./ThemePalette";
+import { ThemeSheet } from "./ThemeSheet";
 import { publishedKitTheme, useKitAssetsIn, useThemeOwnImages } from "./kitAssets";
 import { serverThemeNames } from "./kitTheme";
 
 /**
  * One theme of the server's kit (`lib/pack/theme.ts`), read from the published kit module: the
  * pieces it redraws, its own images (what a menu writes
- * `<theme>:<name>` for) and the same menu without it and with it. A theme is put in place
+ * `<theme>:<name>` for) and every image of the base without it and with it (`ThemeSheet`). A theme is put in place
  * from here (`onPutInPlace`: on top of the server's `resource-pack.themes`, then its pack
  * rebuilt), and taken off the same way.
  *
@@ -27,7 +27,7 @@ import { serverThemeNames } from "./kitTheme";
  *
  * A theme of its own folder has its palette edited here too (`ThemePalette`): the colours its
  * `palette.yml` gives the names a tint writes, written to the player's draft of the theme and
- * shown at once on the menu with the theme.
+ * shown at once on the sheet, in the theme's column.
  */
 export function KitThemePage({
   name,
@@ -63,7 +63,7 @@ export function KitThemePage({
   const theme = useMemo(() => publishedKitTheme(read, name, own), [read, own, name]);
   const mine = own[name];
   const palette = useThemePalette(mine?.projectId, mine?.files[PALETTE_FILE]);
-  // What a colour is without this theme, and with it as edited here: the menu on the right
+  // What a colour is without this theme, and with it as edited here: the sheet on the right
   // shows a change of colour before it is deployed.
   const below = useMemo(() => paletteOf([read?.files[PALETTE_FILE]]), [read]);
   const edited = useMemo(
@@ -85,6 +85,7 @@ export function KitThemePage({
   const moves = own[name]?.canMove === true;
   const taken = useMemo(() => serverThemeNames(read, own), [read, own]);
   const ownImages = useThemeOwnImages(name);
+  const redrawn = useMemo(() => new Set(theme?.drawings ?? []), [theme]);
 
   const put = async (next: boolean) => {
     if (busy || !onPutInPlace) return;
@@ -271,20 +272,7 @@ export function KitThemePage({
           </div>
           <section className="card flex min-w-0 flex-1 flex-col gap-3 p-4">
             <h3 className="eyebrow">{t("kit.theme.compare")}</h3>
-            <div className="flex flex-wrap justify-center gap-6 rounded-[var(--r-md)] bg-[var(--surface-inset)] p-4">
-              <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-before">
-                <figcaption className="text-xs font-medium text-[var(--text-mut)]">
-                  {t("kit.page.noTheme")}
-                </figcaption>
-                <KitTrialMenu kit={plain} />
-              </figure>
-              <figure className="flex flex-col items-center gap-2" data-testid="kit-theme-after">
-                <figcaption className="text-xs font-medium text-[var(--text-mut)]">
-                  {name}
-                </figcaption>
-                <KitTrialMenu kit={themed} />
-              </figure>
-            </div>
+            <ThemeSheet name={name} plain={plain} themed={themed} redrawn={redrawn} />
             <p className="text-[12px] text-[var(--text-mut)]">{t("kit.theme.putHint")}</p>
           </section>
         </div>
