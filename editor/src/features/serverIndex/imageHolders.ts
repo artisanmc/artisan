@@ -1,6 +1,7 @@
 import { type ElsewhereWhere, commonHolders, themeOwnNames } from "@/lib/pack/elsewhere";
 import { assetNamesIn } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
+import { draftedLibrary } from "@/state/libraryRead";
 import { useServerIndexStore } from "./serverIndexStore";
 
 const pathsOf = (held: { files: Record<string, string>; binaries: { path: string }[] }) => [
@@ -22,7 +23,8 @@ export function imageHolders(
   draft: { files: Iterable<string>; binaries?: Iterable<string> },
 ): ElsewhereWhere | null {
   const { reads } = useServerIndexStore.getState();
-  const kit = useKitStore.getState().read;
+  // The library as the player's draft of it has it: an image added from a menu is common.
+  const kit = draftedLibrary(useKitStore.getState().read);
   if (!kit?.byName) return null;
   const published = reads.find((r) => r.summary.id === edited.id);
   const own = new Set(

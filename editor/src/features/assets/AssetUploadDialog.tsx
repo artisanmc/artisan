@@ -9,6 +9,7 @@ import { useProjectPrincipalId } from "@/lib/projectPrincipal";
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAssetStore } from "./assetStore";
+import { addToLibrary, libraryImage, useLibraryFor } from "./libraryDraft";
 
 interface AssetUploadDialogProps {
   projectId: ProjectId;
@@ -16,6 +17,12 @@ interface AssetUploadDialogProps {
   onClose: () => void;
   onUploaded?: (asset: Asset) => void;
   usage?: AssetUsage;
+  /**
+   * The image is for a menu to name: it goes to the server's library, not to the menu's module
+   * (ADR `themes-reach-modules`, decision 1), where the server has one a module may write in
+   * (`libraryFor`). `onUploaded` then gets it as a common image (`kit:<name>`).
+   */
+  toLibrary?: boolean;
 }
 
 /** An asset name (lowercase, digits, `_`, `-`) derived from a file name. */
@@ -46,11 +53,14 @@ export function AssetUploadDialog({
   onClose,
   onUploaded,
   usage,
+  toLibrary,
 }: AssetUploadDialogProps) {
   const nameId = useId();
   const { t } = useTranslation();
   const user = useProjectPrincipalId(projectId);
   const upsertAsset = useAssetStore((s) => s.upsertAsset);
+  const found = useLibraryFor(projectId);
+  const library = toLibrary ? found : null;
 
   const [name, setName] = useState("");
   const [nameTyped, setNameTyped] = useState(false);
@@ -77,6 +87,21 @@ export function AssetUploadDialog({
     setBusy(true);
     setError(null);
     try {
+      if (library) {
+        // The module's image of a name is shown before the library's: the new one would not be.
+        const own = useAssetStore.getState().assets;
+        if (own.some((a) => a.projectId === projectId && !a.under && a.name === name))
+          throw new Error(t("assetUpload.nameInModule"));
+        const added = await addToLibrary(library, { file, name, usages }).catch((cause) => {
+          if ((cause as { status?: number } | null)?.status === 409)
+            throw new Error(t("assetUpload.nameInLibrary"));
+          throw cause;
+        });
+        reset();
+        onUploaded?.(libraryImage(added));
+        onClose();
+        return;
+      }
       // Always `glyph` — see the component docblock for the rationale.
       // Glyph uploads get a font codepoint, which makes the asset usable
       // everywhere (titles + slot icons).
@@ -125,6 +150,9 @@ export function AssetUploadDialog({
               placeholder={t("assetUpload.namePlaceholder")}
             />
           </label>
+          {library && (
+            <p className="text-xs text-[var(--text-mut)]">{t("assetUpload.toLibrary")}</p>
+          )}
           {error && <div className="text-xs text-[var(--danger)]">{error}</div>}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>

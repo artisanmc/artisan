@@ -8,7 +8,7 @@ import { ProjectSource, type ProjectSourceId } from "@/features/project/ProjectS
 import { patchAsset } from "@/lib/api/userAssets";
 import { cx } from "@/lib/cx";
 import { pixelSize } from "@/lib/pack/imageFunction";
-import { moduleImageKey } from "@/lib/pack/kit";
+import { KIT_FOLDER, moduleImageKey } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { Upload } from "lucide-react";
@@ -19,6 +19,7 @@ import { AssetUploadDialog } from "./AssetUploadDialog";
 import { assetBytes } from "./assetBytes";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
+import { useCommonImageRef } from "./kitAssets";
 import { useOtherProjectAssets } from "./useOtherProjectAssets";
 
 interface AssetPickerProps {
@@ -65,6 +66,7 @@ export function AssetPicker({
   const all = useAssetStore((s) => s.assets);
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const commonRef = useCommonImageRef(projectId ?? "");
   const [showAll, setShowAll] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
@@ -268,8 +270,10 @@ export function AssetPicker({
           projectId={projectId}
           open={uploadOpen}
           onClose={() => setUploadOpen(false)}
+          toLibrary={named}
           onUploaded={(asset) => {
-            onPick(asset);
+            // One added to the library is named as a common image is: its name alone.
+            onPick(asset.projectId === KIT_FOLDER ? { ...asset, id: commonRef(asset) } : asset);
             onClose();
           }}
         />

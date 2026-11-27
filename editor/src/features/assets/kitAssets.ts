@@ -23,6 +23,8 @@ import { kitImageUrl } from "@/lib/pack/kitUrls";
 import { type Slice, sliceOf } from "@/lib/pack/slice";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";
+import { useDraftedLibrary } from "@/state/libraryRead";
+import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parse } from "yaml";
 import { create } from "zustand";
@@ -54,8 +56,14 @@ interface OwnImage {
 const size = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-/** The kit module's images by name, as it has them published. */
-function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
+/**
+ * The kit module's images by name, as it has them published. `urlOf`: where a file is drawn
+ * from, when it is not the published one (a draft's).
+ */
+function ownImages(
+  read: KitRead | undefined,
+  urlOf?: (path: string, hash: string) => string,
+): Map<string, OwnImage> {
   const out = new Map<string, OwnImage>();
   if (!read) return out;
   const project = encodeURIComponent(read.projectId);
@@ -74,7 +82,9 @@ function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
       // An unreadable descriptor says nothing of the size.
     }
     out.set(stem.slice(dir.length), {
-      url: `${API_URL}/api/v1/projects/${project}/binary?path=${encodeURIComponent(path)}&h=${hash}`,
+      url:
+        urlOf?.(path, hash) ??
+        `${API_URL}/api/v1/projects/${project}/binary?path=${encodeURIComponent(path)}&h=${hash}`,
       hash,
       width: size(descriptor?.width),
       height: size(descriptor?.height),
@@ -82,6 +92,38 @@ function ownImages(read: KitRead | undefined): Map<string, OwnImage> {
     });
   }
   return out;
+}
+
+/**
+ * The images the player's draft of the library adds or redraws, as kit images (ADR
+ * `themes-reach-modules`, decision 1): one added while building a menu is in that draft, not
+ * yet on the server, and the menu shows it all the same. Each is drawn from the draft's blob.
+ */
+export function libraryDraftAssets(
+  read: KitRead | undefined,
+  draft:
+    | {
+        tree: Record<string, string>;
+        binaryTree?: Record<string, { hash: string }>;
+        remote?: { id: string; revision: number };
+      }
+    | undefined,
+): Asset[] {
+  if (!read || !draft?.remote?.revision || !draft.binaryTree) return NO_IMAGES;
+  const published = new Map(read.binaries.map((b) => [b.path, b.hash]));
+  const changed = Object.entries(draft.binaryTree)
+    .filter(([path, { hash }]) => published.get(path) !== hash)
+    .map(([path, { hash }]) => ({ path, hash }));
+  if (changed.length === 0) return NO_IMAGES;
+  const project = encodeURIComponent(read.projectId);
+  const id = encodeURIComponent(draft.remote.id);
+  const images = ownImages(
+    { projectId: read.projectId, files: draft.tree, binaries: changed },
+    (_path, hash) => `${API_URL}/api/v1/user/projects/${project}/drafts/${id}/blobs/${hash}`,
+  );
+  return [...images].map(([name, image]) =>
+    kitAsset(name, image.width ?? 0, image.height ?? 0, image.url, image.hash, image.slice),
+  );
 }
 
 function kitAsset(
@@ -304,7 +346,18 @@ export function useKitAssets(): Asset[] {
   }, [read, themes, own, current]);
   const composed = current ? shown.images : NONE;
   const themed = current ? shown.themed : null;
-  return useMemo(() => themed ?? kitAssetsOf(read, composed), [read, composed, themed]);
+  // What the player's draft of the library holds and the server does not yet.
+  const draft = useProjectDraftStore((s) => (read ? s.drafts[read.projectId] : undefined));
+  const drafted = useMemo(() => libraryDraftAssets(read, draft), [read, draft]);
+  return useMemo(() => {
+    const shownNow = themed ?? kitAssetsOf(read, composed);
+    if (drafted.length === 0) return shownNow;
+    const byId = new Map(drafted.map((asset) => [asset.id, asset]));
+    // A theme in place keeps its drawing of an image the draft redraws; a new one is added.
+    const kept = shownNow.map((asset) => (themed ? asset : (byId.get(asset.id) ?? asset)));
+    const known = new Set(shownNow.map((asset) => asset.id));
+    return [...kept, ...drafted.filter((asset) => !known.has(asset.id))];
+  }, [read, composed, themed, drafted]);
 }
 
 /**
@@ -555,7 +608,8 @@ function holdersOf(
  * the game fills in (`isWrittenName`).
  */
 export function useImageReach(projectId: string): (ref: string) => Reach | null {
-  const kit = useKitStore((s) => s.read);
+  // The library as the player's draft of it has it: an image added from a menu is reached.
+  const kit = useDraftedLibrary();
   const modules = useKitStore((s) => s.modules);
   const unread = useKitStore((s) => s.modulesUnread);
   const themes = useKitStore((s) => s.own);
@@ -617,7 +671,7 @@ export function useAssetsWithKit(): Asset[] {
 export function useImageAsset(projectId: string, name: string | undefined): Asset | undefined {
   const assets = useAssetStore((s) => s.assets);
   const kit = useKitAssets();
-  const read = useKitStore((s) => s.read);
+  const read = useDraftedLibrary();
   const modules = useKitStore((s) => s.modules);
   const themes = useKitStore((s) => s.own);
   const drawings = useModuleDrawings();
