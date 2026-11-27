@@ -17,6 +17,8 @@ export enum T {
   RESET = 12,
   NAME = 13,
   NAME_RESULT = 14,
+  /** Plugin → Worker, once the Hello said `whole`: `[head length:4][ResponseHead JSON][body]`, a whole response. */
+  RESPONSE_WHOLE = 15,
 }
 
 export interface Frame {
@@ -25,7 +27,8 @@ export interface Frame {
   payload: Uint8Array;
 }
 
-export interface Hello { url: string; name?: string | null; names: boolean }
+/** [whole]: this end reads {@link T.RESPONSE_WHOLE} (Frame.Type.RESPONSE_WHOLE). */
+export interface Hello { url: string; name?: string | null; names: boolean; whole?: boolean }
 export interface NameRequest { name: string; check?: boolean }
 export interface NameResult { ok: boolean; name?: string | null; url?: string | null; error?: string | null }
 /** `[name, value]` pairs: names keep their case and may repeat. */
@@ -61,6 +64,16 @@ export function decode(data: ArrayBuffer): Frame {
 
 export function json<V>(frame: Frame): V {
   return JSON.parse(decoder.decode(frame.payload)) as V;
+}
+
+/** The head and body of a {@link T.RESPONSE_WHOLE} frame (Frame.whole). */
+export function whole(frame: Frame): { head: ResponseHead; body: Uint8Array } {
+  const p = frame.payload;
+  if (p.byteLength < 4) throw new Error("whole response too short");
+  const length = new DataView(p.buffer, p.byteOffset, p.byteLength).getInt32(0);
+  if (length < 0 || 4 + length > p.byteLength) throw new Error(`bad head length ${length}`);
+  const head = JSON.parse(decoder.decode(p.subarray(4, 4 + length))) as ResponseHead;
+  return { head, body: p.subarray(4 + length) };
 }
 
 export function text(frame: Frame): string {

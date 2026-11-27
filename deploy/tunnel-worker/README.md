@@ -20,6 +20,12 @@ browser enters Cloudflare next to it and crosses the network only once. Measured
 - `src/tunnel.ts` (`TunnelObject`, one per address): keeps the plugins' WebSockets (hibernation API) and
   replays each browser request and WebSocket as `Frame`s. The last plugin connected answers;
   `X-Artisan-Tunnel-Member` picks one (ADR `peer-servers`).
+- Each frame a plugin sends is billed (one request per 20 WebSocket messages), so the Worker's `HELLO` says
+  `whole: true` and the plugin then sends a response under 256 KiB as a single `RESPONSE_WHOLE` frame
+  instead of `RESPONSE`, `RESPONSE_BODY`, `RESPONSE_END`. The Kotlin server does not say it and gets the three.
+- The editor's `/assets/` (named by their hash, `public, immutable` from the hub) are kept in Cloudflare's
+  cache under their full address: a second browser, or a reload, does not reach the object. A new editor
+  build has new file names; `index.html` is never kept.
 - `src/names.ts` (`NamesObject`, a single one): the address names, with `NameRegistry`'s rules (filter,
   quotas, expiry after 90 days, bans, Discord webhook). The Worker reads `name:<name>` from KV, never the object.
 - KV `loc:<id>` = `{gen, continent}`: which object serves the address, written only when an address moves.
