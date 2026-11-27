@@ -2,10 +2,15 @@ import type { Asset } from "@/domain/asset";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetsTab, useResourcesView } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
+
+vi.mock("@/state/authStore", () => ({
+  useAuthStore: (sel: (s: { currentUser: { id: string } | null }) => unknown) =>
+    sel({ currentUser: { id: "u1" } }),
+}));
 
 let desktop = false;
 vi.mock("@/lib/useMediaQuery", () => ({ useIsDesktop: () => desktop }));
@@ -153,6 +158,33 @@ describe("AssetsTab", () => {
     render(<AssetsTab projectId={"p1" as never} />);
     fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
     expect(screen.getByRole("dialog", { name: /importer une image/i })).toBeTruthy();
+  });
+
+  it("sends an image uploaded in a module to the server's library, and turns to it", async () => {
+    const { useKitStore } = await import("@/state/kitStore");
+    const libraryDraft = await import("./libraryDraft");
+    useKitStore.setState({
+      read: { projectId: "srv.artisan", files: {}, binaries: [], byName: true },
+      own: {},
+    } as never);
+    vi.spyOn(libraryDraft, "openLibraryDraft").mockResolvedValue();
+    const add = vi
+      .spyOn(libraryDraft, "addToLibrary")
+      .mockResolvedValue({ id: "crest", projectId: "srv.artisan", name: "crest" } as never);
+    useAssetStore.getState().setAssets([]);
+    render(<AssetsTab projectId={"p1" as never} />);
+    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
+    fireEvent.change(screen.getByLabelText(/fichier/i), {
+      target: { files: [new File(["png"], "crest.png", { type: "image/png" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Importer$/ }));
+    // The list shows the common images, where the image now is.
+    await waitFor(() =>
+      expect(screen.getByTestId("project-source")).toHaveTextContent("Images communes"),
+    );
+    expect(add).toHaveBeenCalledWith("srv.artisan", expect.objectContaining({ name: "crest" }));
+    vi.restoreAllMocks();
+    useKitStore.setState({ read: undefined, own: {} } as never);
   });
 
   it("filters by search query (case-insensitive)", () => {
