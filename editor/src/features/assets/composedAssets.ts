@@ -1,7 +1,7 @@
 import type { Asset } from "@/domain/asset";
-import { renderComposed } from "@/lib/pack/compose";
+import { renderComposed, tintedPng } from "@/lib/pack/compose";
 import type { DiskAsset } from "@/lib/pack/diskAssets";
-import { kitImage, kitNameOf } from "@/lib/pack/kit";
+import { kitImage, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { kitImageBytes } from "@/lib/pack/kitUrls";
 import type { Palette } from "@/lib/pack/palette";
 import { encodePng } from "@/lib/pack/png";
@@ -59,9 +59,18 @@ export async function composedView(
       return png && theme && ownToo ? theme.shown(name, png) : png;
     },
     async (name) => {
-      const own = (await kitOwn(name)) ?? undefined;
-      const png = (await kitImage(name, own, kitImageBytes))?.png;
-      return png && theme ? theme.shown(name, png) : png;
+      const shown = async (of: string) => {
+        const own = (await kitOwn(of)) ?? undefined;
+        const png = (await kitImage(of, own, kitImageBytes))?.png;
+        return { own, png: png && theme ? await theme.shown(of, png) : png };
+      };
+      const { own, png } = await shown(name);
+      // A coloured variant of the base (`KitSlot.tint`), as the pack draws it in the palette.
+      const tint = kitSlot(name)?.tint;
+      if (!png || !tint || !palette || own) return png;
+      const neutral = (await shown(tint.of)).png;
+      const drawing = theme ? await theme.drawing(name) : null;
+      return drawing ?? (neutral && tintedPng(neutral, palette(tint.color))) ?? png;
     },
     (name) => {
       const common = kitNameOf(name);

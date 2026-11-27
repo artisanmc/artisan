@@ -309,9 +309,24 @@ the margins stay as drawn (the four corners), and what is between them is repeat
 scaled, so a button drawn once at 20 × 18 serves on 2, 3 or 5 slots without blurring.
 
 Artisan's own buttons, panel and card (`button.3x1`, `button.danger.3x1`, `button.off.3x1`,
-`button.plain.3x1`, `panel.3x1`, `card.3x2`) are sliced: placed on more slots than their
+`button.plain.3x1`, `button.neutral.3x1` and its coloured variants, `panel.3x1`, `card.3x2`) are sliced: placed on more slots than their
 drawing, they fill them. Your own redraw of one is drawn by its `fit` unless its file
 declares margins.
+
+**Coloured buttons.** `button.primary.3x1`, `button.success.3x1` and `button.warning.3x1` are
+one grey drawing, `button.neutral.3x1`, multiplied by a colour of the server's palette. The
+colours are named in `palette.yml`, at the root of a theme or of the library (the theme
+`artisan`):
+
+```yaml
+# themes/noel/palette.yml
+primary: "#b3261e"
+```
+
+With that theme in place every `button.primary.3x1` turns red, in every module, without a new
+image. A theme that redraws `button.neutral.3x1` changes the shape of all three at once. A
+theme or the library that holds an image named `button.primary.3x1` shows that image as drawn.
+`button.3x1` and `button.danger.3x1` are drawn images and do not follow the palette.
 
 ```yaml
 # assets/textures/button.yml

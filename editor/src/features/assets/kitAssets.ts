@@ -1,5 +1,6 @@
 import type { Asset } from "@/domain/asset";
 import { API_URL } from "@/lib/api/client";
+import { tintedPng } from "@/lib/pack/compose";
 import { diskAssetsFromTree } from "@/lib/pack/diskAssets";
 import {
   type ElsewhereWhere,
@@ -21,7 +22,7 @@ import {
   moduleImageKey,
 } from "@/lib/pack/kit";
 import { kitImageUrl } from "@/lib/pack/kitUrls";
-import type { Palette } from "@/lib/pack/palette";
+import { DEFAULT_PALETTE, type Palette } from "@/lib/pack/palette";
 import { type Slice, sliceOf } from "@/lib/pack/slice";
 import type { KitTheme, ThemeLook } from "@/lib/pack/theme";
 import { type KitRead, type ModuleRead, useKitStore } from "@/state/kitStore";
@@ -209,6 +210,7 @@ export async function composedKitImages(
 }
 
 const NONE = new Map<string, OwnImage>();
+const NO_VARIANTS = new Map<string, Asset>();
 
 interface ShownKit {
   read: KitRead | undefined;
@@ -219,6 +221,8 @@ interface ShownKit {
   images: Map<string, OwnImage>;
   /** Every kit image in the themes, when the server has some in place. */
   themed: Asset[] | null;
+  /** The base's coloured variants the server's palette or neutral image changes (`kitVariantAssets`). */
+  variants: Map<string, Asset>;
 }
 /** What the last kit module read shows, kept until another read or other themes replace it. */
 const useShownKit = create<ShownKit>(() => ({
@@ -227,6 +231,7 @@ const useShownKit = create<ShownKit>(() => ({
   own: undefined,
   images: NONE,
   themed: null,
+  variants: NO_VARIANTS,
 }));
 let showing: { read: KitRead; themes: readonly string[]; own: unknown } | undefined;
 
@@ -249,6 +254,50 @@ export async function themedKitAssets(assets: Asset[], theme: ThemeLook): Promis
       }
     }),
   );
+}
+
+/**
+ * The base's coloured variants (`KitSlot.tint`) as `palette` colours them, by id, like the pack:
+ * the neutral image as `shown` has it, multiplied by the colour. `plain`: the same images before
+ * the themes. None for a variant the server holds an image of or a theme draws, shown as drawn,
+ * nor for one that is as Artisan ships it.
+ */
+export async function kitVariantAssets(
+  plain: Asset[],
+  shown: Asset[],
+  palette: Palette,
+): Promise<Map<string, Asset>> {
+  const out = new Map<string, Asset>();
+  const at = new Map(shown.map((asset, i) => [asset.id, i]));
+  for (const slot of KIT_SLOTS) {
+    if (!slot.tint) continue;
+    const i = at.get(KIT_PREFIX + slot.id);
+    const n = at.get(KIT_PREFIX + slot.tint.of);
+    if (i === undefined || n === undefined) continue;
+    const asset = shown[i] as Asset;
+    if (asset.contentHash !== "" || asset !== plain[i]) continue;
+    const neutral = shown[n] as Asset;
+    const colour = palette(slot.tint.color);
+    if (
+      neutral === plain[n] &&
+      neutral.contentHash === "" &&
+      colour === DEFAULT_PALETTE[slot.tint.color]
+    )
+      continue;
+    try {
+      const png = tintedPng(await assetBytes(neutral), colour);
+      if (png)
+        out.set(asset.id, {
+          ...asset,
+          width: neutral.width,
+          height: neutral.height,
+          previewUrl: toDataUrl(png),
+        });
+    } catch {
+      // A neutral image that cannot be read leaves the variant as shipped.
+    }
+  }
+  return out;
 }
 
 /**
@@ -339,29 +388,39 @@ export function useKitAssets(): Asset[] {
     const mine = { read, themes, own };
     showing = mine;
     const inTheme = activeKitTheme(readPublishedBinary);
-    void composedKitImages(read, inTheme, activePalette())
-      .then(async (images) => ({
-        images,
-        themed: inTheme ? await themedKitAssets(kitAssetsOf(read, images), inTheme) : null,
-      }))
-      .then(({ images, themed }) => {
-        if (showing === mine) useShownKit.setState({ read, themes, own, images, themed });
+    const palette = activePalette();
+    void composedKitImages(read, inTheme, palette)
+      .then(async (images) => {
+        const plain = kitAssetsOf(read, images);
+        const themed = inTheme ? await themedKitAssets(plain, inTheme) : null;
+        return {
+          images,
+          themed,
+          variants: await kitVariantAssets(plain, themed ?? plain, palette),
+        };
+      })
+      .then(({ images, themed, variants }) => {
+        if (showing === mine) useShownKit.setState({ read, themes, own, images, themed, variants });
       });
   }, [read, themes, own, current]);
   const composed = current ? shown.images : NONE;
   const themed = current ? shown.themed : null;
+  const variants = current ? shown.variants : NO_VARIANTS;
   // What the player's draft of the library holds and the server does not yet.
   const draft = useProjectDraftStore((s) => (read ? s.drafts[read.projectId] : undefined));
   const drafted = useMemo(() => libraryDraftAssets(read, draft), [read, draft]);
   return useMemo(() => {
+    const coloured = (asset: Asset) => variants.get(asset.id) ?? asset;
     const shownNow = themed ?? kitAssetsOf(read, composed);
-    if (drafted.length === 0) return shownNow;
+    if (drafted.length === 0) return variants.size === 0 ? shownNow : shownNow.map(coloured);
     const byId = new Map(drafted.map((asset) => [asset.id, asset]));
     // A theme in place keeps its drawing of an image the draft redraws; a new one is added.
-    const kept = shownNow.map((asset) => (themed ? asset : (byId.get(asset.id) ?? asset)));
+    const kept = shownNow.map((asset) =>
+      themed ? coloured(asset) : (byId.get(asset.id) ?? coloured(asset)),
+    );
     const known = new Set(shownNow.map((asset) => asset.id));
     return [...kept, ...drafted.filter((asset) => !known.has(asset.id))];
-  }, [read, composed, themed, drafted]);
+  }, [read, composed, themed, variants, drafted]);
 }
 
 /**
@@ -390,10 +449,13 @@ export function useKitAssetsIn(name: string | null): Asset[] {
     if (!read) return;
     let cancelled = false;
     const theme = name === null ? null : publishedKitTheme(read, name, own);
-    void composedKitImages(read, theme, serverPalette(read, own, name === null ? [] : [name]))
-      .then((images) => {
+    const palette = serverPalette(read, own, name === null ? [] : [name]);
+    void composedKitImages(read, theme, palette)
+      .then(async (images) => {
         const plain = kitAssetsOf(read, images);
-        return theme ? themedKitAssets(plain, theme) : plain;
+        const shown = theme ? await themedKitAssets(plain, theme) : plain;
+        const variants = await kitVariantAssets(plain, shown, palette);
+        return variants.size === 0 ? shown : shown.map((asset) => variants.get(asset.id) ?? asset);
       })
       .then((assets) => {
         if (!cancelled) setShown({ read, name, assets });

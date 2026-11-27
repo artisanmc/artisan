@@ -3,13 +3,14 @@ import { type BedrockMenu, bedrockMenusFromProject } from "./bedrock/bedrockMenu
 import { buildBedrockPack } from "./bedrock/bedrockPack";
 import { CODEPOINT_MIN } from "./codepoints";
 import { packComponents } from "./components";
-import { type ComposeRecipe, renderComposed } from "./compose";
+import { type ComposeRecipe, renderComposed, tintedPng } from "./compose";
 import { type DiskAsset, diskAssetsFromTree } from "./diskAssets";
 import type { TextUpTexture } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons";
 import { pixelSize } from "./imageFunction";
 import { ImageNames, namedImageRow, themeImagePath } from "./imageNames";
 import {
+  type KitImage,
   KIT_ASCENT,
   KIT_FILES,
   KIT_FOLDER,
@@ -131,7 +132,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
   /** The margins of the server's common images that are sliced (`slice.ts`), by name. */
   const kitSlices = new Map<string, Slice>();
   const kitBase = new Map<string, Uint8Array | null>();
-  const kitImageOf = async (name: string) => {
+  const kitImageOf = async (name: string): Promise<KitImage | null> => {
     let base = kitBase.get(name);
     if (base === undefined) {
       const path = kitShippedPath(name);
@@ -140,7 +141,19 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         : null;
       kitBase.set(name, base);
     }
-    return kitImage(name, kitImages.get(name), input.kitImage, base);
+    const image = await kitImage(name, kitImages.get(name), input.kitImage, base);
+    // A coloured variant of the base (`KitSlot.tint`): its neutral image as the server and its
+    // themes show it, in the palette's colour. The server's own image of the name is as drawn.
+    const tint = kitSlot(name)?.tint;
+    if (!image || !tint || image.png === kitImages.get(name)) return image;
+    const neutral = await kitImageOf(tint.of);
+    if (!neutral) return image;
+    const png = tintedPng(
+      theme ? await theme.shown(tint.of, neutral.png) : neutral.png,
+      palette(tint.color),
+    );
+    const size = png && pixelSize(png);
+    return png && size ? { ...image, png, width: size.width, height: size.height } : image;
   };
   // Whether what the common image `name` shows (`png`) is the server's own image, not the base's.
   const serverOwn = (name: string, png: Uint8Array) => png === kitImages.get(name);

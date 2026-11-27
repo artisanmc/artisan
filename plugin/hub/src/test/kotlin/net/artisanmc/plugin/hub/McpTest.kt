@@ -373,7 +373,7 @@ class McpTest {
         // A server without a kit module has the base as Artisan ships it, numbered after its own images.
         val base = tool(access, "survey_ui", "server" to "u-local")["structuredContent"]["base"]
         assertEquals(net.artisanmc.plugin.pack.Kit.slots.map { "kit:${it.id}" }, base["images"].map { it["image"].asText() })
-        assertEquals((2..20).toList(), base["images"].map { it["n"].asInt() })
+        assertEquals((2..24).toList(), base["images"].map { it["n"].asInt() })
         assertEquals(setOf("artisan"), base["images"].map { it["drawn_by"].asText() }.toSet())
         assertEquals(54 to 18, base["images"][3].let { it["width"].asInt() to it["height"].asInt() })
 

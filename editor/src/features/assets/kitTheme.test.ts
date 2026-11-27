@@ -6,7 +6,7 @@ import { useKitStore } from "@/state/kitStore";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { assetBytes } from "./assetBytes";
 import { composedView } from "./composedAssets";
-import { kitAssetsOf, themedKitAssets } from "./kitAssets";
+import { kitAssetsOf, kitVariantAssets, themedKitAssets } from "./kitAssets";
 import {
   activeKitTheme,
   activePalette,
@@ -31,6 +31,8 @@ vi.mock("@/lib/pack/kitUrls", () => ({
   kitImageBytes: async (id: string) => {
     if (id === "cell") return solid(18, 18, GREEN);
     if (id === "button.3x1") return solid(54, 18, GREEN);
+    if (id === "button.neutral.3x1") return solid(54, 18, [255, 255, 255]);
+    if (id === "button.warning.3x1") return solid(54, 18, GREEN);
     throw new Error(`kit_image_missing:${id}`);
   },
 }));
@@ -230,5 +232,31 @@ describe("the kit in the server's theme", () => {
       await pixel(await composedView(card, disk, white, none, null, false, undefined, palette)),
     ).toEqual([0x60, 0, 0]);
     expect(await pixel(await composedView(card, disk, white, none))).toEqual([255, 255, 255]);
+  });
+
+  test("a coloured variant of the base is its neutral image, as shown, in the palette's colour", async () => {
+    const plain = kitAssetsOf(undefined);
+    const first = async (asset: { id: string; previewUrl?: string } | undefined) => [
+      ...decodePng(await assetBytes(asset as never)).data.slice(0, 3),
+    ];
+    // As Artisan ships it: nothing to draw again.
+    expect((await kitVariantAssets(plain, plain, serverPalette(undefined, {}, []))).size).toBe(0);
+    // A palette's colour: that variant alone.
+    const kit = { projectId: "k", files: { "palette.yml": 'primary: "#b3261e"\n' }, binaries: [] };
+    const red = await kitVariantAssets(plain, plain, serverPalette(kit, {}, []));
+    expect([...red.keys()]).toEqual(["kit:button.primary.3x1"]);
+    expect(await first(red.get("kit:button.primary.3x1"))).toEqual(RED);
+    // A theme that draws the neutral image: every variant follows; one it draws itself stays.
+    const theme = kitTheme(
+      new Map([
+        ["button.neutral.3x1", "n.png"],
+        ["button.warning.3x1", "w.png"],
+      ]),
+      (path) => (path === "n.png" ? solid(54, 18, [128, 128, 128]) : solid(54, 18, DRAWN)),
+    );
+    const themed = await themedKitAssets(plain, theme);
+    const grey = await kitVariantAssets(plain, themed, serverPalette(kit, {}, []));
+    expect([...grey.keys()]).toEqual(["kit:button.primary.3x1", "kit:button.success.3x1"]);
+    expect(await first(grey.get("kit:button.primary.3x1"))).toEqual([90, 19, 15]);
   });
 });

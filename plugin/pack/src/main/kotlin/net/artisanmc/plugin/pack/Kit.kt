@@ -50,13 +50,23 @@ object Kit {
         val id: String, val width: Int, val height: Int,
         /** The margins the base's drawing keeps when a button is larger than it (`slice`); null: drawn at its size. */
         val slice: Slice? = null,
+        /** A coloured variant: what its drawing is made of ([Tint]); null for an image drawn as it is. */
+        val tint: Tint? = null,
     )
+
+    /**
+     * A coloured variant of the base (ADR `component-colours`, decision 3): its drawing is the
+     * image [of] as the server shows it, multiplied by the palette's colour [color]. The PNG
+     * shipped under its id is that drawing with the default palette.
+     */
+    class Tint(val of: String, val color: String)
 
     /** The base, in the order it is shown. */
     val slots: List<Slot> by lazy {
         ObjectMapper().readTree(resource("slots.json")).map { node ->
             val slice = node["slice"]?.let { Slice(it["left"].asInt(), it["right"].asInt(), it["top"].asInt(), it["bottom"].asInt()) }
-            Slot(node["id"].asText(), node["width"].asInt(), node["height"].asInt(), slice)
+            val tint = node["tint"]?.let { Tint(it["of"].asText(), it["color"].asText()) }
+            Slot(node["id"].asText(), node["width"].asInt(), node["height"].asInt(), slice, tint)
         }
     }
 
@@ -95,6 +105,18 @@ object Kit {
             ?: slot(name)?.let { Image(shipped(it), it.width, it.height, true) }
         val mine = own?.let { png -> runCatching { Png.decode(png) }.getOrNull()?.let { Image(png, it.width, it.height, false) } }
         return mine ?: shipped
+    }
+
+    /**
+     * The base's drawing of the coloured variant [image] ([Tint]) in [palette]: [neutral] (its
+     * [Tint.of] as the server and its themes show it) multiplied by the colour. [image] itself
+     * when it is the server's own, when the slot is no variant, or when nothing can be tinted.
+     */
+    fun tinted(name: String, image: Image, palette: Palette, neutral: (String) -> ByteArray?): Image {
+        val tint = slot(name)?.tint?.takeIf { image.shipped } ?: return image
+        val colour = ComposedImages.tintColour(palette.colour(tint.color)) ?: return image
+        val source = neutral(tint.of)?.let { runCatching { Png.decode(it) }.getOrNull() } ?: return image
+        return Image(Png.encode(ComposedImages.tinted(source, colour)), source.width, source.height, true)
     }
 
     private fun resource(name: String): ByteArray =

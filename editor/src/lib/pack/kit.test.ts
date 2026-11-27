@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
+import { tintedPng } from "./compose";
 import {
   KIT_SLOTS,
   assetNamesIn,
@@ -20,6 +21,7 @@ import {
   kitShippedPath,
   moduleImageKey,
 } from "./kit";
+import { DEFAULT_PALETTE } from "./palette";
 import { createImage, decodePng, encodePng } from "./png";
 
 const shipped = async (id: string) =>
@@ -32,8 +34,28 @@ const png = (width: number, height: number) => {
 };
 
 describe("UI kit", () => {
+  test("a coloured variant ships its neutral image in the default palette's colour", async () => {
+    const variants = KIT_SLOTS.filter((s) => s.tint);
+    expect(variants.map((s) => s.id)).toEqual([
+      "button.primary.3x1",
+      "button.success.3x1",
+      "button.warning.3x1",
+    ]);
+    for (const slot of variants) {
+      const of = KIT_SLOTS.find((s) => s.id === slot.tint!.of);
+      expect(of && !of.tint).toBe(true);
+      expect({ width: slot.width, height: slot.height, slice: slot.slice }).toEqual({
+        width: of!.width,
+        height: of!.height,
+        slice: of!.slice,
+      });
+      const drawn = tintedPng(await shipped(of!.id), DEFAULT_PALETTE[slot.tint!.color]);
+      expect([...decodePng(await shipped(slot.id)).data]).toEqual([...decodePng(drawn!).data]);
+    }
+  });
+
   test("every slot of the base ships an image of its size", async () => {
-    expect(KIT_SLOTS).toHaveLength(19);
+    expect(KIT_SLOTS).toHaveLength(23);
     expect(new Set(KIT_SLOTS.map((s) => s.id)).size).toBe(KIT_SLOTS.length);
     for (const slot of KIT_SLOTS) {
       const { width, height } = decodePng(await shipped(slot.id));

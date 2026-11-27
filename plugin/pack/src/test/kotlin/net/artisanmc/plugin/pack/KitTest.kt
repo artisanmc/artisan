@@ -11,12 +11,37 @@ class KitTest {
 
     @Test
     fun `every slot of the base ships an image of its size`() {
-        assertEquals(19, Kit.slots.size)
+        assertEquals(23, Kit.slots.size)
         assertEquals(Kit.slots.size, Kit.slots.map { it.id }.toSet().size)
         for (slot in Kit.slots) {
             val image = Png.decode(Kit.shipped(slot))
             assertEquals("${slot.id} ${slot.width}x${slot.height}", "${slot.id} ${image.width}x${image.height}")
         }
+    }
+
+    @Test
+    fun `a coloured variant ships its neutral image in the default palette's colour, and is redrawn in the server's`() {
+        val variants = Kit.slots.filter { it.tint != null }
+        assertEquals(listOf("button.primary.3x1", "button.success.3x1", "button.warning.3x1"), variants.map { it.id })
+        val default = Palette.of(emptyList())
+        for (slot in variants) {
+            val of = Kit.slot(slot.tint!!.of)!!
+            assertNull(of.tint)
+            assertEquals(listOf(of.width, of.height), listOf(slot.width, slot.height))
+            val shipped = Kit.image(slot.id, null)!!
+            val drawn = Kit.tinted(slot.id, shipped, default) { Kit.shipped(Kit.slot(it)!!) }
+            assertTrue(Png.decode(Kit.shipped(slot)).data.contentEquals(Png.decode(drawn.png).data), slot.id)
+        }
+        // In another palette, over the neutral image the server shows; the server's own image and a plain slot stay.
+        val white = Png.encode(RgbaImage(2, 1).also { it.data.fill(0xff.toByte()) })
+        val red = Kit.tinted("button.primary.3x1", Kit.image("button.primary.3x1", null)!!, Palette.of(listOf("primary: \"#b3261e\"\n"))) { white }
+        assertEquals(listOf(2, 1, true), listOf(red.width, red.height, red.shipped))
+        assertEquals(listOf(0xb3, 0x26, 0x1e, 0xff), Png.decode(red.png).data.take(4).map { it.toInt() and 0xff })
+        val own = Kit.image("button.primary.3x1", png(54, 18))!!
+        assertTrue(Kit.tinted("button.primary.3x1", own, default) { white } === own)
+        val plain = Kit.image("button.3x1", null)!!
+        assertTrue(Kit.tinted("button.3x1", plain, default) { white } === plain)
+        assertTrue(Kit.tinted("button.primary.3x1", Kit.image("button.primary.3x1", null)!!, default) { null }.shipped)
     }
 
     @Test

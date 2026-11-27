@@ -71,6 +71,12 @@ export interface KitSlot {
   height: number;
   /** The margins the base's drawing keeps when a button is larger than it; absent: drawn at its size. */
   slice?: { left: number; right: number; top: number; bottom: number };
+  /**
+   * A coloured variant (ADR `component-colours`, decision 3): the base's drawing of it is the
+   * image `of` as the server shows it, multiplied by the palette's colour `color`. The PNG
+   * shipped under its id is that drawing with the default palette.
+   */
+  tint?: { of: string; color: string };
 }
 
 /** The base, in the order it is shown. */
