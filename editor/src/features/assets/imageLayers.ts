@@ -14,10 +14,15 @@ import { assetBytes } from "./assetBytes";
 
 /**
  * Whether `asset` is a PNG that can be given layers: any image with a file, a texture as much as
- * a glyph. A font is a set of glyphs, not one picture.
+ * a glyph. A font is a set of glyphs, not one picture, and a theme's image of a module's stays flat.
  */
 export const canHaveLayers = (asset: Asset): boolean =>
-  asset.type !== "font" && !asset.compose && asset.width > 0 && asset.height > 0;
+  asset.type !== "font" &&
+  !asset.compose &&
+  // A theme's image of a module's is one PNG under that module: the packs read no recipe there.
+  !asset.under &&
+  asset.width > 0 &&
+  asset.height > 0;
 
 /** The type an image made of `asset` keeps: its layers and what it becomes stay of its kind. */
 const kindOf = (asset: Asset): "glyph" | "texture" =>

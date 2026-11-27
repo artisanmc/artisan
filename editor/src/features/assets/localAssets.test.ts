@@ -301,6 +301,79 @@ describe("performLocalAssetMutation", () => {
     expect(result.asset!.fontMeta!.glyphMap).toHaveLength(2);
   });
 
+  it("writes a theme's image of a module's under that module, lists it apart, and deletes it", async () => {
+    const hub = fakeHub(empty());
+    const bytes = png(12, 6);
+    const fields = { type: "texture", name: "banner", under: "shop" };
+    const made = await performLocalAssetMutation(
+      "p",
+      op(hub, {
+        suffix: "",
+        method: "POST",
+        fields,
+        file: { name: "b.png", type: "image/png", base64: b64(bytes) },
+      }),
+    );
+    expect(made.asset).toMatchObject({
+      id: "shop/banner",
+      name: "banner",
+      under: "shop",
+      type: "texture",
+      width: 12,
+      height: 6,
+    });
+    // The PNG the packs read, and beside it the size the editor shows.
+    expect(made.draft.snapshot.binaryTree!["overrides/shop/banner.png"]?.hash).toBe(
+      sha256Hex(bytes),
+    );
+    expect(parse(made.draft.snapshot.tree["overrides/shop/banner.yml"]!)).toEqual({
+      width: 12,
+      height: 6,
+    });
+    expect(made.draft.snapshot.binaryTree).not.toHaveProperty("assets/textures/banner.png");
+    const listed = await listLocalAssets("p", {}, "d1");
+    expect(listed.map((a) => [a.id, a.under, a.width])).toEqual([["shop/banner", "shop", 12]]);
+
+    // A second one of the name is refused; `replace` writes over it; nothing else is edited there.
+    const again = {
+      suffix: "",
+      method: "POST" as const,
+      fields,
+      file: { name: "b.png", type: "image/png", base64: b64(png(4, 4)) },
+    };
+    await expect(performLocalAssetMutation("p", op(hub, again))).rejects.toMatchObject({
+      status: 409,
+    });
+    const over = await performLocalAssetMutation(
+      "p",
+      op(hub, { ...again, fields: { ...fields, replace: "true" } }),
+    );
+    expect(over.asset).toMatchObject({ id: "shop/banner", width: 4 });
+    await expect(
+      performLocalAssetMutation(
+        "p",
+        op(hub, {
+          suffix: `/${encodeURIComponent("shop/banner")}`,
+          method: "PATCH",
+          fields: { name: "other" },
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      performLocalAssetMutation(
+        "p",
+        op(hub, { ...again, fields: { type: "texture", name: "banner", under: "artisan" } }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const removed = await performLocalAssetMutation(
+      "p",
+      op(hub, { suffix: `/${encodeURIComponent("shop/banner")}`, method: "DELETE", fields: {} }),
+    );
+    expect(removed.draft.snapshot.binaryTree).not.toHaveProperty("overrides/shop/banner.png");
+    expect(removed.draft.snapshot.tree).not.toHaveProperty("overrides/shop/banner.yml");
+  });
+
   it("deletes an image and its descriptor, and duplicates a glyph on a new codepoint", async () => {
     const bytes = png(8, 8);
     const snapshot = empty();

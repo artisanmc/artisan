@@ -45,6 +45,8 @@ export function useThemePlaceMark(projectId: string): (asset: Asset) => ThemePla
   return (asset) => {
     if ((!server && !theme) || asset.type === "font") return null;
     if (server && !asset.contentHash) return null;
+    // A module's image a theme replaces wears its module's group, not a mark against the base.
+    if (asset.under) return null;
     return themePlaceMark(asset.name, server ? "server" : "theme", serverNames);
   };
 }

@@ -1,6 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import { assetDiskPath } from "@/lib/pack/assetDiskWrite";
 import { FONT_DIR } from "@/lib/pack/fontOnDisk";
+import { themeModuleDrawingPath } from "@/lib/pack/theme";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 
@@ -31,6 +32,14 @@ function fileUrl(asset: Asset, path: string, hash: string | undefined, published
 /** A texture or glyph PNG: its real path in the tree, or the canonical path as a fallback. */
 export function localAssetPreviewUrl(asset: Asset): string {
   const { published, draft } = trees(asset.projectId, asset.draftId);
+  // A theme's image of a module's is one file, under that module.
+  if (asset.under)
+    return fileUrl(
+      asset,
+      themeModuleDrawingPath(asset.under, asset.name),
+      asset.contentHash,
+      published,
+    );
   const own = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
   const paths = Object.keys({ ...published, ...draft });
   const at = (dir: string) =>

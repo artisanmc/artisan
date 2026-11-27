@@ -21,6 +21,7 @@ async function write(request: SaveAsRequest): Promise<Asset> {
     name: request.name,
     ...(request.ascent === undefined ? {} : { ascent: request.ascent }),
     ...(request.usages === undefined ? {} : { usages: request.usages }),
+    ...(request.under ? { under: request.under } : {}),
   };
   try {
     return await uploadAsset(request.target, input);
@@ -31,6 +32,7 @@ async function write(request: SaveAsRequest): Promise<Asset> {
       file: input.file,
       type: input.type,
       name: input.name,
+      ...(request.under ? { under: request.under } : {}),
       replace: true,
     });
   }
@@ -62,7 +64,7 @@ export function useSaveAsAsked(projectId: ProjectId) {
     }
     // Once per request, when the images are read and the draft has its owner.
     if (loading || !user || tried.current === request) return;
-    if (kitSlot(request.name) && !holdsCommonNames(projectId)) return;
+    if (!request.under && kitSlot(request.name) && !holdsCommonNames(projectId)) return;
     tried.current = request;
     void write(request)
       .then((asset) => {

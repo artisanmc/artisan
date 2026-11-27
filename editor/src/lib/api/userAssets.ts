@@ -74,11 +74,14 @@ export async function uploadAsset(
     replace?: boolean;
     /** The same image with other pixels, at the same size: what else it has is kept. */
     retouch?: boolean;
+    /** In a theme: the module whose image of that name this one replaces (`Asset.under`). */
+    under?: string;
   },
 ): Promise<Asset> {
   const result = await uploadFile(projectId, input.file, {
     type: input.type,
     name: input.name,
+    ...(input.under ? { under: input.under } : {}),
     ...(input.replace ? { replace: "true" } : {}),
     ...(input.retouch ? { retouch: "true" } : {}),
     ...(input.usages === undefined ? {} : { usages: JSON.stringify(input.usages) }),

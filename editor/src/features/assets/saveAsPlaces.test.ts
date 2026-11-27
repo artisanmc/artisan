@@ -10,11 +10,10 @@ const read = (projectId: string, ...paths: string[]) => ({
 const kit = {
   read: read("kit", "assets/glyphs/close.1x1.png"),
   own: {
-    noel: read("t-noel", "assets/textures/button.3x1.png"),
+    noel: read("t-noel", "assets/textures/button.3x1.png", "overrides/boutique/banner.png"),
     ete: read("t-ete"),
     vieux: read("t-vieux"),
   },
-  modules: [{ ...read("shop", "assets/textures/banner.png"), folder: "boutique" }],
   // The lowest first.
   themes: ["ete", "noel"],
 };
@@ -25,26 +24,26 @@ const use = (projectId: string, menuId: string): ImageUse => ({
 });
 
 describe("saveAsPlaces", () => {
-  it("lists the places in the order they are looked in, then the themes put away and the modules", () => {
+  it("lists the places in the order they are looked in, then the themes put away; a module is no place", () => {
     const places = saveAsPlaces(kit);
     expect(places.map((p) => `${p.kind}:${p.name}:${p.inPlace}`)).toEqual([
       "theme:noel:true",
       "theme:ete:true",
       "server::true",
       "theme:vieux:false",
-      "module:boutique:true",
     ]);
     expect([...(places[0]?.holds ?? [])]).toEqual(["button.3x1"]);
+    // What a theme replaces in a module is told apart from its images of common names.
+    expect([...(places[0]?.holdsUnder ?? [])]).toEqual(["boutique/banner"]);
   });
 });
 
 describe("saveAsNameProblem", () => {
-  it("lets a theme hold a name of the base, a module a plain name only", () => {
-    expect(saveAsNameProblem("banner", "module")).toBeNull();
-    expect(saveAsNameProblem("button.3x1", "theme")).toBeNull();
-    expect(saveAsNameProblem("button.3x1", "new")).toBeNull();
-    expect(saveAsNameProblem("button.3x1", "module")).toBe("base_name_in_module");
-    expect(saveAsNameProblem("Big Banner", "theme")).toBe("invalid_name");
+  it("takes a plain name or a name of the base", () => {
+    expect(saveAsNameProblem("banner")).toBeNull();
+    expect(saveAsNameProblem("button.3x1")).toBeNull();
+    expect(saveAsNameProblem("Big Banner")).toBe("invalid_name");
+    expect(saveAsNameProblem("nothing.9x9")).toBe("invalid_name");
   });
 });
 
@@ -69,7 +68,7 @@ describe("saveAsEffect", () => {
       ],
     ],
   ]);
-  const [noel, , , vieux, boutique] = saveAsPlaces(kit);
+  const [noel, , , vieux] = saveAsPlaces(kit);
 
   it("counts the menus of every module that take the image saved in a theme", () => {
     expect(saveAsEffect("button.3x1", noel ?? null, uses)).toEqual({
@@ -88,18 +87,5 @@ describe("saveAsEffect", () => {
       overwrites: false,
     });
     expect(saveAsEffect("button.3x1", null, uses).away).toBe(true);
-  });
-
-  it("counts the module's own menus alone for an image saved in a module", () => {
-    expect(saveAsEffect("button.3x1", boutique ?? null, uses)).toMatchObject({
-      kind: "replaces",
-      menus: 2,
-      modules: 1,
-    });
-    expect(saveAsEffect("banner", boutique ?? null, uses)).toMatchObject({
-      kind: "added",
-      menus: 0,
-      overwrites: true,
-    });
   });
 });

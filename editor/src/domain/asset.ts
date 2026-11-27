@@ -36,6 +36,11 @@ export interface Asset {
   function?: ImageFunction;
   /** The margins of a sliced image (`lib/pack/slice.ts`); absent for an image drawn by its fit. */
   slice?: Slice;
+  /**
+   * In a theme, the module whose image of this name it replaces (`overrides/<module>/<name>.png`,
+   * ADR `themes-reach-modules`): the module's folder. Its id is `<module>/<name>`.
+   */
+  under?: string;
   /** A theme's own image (`<theme>:<name>`): a name alone never reaches it (`imageNamed`). */
   qualifiedOnly?: boolean;
   draftId?: string;

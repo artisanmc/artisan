@@ -73,17 +73,42 @@ describe("SaveAsDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("refuses a name of the base in a module, and the same name in the same place", () => {
+  it("offers no module as a place, and refuses the same name in the same place", () => {
     render(<SaveAsDialog projectId="kit" asset={asset} server={server()} onClose={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Où"), { target: { value: "shop" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("ne peut être porté que par un thème");
+    const where = screen.getByLabelText("Où") as HTMLSelectElement;
+    expect([...where.options].map((o) => o.value).filter((v) => v === "shop")).toEqual([]);
+    fireEvent.change(where, { target: { value: "kit" } });
     expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "big" } });
-    expect(screen.getByTestId("save-as-effect")).toHaveTextContent("ajoutée au module");
+    expect(screen.getByTestId("save-as-effect")).toHaveTextContent("ajoutée à cet endroit");
     expect(screen.getByRole("button", { name: "Enregistrer" })).toBeEnabled();
+  });
+
+  it("saves a module's own image into a theme under that module, its name kept", async () => {
+    const on = server();
+    const banner = { ...asset, id: "banner", name: "banner", projectId: "shop" };
+    render(<SaveAsDialog projectId="shop" asset={banner} server={on} onClose={vi.fn()} />);
+    expect((screen.getByLabelText("Où") as HTMLSelectElement).value).toBe("t-noel");
+    expect(screen.getByLabelText("Nom")).toBeDisabled();
+    expect(screen.getByTestId("save-as-effect")).toHaveTextContent(
+      "Remplace « banner » du module « boutique » quand ce thème est en place.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(on.open).toHaveBeenCalledWith("t-noel"));
+    expect(useResourcesView.getState().saveAs).toMatchObject({
+      name: "banner",
+      target: "t-noel",
+      from: "shop",
+      under: "boutique",
+    });
+  });
+
+  it("saves a module's own image into the library under a name, as any image", () => {
+    const banner = { ...asset, id: "banner", name: "banner", projectId: "shop" };
+    render(<SaveAsDialog projectId="shop" asset={banner} server={server()} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Où"), { target: { value: "kit" } });
-    fireEvent.change(screen.getByLabelText("Nom"), { target: { value: "button.3x1" } });
-    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeDisabled();
+    expect(screen.getByLabelText("Nom")).toBeEnabled();
+    expect(screen.getByTestId("save-as-effect")).toHaveTextContent("ajoutée à cet endroit");
   });
 
   it("creates the theme on the way, and reads the server's themes again", async () => {
