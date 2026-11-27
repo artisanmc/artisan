@@ -471,6 +471,11 @@ export default {
         drafted:
           "These colours are in your draft of the theme: open its folder and deploy it to see them in game.",
         failed: "The colours could not be saved to your draft: {{detail}}",
+        libraryTitle: "The server's colours",
+        libraryHint:
+          "The colour each name has on this server, in every module. The base's coloured buttons, and any image tinted with a name, follow it. A theme in place may give a name another colour.",
+        libraryReset: "Back to the default colour",
+        libraryDrafted: "These colours are in your draft: deploy it to see them in game.",
       },
       compare: "Without and with, in a menu",
       putHint:

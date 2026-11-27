@@ -478,6 +478,12 @@ const fr: typeof en = {
         drafted:
           "Ces couleurs sont dans votre brouillon du thème : ouvrez son dossier et déployez-le pour les voir en jeu.",
         failed: "Les couleurs n'ont pas pu être enregistrées dans votre brouillon : {{detail}}",
+        libraryTitle: "Les couleurs du serveur",
+        libraryHint:
+          "La couleur de chaque nom sur ce serveur, dans tous les modules. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un thème en place peut donner une autre couleur à un nom.",
+        libraryReset: "Revenir à la couleur par défaut",
+        libraryDrafted:
+          "Ces couleurs sont dans votre brouillon : déployez-le pour les voir en jeu.",
       },
       compare: "Sans et avec, dans un menu",
       putHint:

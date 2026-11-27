@@ -56,6 +56,8 @@ the base's `button`; the palette edited on a theme's page. Follows `themes-reach
    menu; a colour picked shows on it at once and is written to `palette.yml` in the player's
    draft of the theme, which reaches the game when deployed. A theme the library still keeps in
    `themes/<name>/` has no palette: a palette is read at the root of a theme's own Project.
+   The library's palette is edited the same way in its Project, above its images
+   (`LibraryPalette`), with the base's coloured buttons shown in the colours as picked.
 
 6. **Both builders, same bytes.** The multiplication is on whole numbers
    (`(c * t + 127) / 255`), with a case in the shared pack vectors.

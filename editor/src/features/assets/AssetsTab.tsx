@@ -28,6 +28,7 @@ import { AssetUploadDialog } from "./AssetUploadDialog";
 import { CommonImageBadge, CommonImageMisfit, CommonImageOriginal } from "./CommonImageState";
 import { ImageNewDialog } from "./ImageNewDialog";
 import { ImageStudio } from "./ImageStudio";
+import { LibraryPalette } from "./LibraryPalette";
 import type { SaveAsServer } from "./SaveAsDialog";
 import { useAssetStore } from "./assetStore";
 import { copyAssetInto } from "./copyAssetInto";
@@ -285,14 +286,22 @@ export function AssetsTab({
                 }}
               />
             ) : (
-              <OwnAssets
-                projectId={projectId}
-                compact={compact}
-                onAddedToLibrary={(asset) => {
-                  setAddedCommon(asset.id);
-                  setSourceId(COMMON_IMAGES);
-                }}
-              />
+              <div className="flex h-full min-h-0 flex-col">
+                {/* The library is where the server's palette is: its colours, above its images. */}
+                {!compact && isKitModule(projectId) ? (
+                  <LibraryPalette projectId={projectId} />
+                ) : null}
+                <div className="min-h-0 flex-1">
+                  <OwnAssets
+                    projectId={projectId}
+                    compact={compact}
+                    onAddedToLibrary={(asset) => {
+                      setAddedCommon(asset.id);
+                      setSourceId(COMMON_IMAGES);
+                    }}
+                  />
+                </div>
+              </div>
             )}
           </div>
         )}
