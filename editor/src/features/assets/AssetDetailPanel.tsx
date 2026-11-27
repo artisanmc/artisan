@@ -208,7 +208,7 @@ export function AssetDetailPanel({
         <Input
           id={`${inputId}-name`}
           value={name}
-          disabled={asShipped}
+          disabled={asShipped || !!asset.under}
           onChange={(e) => setName(e.target.value)}
         />
       </label>

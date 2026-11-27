@@ -19,6 +19,8 @@ type Bytes = Uint8Array | null | undefined;
 /** An image a composed one may be made of: a module's PNG the pack registers. */
 const isLayer = (asset: DiskAsset) =>
   !asset.compose &&
+  // A theme's image of a module's is under that module's name, not the theme's.
+  !(asset.row as { under?: string }).under &&
   (asset.row.type === "texture" || (asset.row.type === "glyph" && asset.row.codepoint !== null));
 
 export function toDataUrl(png: Uint8Array): string {

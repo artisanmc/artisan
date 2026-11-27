@@ -72,17 +72,21 @@ example). The other modules are read as deployed, the open module's menus, compo
 and files as you are editing them. A menu whose module holds an image of the same name is not listed,
 since it shows its own.
 
-**Save as.** In the atelier, under the layers, **Save as** copies the image open under a name
-into another place: a theme of the server, the server's own theme, a module, or a new theme
-created on the way. Only a name and a place are asked. Before you confirm, the dialog says what
-the copy changes: how many menus of how many modules show it in place of the image of that
-name, that nothing changes in game while the theme is put away, and that the place already
-has an image of that name, which is then replaced. The copy is the image as saved (save
-first), flat even when the image is made of layers, and it goes to the place's draft: deploy
-that place for the server to take it. The image you started from does not change. To make a
-module's image common, save it as into the server's theme, then delete it in the module: its
-menus take the common one, with nothing to rewrite since the name is the same. A name of
-Artisan's base (`button.3x1`) can be held by a theme only. A font is not saved as.
+**Save as.** In the atelier, under the layers, **Save as** copies the image open into another
+place: the server's library, a theme of the server, or a new theme created on the way. Only a
+name and a place are asked. A module's own image saved into a theme keeps its name and
+replaces that module's image, and no other's, while the theme is in place: the theme's
+Resources list it under the module's name. Any other copy is saved under the name you give.
+Before you confirm, the dialog says what the copy changes: which module's image it replaces,
+or how many menus of how many modules show it in place of the image of that name, that nothing
+changes in game while the theme is put away, and that the place already has that image, which
+is then replaced. The copy is the image as saved (save first), flat even when the image is
+made of layers, and it goes to the place's draft: deploy that place for the server to take it.
+The image you started from does not change. To make a module's image common, save it as into
+the server's library, then delete it in the module: its menus take the common one, with
+nothing to rewrite since the name is the same. A name of Artisan's base (`button.3x1`) can be
+held by a theme only. For now the editor's canvas still shows a module's image as the module
+holds it: the resource pack applies the theme. A font is not saved as.
 
 **Resources, one screen.** The server's **Resources** tab and a module's **Resources** show
 the same list of places on the left, in the order an image's name is looked up:

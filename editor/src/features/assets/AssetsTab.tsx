@@ -658,23 +658,28 @@ function OwnAssets({
     shipped: !isKitModule(projectId),
   });
   const shippedOnes = filtered.filter(isShipped);
+  // A theme's images of modules (`Asset.under`), one part per module after the theme's own.
+  const underModules = [...new Set(filtered.flatMap((asset) => (asset.under ? [asset.under] : [])))]
+    .sort()
+    .map((module) => [`under:${module}`, filtered.filter((a) => a.under === module)] as const);
   const groups: AssetGroup[] | undefined =
-    shippedOnes.length === 0
+    shippedOnes.length === 0 && underModules.length === 0
       ? undefined
-      : (
-          [
-            ["own", filtered.filter((asset) => !isShipped(asset))],
-            ["shipped", shippedOnes],
-          ] as const
-        ).map(([key, list]) => ({
+      : [
+          ["own", filtered.filter((asset) => !isShipped(asset) && !asset.under)] as const,
+          ...underModules,
+          ...(shippedOnes.length > 0 ? [["shipped", shippedOnes] as const] : []),
+        ].map(([key, list]) => ({
           key,
-          label: t(
-            key === "own"
-              ? "resources.group.own"
-              : isKitModule(projectId)
-                ? "resources.group.shippedArtisan"
-                : "resources.group.shippedModule",
-          ),
+          label: key.startsWith("under:")
+            ? t("resources.group.inModule", { name: key.slice("under:".length) })
+            : t(
+                key === "own"
+                  ? "resources.group.own"
+                  : isKitModule(projectId)
+                    ? "resources.group.shippedArtisan"
+                    : "resources.group.shippedModule",
+              ),
           assets: list,
           open: search !== "" || !folded[key],
           onToggle: () => setFolded((held) => ({ ...held, [key]: !held[key] })),

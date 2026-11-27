@@ -1,20 +1,34 @@
 import { type ImageUse, KIT_FOLDER, commonImageKey, kitSlot } from "@/lib/pack/kit";
-import { isThemeName } from "@/lib/pack/theme";
-import type { KitRead, ModuleRead } from "@/state/kitStore";
+import { isThemeName, themeModuleImage } from "@/lib/pack/theme";
+import type { KitRead } from "@/state/kitStore";
 
-/** A place an image can be saved in (`SaveAsDialog`): a theme of the server, its own theme, a module. */
+/**
+ * A place an image can be saved in (`SaveAsDialog`): a theme of the server or its library (ADR
+ * `themes-reach-modules`, decision 4). A module is none: it holds what it was shipped with.
+ */
 export interface SaveAsPlace {
-  kind: "theme" | "server" | "module";
+  kind: "theme" | "server";
   projectId: string;
-  /** A theme's name or a module's folder; empty for the server's theme, which the dialog names. */
+  /** A theme's name; empty for the server's library, which the dialog names. */
   name: string;
   /** A theme: whether the server's pack is built in it. The server's theme always is. */
   inPlace: boolean;
   /** The image names the place holds, as published. */
   holds: ReadonlySet<string>;
+  /** A theme: the images of modules it replaces, as published, each as `<module>/<name>`. */
+  holdsUnder: ReadonlySet<string>;
 }
 
 const IMAGE = /^assets\/(?:glyphs|textures)\/([^/]+)\.(?:png|ya?ml)$/;
+
+function heldUnder(read: KitRead): Set<string> {
+  const names = new Set<string>();
+  for (const { path } of read.binaries) {
+    const at = themeModuleImage(path);
+    if (at) names.add(`${at.module}/${at.name}`);
+  }
+  return names;
+}
 
 function heldNames(read: KitRead): Set<string> {
   const names = new Set<string>();
@@ -27,12 +41,11 @@ function heldNames(read: KitRead): Set<string> {
 
 /**
  * The places of a server in the order they are looked in (ADR `resources-one-screen`, decision
- * 2): its themes in place from the highest, its own theme, the themes put away, then its modules.
+ * 2): its themes in place from the highest, its library, then the themes put away.
  */
 export function saveAsPlaces(kit: {
   read: KitRead | undefined;
   own: Readonly<Record<string, KitRead>>;
-  modules: readonly ModuleRead[];
   themes: readonly string[];
 }): SaveAsPlace[] {
   const theme = (name: string): SaveAsPlace[] => {
@@ -45,6 +58,7 @@ export function saveAsPlaces(kit: {
             name,
             inPlace: kit.themes.includes(name),
             holds: heldNames(read),
+            holdsUnder: heldUnder(read),
           },
         ]
       : [];
@@ -62,31 +76,19 @@ export function saveAsPlaces(kit: {
             name: "",
             inPlace: true,
             holds: heldNames(kit.read),
+            holdsUnder: new Set<string>(),
           },
         ]
       : []),
     ...away.flatMap(theme),
-    ...kit.modules.map((module) => ({
-      kind: "module" as const,
-      projectId: module.projectId,
-      name: module.folder,
-      inPlace: true,
-      holds: heldNames(module),
-    })),
   ];
 }
 
 const MODULE_NAME = /^[a-z0-9_-]+$/;
 
-/** Why `name` cannot be an image's in a place of `kind`; `null` when it can. */
-export function saveAsNameProblem(
-  name: string,
-  kind: SaveAsPlace["kind"] | "new",
-): "invalid_name" | "base_name_in_module" | null {
-  if (MODULE_NAME.test(name)) return null;
-  if (!kitSlot(name)) return "invalid_name";
-  // A name of the base holds a dot: only a theme may hold an image under it.
-  return kind === "module" ? "base_name_in_module" : null;
+/** Why `name` cannot be an image's in a theme or the library; `null` when it can. A name of the base holds a dot. */
+export function saveAsNameProblem(name: string): "invalid_name" | null {
+  return MODULE_NAME.test(name) || kitSlot(name) ? null : "invalid_name";
 }
 
 /** Why `name` cannot be a new theme's; `null` when it can. */
@@ -115,17 +117,15 @@ export interface SaveAsEffect {
 
 /**
  * [SaveAsEffect] of the image `name` saved in `place` (`null`: a theme about to be created),
- * given what names each image on the server (`uses`, `useImageUses`). In a theme, the menus of
- * every module that write the common image `name` take it; in a module, that module's alone.
+ * given what names each image on the server (`uses`, `useImageUses`): the menus of every module
+ * that write the common image `name` take it.
  */
 export function saveAsEffect(
   name: string,
   place: SaveAsPlace | null,
   uses: ReadonlyMap<string, readonly ImageUse[]>,
 ): SaveAsEffect {
-  const naming = (uses.get(commonImageKey(name)) ?? []).filter(
-    (use) => !use.by && (place?.kind !== "module" || use.projectId === place.projectId),
-  );
+  const naming = (uses.get(commonImageKey(name)) ?? []).filter((use) => !use.by);
   return {
     kind: naming.length > 0 ? "replaces" : "added",
     menus: naming.length,

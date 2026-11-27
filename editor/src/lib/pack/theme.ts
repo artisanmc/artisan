@@ -236,14 +236,21 @@ export function ownThemeDrawings(binaries: readonly string[]): Map<string, strin
   return out;
 }
 
-/** `overrides/<module>/<image>.png`: the module's folder and the image's name; `null` for any other path. */
-function moduleDrawing(path: string): { module: string; name: string } | null {
+/**
+ * `overrides/<module>/<image><ext>`: the module's folder and the image's name; `null` for any
+ * other path. `ext`: `.png`, the image the packs read.
+ */
+export function themeModuleImage(
+  path: string,
+  ext = ".png",
+): { module: string; name: string } | null {
   if (!path.startsWith(THEME_OVERRIDES_DIR) || path.startsWith(THEME_COMMON_DIR)) return null;
   const [module, file, ...deeper] = path.slice(THEME_OVERRIDES_DIR.length).split("/");
   if (!module || !file || deeper.length > 0) return null;
-  if (!file.endsWith(".png") || file.length === ".png".length) return null;
-  return { module, name: file.slice(0, -".png".length) };
+  if (!file.endsWith(ext) || file.length === ext.length) return null;
+  return { module, name: file.slice(0, -ext.length) };
 }
+const moduleDrawing = (path: string) => themeModuleImage(path);
 
 /**
  * The images of modules a theme of its own folder replaces among its `binaries`, by module
@@ -268,7 +275,8 @@ export const themeModuleDrawingPath = (module: string, name: string): string =>
 /**
  * What a theme of its own folder holds that is no longer read (ADR `resources-one-screen`,
  * migration): its table of colours and whatever else `overrides/` holds that is not an image
- * of the common ones or of a module, among the paths of its files, sorted.
+ * of the common ones or of a module (or that image's descriptor), among the paths of its
+ * files, sorted.
  */
 export function themeUnread(paths: readonly string[]): string[] {
   return paths
@@ -276,7 +284,9 @@ export function themeUnread(paths: readonly string[]): string[] {
       (path) =>
         path.startsWith(THEME_OVERRIDES_DIR) &&
         !path.startsWith(THEME_COMMON_DIR) &&
-        !moduleDrawing(path),
+        !moduleDrawing(path) &&
+        // The editor's note of such an image's size, beside it.
+        !themeModuleImage(path, ".yml"),
     )
     .sort(byCodeUnit);
 }

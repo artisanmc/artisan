@@ -582,7 +582,13 @@ export function ComposedImageEditor({
               name,
               usages: [],
             })
-          : await uploadAsset(projectId, { file, type, name, retouch: true });
+          : await uploadAsset(projectId, {
+              file,
+              type,
+              name,
+              retouch: true,
+              ...(drawing.asset.under ? { under: drawing.asset.under } : {}),
+            });
         history.written(id, next);
         upsertAsset(next);
         if (lone && id === asset.id) {

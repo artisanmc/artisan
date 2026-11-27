@@ -11,6 +11,8 @@ export interface SaveAsRequest {
   usages?: AssetUsage[];
   target: string;
   from: string;
+  /** The module whose image of that name the copy replaces in the theme `target` (`Asset.under`). */
+  under?: string;
 }
 
 /**

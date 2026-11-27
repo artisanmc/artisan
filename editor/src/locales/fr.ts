@@ -21,6 +21,7 @@ const fr: typeof en = {
       own: "Ajoutées ou modifiées sur ce serveur",
       shippedArtisan: "Livrées avec Artisan, non modifiées",
       shippedModule: "Livrées avec le module, non modifiées",
+      inModule: "Remplace dans le module « {{name}} »",
     },
     mark: {
       otherSize: "Autre taille que l'original du module qu'elle remplace",
@@ -280,35 +281,28 @@ const fr: typeof en = {
   saveAs: {
     title: "Enregistrer sous",
     button: "Enregistrer sous…",
-    hint: "Une copie sous un nom, dans un thème ou un module. L'image de départ ne change pas.",
+    hint: "Une copie dans la bibliothèque du serveur ou dans un thème. L'image de départ ne change pas.",
     saveFirst: "Enregistre d'abord tes changements : la copie est faite de l'image enregistrée.",
     name: "Nom",
     place: "Où",
     save: "Enregistrer",
     theme: "Thème « {{name}} »",
     themeAway: "Thème « {{name}} » (rangé)",
-    module: "Module « {{name}} »",
     newTheme: "Nouveau thème…",
+    replacesModuleImage:
+      "Remplace « {{name}} » du module « {{module}} » quand ce thème est en place. Les autres modules ne changent pas.",
     replaces_one: "Remplace l'image de ce nom dans {{count}} menu de {{modules}}.",
     replaces_other: "Remplace l'image de ce nom dans {{count}} menus de {{modules}}.",
     modules_one: "{{count}} module",
     modules_other: "{{count}} modules",
-    replacesInModule_one:
-      "{{count}} menu de ce module montrait l'image commune de ce nom : il montrera celle-ci.",
-    replacesInModule_other:
-      "{{count}} menus de ce module montraient l'image commune de ce nom : ils montreront celle-ci.",
     addedTheme:
-      "Aucun menu n'écrit ce nom pour l'instant : l'image est ajoutée au thème, rien d'autre ne change.",
-    addedModule:
-      "Aucun menu de ce module n'écrit ce nom pour l'instant : l'image est ajoutée au module, rien d'autre ne change.",
+      "Aucun menu n'écrit ce nom pour l'instant : l'image est ajoutée à cet endroit, rien d'autre ne change.",
     away: "Ce thème est rangé : rien ne change en jeu tant qu'il n'est pas mis en place.",
     overwrites: "Cet endroit a déjà une image de ce nom : elle sera remplacée.",
     saved: "« {{name}} » enregistrée ici, dans le brouillon.",
     failed: "L'image n'a pas pu être enregistrée : {{detail}}",
     errors: {
       invalid_name: "Minuscules, chiffres, « _ » et « - » seulement.",
-      base_name_in_module:
-        "Un nom de la base d'Artisan ne peut être porté que par un thème. Choisis un thème, ou un autre nom.",
     },
   },
   studio: {

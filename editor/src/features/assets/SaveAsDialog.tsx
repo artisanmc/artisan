@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import type { Asset, AssetUsage } from "@/domain/asset";
 import { useImageUses } from "@/features/project/imageUses";
 import { createProject } from "@/lib/api/servers";
+import { kitNameOf } from "@/lib/pack/kit";
 import { useKitStore } from "@/state/kitStore";
 import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,11 +25,12 @@ const NEW = "\u0000new";
 const USAGES: readonly string[] = ["button", "menu"];
 
 /**
- * Saves the image open in the atelier under a name in a place (ADR `resources-one-screen`,
- * decision 7): a theme of the server, its own theme, a module, or a theme created on the way.
- * Nothing else is asked: the dialog says what the copy changes, since a name's image is the
- * first found from the menu's module down the themes. The copy is the image as saved, flat;
- * the Resources of the place write it (`useSaveAsAsked`).
+ * Saves the image open in the atelier in a place (ADR `themes-reach-modules`, decision 4): the
+ * server's library, a theme, or a theme created on the way. Nothing else is asked: the dialog
+ * says what the copy changes. A module's own image saved into a theme replaces that module's
+ * image of the name while the theme is in place, and keeps its name (`Asset.under`); any other
+ * copy is saved under a name. The copy is the image as saved, flat; the Resources of the place
+ * write it (`useSaveAsAsked`).
  */
 export function SaveAsDialog({
   projectId,
@@ -47,10 +49,13 @@ export function SaveAsDialog({
   const own = useKitStore((s) => s.own);
   const modules = useKitStore((s) => s.modules);
   const themes = useKitStore((s) => s.themes);
-  const places = useMemo(
-    () => saveAsPlaces({ read, own, modules, themes }),
-    [read, own, modules, themes],
-  );
+  const places = useMemo(() => saveAsPlaces({ read, own, themes }), [read, own, themes]);
+  // The module whose image this is: its own, or the one a theme's image of a module's replaces.
+  const sourceModule =
+    asset.under ??
+    (asset.projectId === projectId && kitNameOf(asset.id) === null
+      ? modules.find((m) => m.projectId === projectId)?.folder
+      : undefined);
   const uses = useImageUses();
   const [name, setName] = useState(asset.name);
   const [chosen, setChosen] = useState(
@@ -62,23 +67,26 @@ export function SaveAsDialog({
 
   const place = places.find((p) => p.projectId === chosen) ?? null;
   const fresh = !place;
-  const trimmed = name.trim();
+  // Into a theme, a module's image replaces that module's image, under its name.
+  const under = sourceModule !== undefined && place?.kind !== "server" ? sourceModule : undefined;
+  const trimmed = under ? asset.name : name.trim();
   const theme = themeName.trim();
-  const nameProblem = trimmed ? saveAsNameProblem(trimmed, place?.kind ?? "new") : null;
+  const nameProblem = trimmed && !under ? saveAsNameProblem(trimmed) : null;
   const themeProblem =
     fresh && theme
       ? newThemeProblem(theme, [...Object.keys(own), ...modules.map((m) => m.folder)])
       : null;
   // The same name in the same place is the image itself.
-  const same = place?.projectId === projectId && trimmed === asset.name;
+  const same =
+    place?.projectId === projectId &&
+    trimmed === asset.name &&
+    (asset.under ?? undefined) === under;
   const effect = saveAsEffect(trimmed, place, uses);
   const ready = !!trimmed && !nameProblem && !same && (!fresh || (!!theme && !themeProblem));
   const label = (p: (typeof places)[number]) =>
     p.kind === "server"
       ? t("places.server")
-      : p.kind === "theme"
-        ? t(p.inPlace ? "saveAs.theme" : "saveAs.themeAway", { name: p.name })
-        : t("saveAs.module", { name: p.name });
+      : t(p.inPlace ? "saveAs.theme" : "saveAs.themeAway", { name: p.name });
 
   const submit = async () => {
     if (busy || !ready) return;
@@ -99,6 +107,7 @@ export function SaveAsDialog({
         usages: (asset.usages ?? []).filter((u): u is AssetUsage => USAGES.includes(u)),
         target,
         from: projectId,
+        ...(under ? { under } : {}),
       });
       onClose();
       if (target !== projectId) server.open(target);
@@ -124,7 +133,12 @@ export function SaveAsDialog({
         >
           <label className="flex flex-col gap-1" htmlFor={`${id}-name`}>
             <span className="field-label">{t("saveAs.name")}</span>
-            <Input id={`${id}-name`} value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id={`${id}-name`}
+              value={under ? asset.name : name}
+              disabled={!!under}
+              onChange={(e) => setName(e.target.value)}
+            />
           </label>
           <label className="flex flex-col gap-1" htmlFor={`${id}-place`}>
             <span className="field-label">{t("saveAs.place")}</span>
@@ -165,17 +179,19 @@ export function SaveAsDialog({
               data-testid="save-as-effect"
             >
               <p>
-                {effect.kind === "added"
-                  ? t(place?.kind === "module" ? "saveAs.addedModule" : "saveAs.addedTheme")
-                  : place?.kind === "module"
-                    ? t("saveAs.replacesInModule", { count: effect.menus })
+                {under
+                  ? t("saveAs.replacesModuleImage", { name: trimmed, module: under })
+                  : effect.kind === "added"
+                    ? t("saveAs.addedTheme")
                     : t("saveAs.replaces", {
                         count: effect.menus,
                         modules: t("saveAs.modules", { count: effect.modules }),
                       })}
               </p>
-              {effect.away && effect.kind === "replaces" ? <p>{t("saveAs.away")}</p> : null}
-              {effect.overwrites ? (
+              {effect.away && (under || effect.kind === "replaces") ? (
+                <p>{t("saveAs.away")}</p>
+              ) : null}
+              {(under ? place?.holdsUnder.has(`${under}/${trimmed}`) : effect.overwrites) ? (
                 <p className="text-[var(--warning)]">{t("saveAs.overwrites")}</p>
               ) : null}
             </div>

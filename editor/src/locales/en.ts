@@ -19,6 +19,7 @@ export default {
       own: "Added or changed on this server",
       shippedArtisan: "Shipped with Artisan, unchanged",
       shippedModule: "Shipped with the module, unchanged",
+      inModule: "Replaces in the module “{{name}}”",
     },
     mark: {
       otherSize: "Other size than the module's original it replaces",
@@ -275,35 +276,27 @@ export default {
   saveAs: {
     title: "Save as",
     button: "Save as…",
-    hint: "A copy under a name, in a theme or a module. The image you started from does not change.",
+    hint: "A copy in the server's library or in a theme. The image you started from does not change.",
     saveFirst: "Save your changes first: the copy is made of the saved image.",
     name: "Name",
     place: "Where",
     save: "Save",
     theme: "Theme “{{name}}”",
     themeAway: "Theme “{{name}}” (put away)",
-    module: "Module “{{name}}”",
     newTheme: "New theme…",
+    replacesModuleImage:
+      "Replaces “{{name}}” of the module “{{module}}” while this theme is in place. The other modules do not change.",
     replaces_one: "Replaces the image of this name in {{count}} menu of {{modules}}.",
     replaces_other: "Replaces the image of this name in {{count}} menus of {{modules}}.",
     modules_one: "{{count}} module",
     modules_other: "{{count}} modules",
-    replacesInModule_one:
-      "{{count}} menu of this module showed the common image of this name: it will show this one.",
-    replacesInModule_other:
-      "{{count}} menus of this module showed the common image of this name: they will show this one.",
-    addedTheme:
-      "No menu writes this name yet: the image is added to the theme, nothing else changes.",
-    addedModule:
-      "No menu of this module writes this name yet: the image is added to the module, nothing else changes.",
+    addedTheme: "No menu writes this name yet: the image is added there, nothing else changes.",
     away: "This theme is put away: nothing changes in game until it is put in place.",
     overwrites: "This place already has an image of this name: it will be replaced.",
     saved: "“{{name}}” saved here, in the draft.",
     failed: "The image could not be saved: {{detail}}",
     errors: {
       invalid_name: "Lowercase letters, digits, “_” and “-” only.",
-      base_name_in_module:
-        "Only a theme may hold a name of Artisan's base. Pick a theme, or another name.",
     },
   },
   studio: {

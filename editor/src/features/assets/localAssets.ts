@@ -32,12 +32,14 @@ import { type ParsedMcFont, parseMcFontsZip } from "@/lib/pack/mcFontsParser";
 import { readPngContentWidth, readPngDimensions } from "@/lib/pack/pngDimensions";
 import type { AssetRow } from "@/lib/pack/resourcePackBuilder";
 import { type Slice, sliceOf } from "@/lib/pack/slice";
+import { themeModuleDrawingPath } from "@/lib/pack/theme";
 import { sha256Hex } from "@/lib/sha256";
 import { useKitStore } from "@/state/kitStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { parse, stringify } from "yaml";
 import { type ComposedView, composedView } from "./composedAssets";
 import { activeKitTheme } from "./kitTheme";
+import { moduleImageDescriptorPath, moduleImageId, themeModuleAssets } from "./themeModuleImages";
 
 /**
  * A Project's assets: the editor validates and stores them itself, on the
@@ -130,6 +132,7 @@ function serialize(row: AssetRow): Asset {
       usages: row.usages,
       function: row.function,
       slice: row.slice,
+      under: (row as { under?: string }).under,
       contentHash: row.contentHash,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -184,6 +187,10 @@ function kitOwnSlice(
   };
 }
 
+/** A PNG the Project holds under its own name: no composed image, no font, no theme's image of a module's. */
+const isOwnImage = (a: DiskAsset) =>
+  !a.compose && a.row.type !== "font" && !(a.row as { under?: string }).under;
+
 /** The pictures of `disk`'s composed images, by asset: assembled as the pack does it. */
 async function composedViews(
   projectId: string,
@@ -201,13 +208,12 @@ async function composedViews(
     return cache.get(asset)!;
   };
   const kit = kitOwn(projectId, async (name) => {
-    const own = disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name);
+    const own = disk.find((a) => isOwnImage(a) && a.row.name === name);
     return own ? read(own) : undefined;
   });
   const kitSlice = kitOwnSlice(
     projectId,
-    (name) =>
-      disk.find((a) => !a.compose && a.row.type !== "font" && a.row.name === name)?.row.slice,
+    (name) => disk.find((a) => isOwnImage(a) && a.row.name === name)?.row.slice,
   );
   // The server's theme: the `kit:` layers are shown in it, and the kit module's own images too.
   const theme = activeKitTheme(readPublishedBinary);
@@ -248,7 +254,11 @@ export async function listLocalAssets(
   }
   // What the module ships (`originals/assets/…`) is listed too, read-only: menus and module
   // previews pick their images here. Changes go through the owner's files alone (`DraftOverlay`).
-  const disk = diskAssetsFromTree(projectId, files, binaries, { originals: true });
+  const disk = [
+    ...diskAssetsFromTree(projectId, files, binaries, { originals: true }),
+    // A theme's images of modules (`overrides/<module>/`), listed among its own.
+    ...themeModuleAssets(projectId, files, binaries),
+  ];
   const listed = disk
     .filter((a) => filters.composed !== false || !a.compose)
     .filter((a) => !filters.type || a.row.type === filters.type)
@@ -370,7 +380,14 @@ class DraftOverlay {
       path,
       ...meta,
     }));
-    return { files, binaries, assets: diskAssetsFromTree(this.projectId, files, binaries) };
+    return {
+      files,
+      binaries,
+      assets: [
+        ...diskAssetsFromTree(this.projectId, files, binaries),
+        ...themeModuleAssets(this.projectId, files, binaries),
+      ],
+    };
   }
 
   /**
@@ -503,6 +520,70 @@ class DraftOverlay {
 
 type Body = Omit<LocalAssetResult, "draft">;
 
+const MODULE_IMAGE_NAME = /^[a-z0-9][a-z0-9._-]*$/;
+
+/**
+ * A theme's image of a module's (`themeModuleImages.ts`): the PNG under that module in the
+ * theme, and beside it the size the editor shows. `replace` or `retouch` writes over the one
+ * the theme holds; without them a second one of the name is refused.
+ */
+async function createUnder(
+  overlay: DraftOverlay,
+  projectId: string,
+  fields: Record<string, string>,
+  file: Uint8Array | null,
+): Promise<Body> {
+  const module = fields.under ?? "";
+  const name = fields.name ?? "";
+  if (!NAME_RE.test(module) || isKitFolder(module)) fail(400, "Invalid module");
+  if (!MODULE_IMAGE_NAME.test(name)) fail(400, "Invalid name");
+  if (!file) fail(400, "Missing file");
+  if (file.length > MAX_RAW_BYTES) fail(400, "File too large (max 2 MB)");
+  let size: { width: number; height: number };
+  try {
+    size = readPngDimensions(file);
+  } catch {
+    fail(400, "Invalid PNG");
+  }
+  const disk = overlay.read();
+  const path = themeModuleDrawingPath(module, name);
+  const existing = disk.binaries.find((b) => b.path === path);
+  const replace = fields.replace === "true" || fields.retouch === "true";
+  if (existing && !replace) fail(409, "Asset name already exists");
+  if (!existing && fields.retouch === "true") fail(404, "not_found");
+  const descriptor = moduleImageDescriptorPath(module, name);
+  const previous = disk.files.find((f) => f.path === descriptor);
+  await overlay.commit({
+    files: [
+      {
+        path: descriptor,
+        content: stringify({ width: size.width, height: size.height }),
+        base_hash: previous ? textHash(previous.content) : null,
+      },
+    ],
+    binaries: [{ path, content: file, baseHash: existing?.hash ?? null }],
+  });
+  const now = new Date().toISOString();
+  return {
+    asset: {
+      id: moduleImageId(module, name),
+      projectId,
+      type: "texture",
+      name,
+      under: module,
+      width: size.width,
+      height: size.height,
+      ascent: null,
+      codepoint: null,
+      fontMeta: null,
+      usages: [],
+      contentHash: sha256Hex(file),
+      createdAt: now,
+      updatedAt: now,
+    },
+  };
+}
+
 async function create(
   overlay: DraftOverlay,
   projectId: string,
@@ -514,6 +595,7 @@ async function create(
   const ascentRaw = fields.ascent ?? null;
   if (!["texture", "glyph", "font"].includes(type))
     fail(400, "Invalid type (must be texture, glyph, or font)");
+  if (fields.under !== undefined) return createUnder(overlay, projectId, fields, file);
   // In a theme (the server's, or another), an image named as a slot of the base replaces it.
   if (!NAME_RE.test(name) && !(holdsCommonNames(projectId) && kitSlot(name)))
     fail(400, "Invalid name (must match [a-z0-9_-]+)");
@@ -772,6 +854,9 @@ async function patch(
   const disk = overlay.read();
   const found = lookup(disk, id);
   const row = found.row;
+  // A theme's image of a module's has its name and its settings from that module's image.
+  if ((row as { under?: string }).under)
+    fail(400, "A theme's image of a module's is not edited here");
   const nextUsages = body.usages === undefined ? row.usages : parseAssetUsages(body.usages);
   if (body.usages !== undefined && (row.type === "font" || nextUsages === undefined))
     fail(400, "Invalid usages (images only; button, menu)");
@@ -980,7 +1065,9 @@ async function remove(overlay: DraftOverlay, id: string): Promise<Body> {
     });
     return {};
   }
-  const path = assetDiskPath(found.row.type, found.row.name);
+  const path = (found.row as { under?: string }).under
+    ? found.path
+    : assetDiskPath(found.row.type, found.row.name);
   const previous = descriptorOf(disk.files, found.path);
   await overlay.commit({
     files: [],
