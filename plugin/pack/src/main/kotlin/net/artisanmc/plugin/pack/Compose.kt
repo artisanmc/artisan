@@ -28,6 +28,9 @@ package net.artisanmc.plugin.pack
  * composed with it changes. `width` and `height` on a layer resize an image whose descriptor
  * declares margins (`slice`): corners copied, edges and middle repeated. On another image, or
  * at a size its margins do not fit, they are ignored and the image is drawn at its own size.
+ * `tint: "#rrggbb"` on a layer multiplies each pixel of its image by that colour, channel by
+ * channel, alpha kept (ADR `component-colours`, decision 1). A tint that is no colour leaves the
+ * layer as drawn.
  */
 object ComposedImages {
     /** A side of a composed image, and how far a layer may sit from the origin. */
@@ -37,7 +40,41 @@ object ComposedImages {
     const val MAX_REPEAT = 64
 
     /** [width], [height]: the size a sliced image is drawn at; null for its own size. Never on a layer that repeats. */
-    class Layer(val image: String, val x: Int, val y: Int, val columns: Int, val rows: Int, val width: Int? = null, val height: Int? = null)
+    class Layer(
+        val image: String,
+        val x: Int,
+        val y: Int,
+        val columns: Int,
+        val rows: Int,
+        val width: Int? = null,
+        val height: Int? = null,
+        /** The colour the layer's image is multiplied by, as written (`#rrggbb`); null: as drawn. */
+        val tint: String? = null,
+    )
+
+    private val TINT = Regex("^#([0-9a-fA-F]{6})$")
+
+    /** The colour [tint] writes as `[r, g, b]`; null when it is none (`tintColour` in `compose.ts`). */
+    fun tintColour(tint: String?): IntArray? {
+        val hex = tint?.let { TINT.find(it)?.groupValues?.get(1) } ?: return null
+        val n = hex.toInt(16)
+        return intArrayOf((n shr 16) and 255, (n shr 8) and 255, n and 255)
+    }
+
+    /** [source] multiplied by [colour], channel by channel, in whole numbers; alpha kept. */
+    fun tinted(source: RgbaImage, colour: IntArray): RgbaImage {
+        val out = RgbaImage(source.width, source.height)
+        var i = 0
+        while (i < source.data.size) {
+            for (c in 0..2) {
+                val v = source.data[i + c].toInt() and 0xff
+                out.data[i + c] = ((v * colour[c] + 127) / 255).toByte()
+            }
+            out.data[i + 3] = source.data[i + 3]
+            i += 4
+        }
+        return out
+    }
 
     class Recipe(val layers: List<Layer>, val width: Int?, val height: Int?)
 
@@ -66,6 +103,7 @@ object ComposedImages {
                 // A size only with both sides, and never on a layer that repeats.
                 w.takeIf { !repeats && h != null },
                 h.takeIf { !repeats && w != null },
+                (m["tint"] as? String)?.takeIf { it.isNotEmpty() },
             )
         }
         val width = int(descriptor["width"], 1, MAX_SIDE)
@@ -114,8 +152,16 @@ object ComposedImages {
         return out
     }
 
-    /** A layer's image as it is drawn: resized when the layer gives a size its margins fit. */
+    /**
+     * A layer's image as it is drawn: resized when the layer gives a size its margins fit, then
+     * tinted when the layer gives a colour.
+     */
     fun picture(layer: Layer, source: RgbaImage, slice: Slice?): RgbaImage {
+        val sized = sized(layer, source, slice)
+        return tintColour(layer.tint)?.let { tinted(sized, it) } ?: sized
+    }
+
+    private fun sized(layer: Layer, source: RgbaImage, slice: Slice?): RgbaImage {
         val width = layer.width
         val height = layer.height
         if (slice == null || width == null || height == null) return source

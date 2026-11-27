@@ -2,7 +2,7 @@
 
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
-import { composeImage, composeRecipe, composeSize, composeYaml, over } from "./compose";
+import { composeImage, composeRecipe, composeSize, composeYaml, over, tintColour } from "./compose";
 import { type RgbaImage, createImage } from "./png";
 
 const solid = (width: number, height: number, ...rgba: number[]): RgbaImage => {
@@ -119,6 +119,26 @@ compose:
     const empty = solid(1, 1, 7, 7, 7, 0);
     over(empty, solid(1, 1, 9, 8, 7, 60), 0, 0);
     expect(pixel(empty, 0, 0)).toEqual([9, 8, 7, 60]);
+  });
+
+  test("a tint multiplies the layer's pixels by its colour, alpha kept, and only a colour tints", () => {
+    const grey: Record<string, RgbaImage> = { grey: solid(1, 1, 255, 128, 0, 200) };
+    const drawn = composeImage(
+      recipe("compose:\n  - image: grey\n    tint: '#c03366'\n"),
+      (name) => grey[name],
+    );
+    expect(drawn && pixel(drawn, 0, 0)).toEqual([192, 26, 0, 200]);
+    for (const tint of ["primary", "#fff", "c03366", "#c0336g"]) {
+      expect(tintColour(tint)).toBeNull();
+      const plain = composeImage(
+        recipe(`compose:\n  - image: grey\n    tint: '${tint}'\n`),
+        (name) => grey[name],
+      );
+      expect(plain && pixel(plain, 0, 0)).toEqual([255, 128, 0, 200]);
+    }
+    // Written back as read.
+    const read = recipe("compose:\n  - image: grey\n    tint: '#C03366'\n");
+    expect(composeYaml(read)).toEqual([{ image: "grey", tint: "#C03366" }]);
   });
 
   test("a recipe is written as it is read back, each layer under the key that says what it is", () => {
