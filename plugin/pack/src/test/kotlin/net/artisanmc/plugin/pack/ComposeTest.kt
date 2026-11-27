@@ -116,6 +116,12 @@ class ComposeTest {
             val plain = assertNotNull(ComposedImages.compose(recipe("compose:\n  - image: grey\n    tint: '$tint'\n")) { grey[it] })
             assertEquals(listOf(255, 128, 0, 200), pixel(plain, 0, 0))
         }
+        // A name is a colour once a palette gives it one.
+        val palette = Palette.of(listOf("primary: \"#c03366\"\n"))
+        val byName = assertNotNull(ComposedImages.compose(recipe("compose:\n  - image: grey\n    tint: primary\n"), palette = palette) { grey[it] })
+        assertEquals(listOf(192, 26, 0, 200), pixel(byName, 0, 0))
+        val unknown = assertNotNull(ComposedImages.compose(recipe("compose:\n  - image: grey\n    tint: nowhere\n"), palette = palette) { grey[it] })
+        assertEquals(listOf(255, 128, 0, 200), pixel(unknown, 0, 0))
     }
 
     @Test

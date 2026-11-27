@@ -1,7 +1,9 @@
 # A component takes a colour from the theme's palette
 
 **Status:** accepted (2026-11-27). Being built: step 1 (a literal tint on a layer, both
-builders, a pack vector) is in the code. Follows `themes-reach-modules`
+builders, a pack vector) and the pack's half of step 2 (`palette.yml` of a theme's Project and
+of the library, the lookup of a name, the default palette, a pack vector) are in the code; the
+editor's previews and its mark on an unknown name are not yet. Follows `themes-reach-modules`
 ("Left open: colour").
 
 ## Context

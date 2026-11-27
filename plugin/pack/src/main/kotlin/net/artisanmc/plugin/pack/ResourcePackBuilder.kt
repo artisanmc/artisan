@@ -131,6 +131,9 @@ object ResourcePackBuilder {
         // The themes in place ([ThemeStack]), the lowest first: they redraw the common images they name.
         val theme = KitTheme.stack(input.themes, kitProject, themeProjects)
 
+        // The colours a tint names ([Palette]): the themes in place from the highest, then the library.
+        val palette = Palette.of(input.themes, kitProject, themeProjects)
+
         // A look that names a component is read as that component's parts ([Components]).
         val expandOf = Components.ofProjects(projects.map { it.folder to it.files })
         for (project in projects) {
@@ -229,7 +232,7 @@ object ResourcePackBuilder {
                 (if (common != null) kitPng(common) else own(name)) == null
             }
             if (lacking.isNotEmpty()) missingLayers.getOrPut(c.project.folder) { TreeMap() }[c.name] = lacking
-            ComposedImages.render(c.recipe, own, kitPng) { name -> Kit.nameOf(name).let { common -> if (common != null) kitSlices[common] else c.slices[name] } }?.let { c to it }
+            ComposedImages.render(c.recipe, own, kitPng, palette) { name -> Kit.nameOf(name).let { common -> if (common != null) kitSlices[common] else c.slices[name] } }?.let { c to it }
         }
         for ((c, image) in made) {
             val bytes = Png.encode(image)

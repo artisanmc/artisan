@@ -228,8 +228,20 @@ compose:
 
 A layer may also take `tint: "#c03366"`: its image is multiplied by that colour, pixel by
 pixel, and keeps its transparency. A white pixel takes the colour, a grey one a darker shade of
-it. Draw the layer's image in shades of grey to tint it into any colour. A tint that is not a
-`#rrggbb` colour leaves the layer as drawn.
+it. Draw the layer's image in shades of grey to tint it into any colour.
+
+A tint may also be a name, `tint: primary`. Its colour is read in `palette.yml`, a file at the
+root of a theme or of the library (the theme `artisan`), one line per name:
+
+```yaml
+primary: "#b3261e"
+danger: "#600000"
+```
+
+The name is looked up in the themes in place, the highest first, then in the library, then in
+the palette every server has: `neutral`, `primary`, `success`, `danger`, `warning`. So a theme
+put in place recolours every image tinted `primary` without a redraw. A name no place gives,
+or a tint that is no `#rrggbb` colour, leaves the layer as drawn.
 
 You can then move its layers by hand: the image's detail in the Resources page is a composer
 (see [Image buttons](../../editor/image-buttons/), "Composed images").

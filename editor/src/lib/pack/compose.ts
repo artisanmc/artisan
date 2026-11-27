@@ -1,4 +1,5 @@
 import { kitNameOf } from "./kit";
+import { type Palette, tintOf } from "./palette";
 import { type RgbaImage, createImage, decodePng } from "./png";
 import { type Slice, drawSliced, slicesAt } from "./slice";
 
@@ -33,7 +34,8 @@ import { type Slice, drawSliced, slicesAt } from "./slice";
  * at a size its margins do not fit, they are ignored and the image is drawn at its own size.
  * `tint: "#rrggbb"` on a layer multiplies each pixel of its image by that colour, channel by
  * channel, alpha kept (ADR `component-colours`, decision 1): a white pixel takes the colour, a
- * grey one a darker shade of it. A tint that is no colour leaves the layer as drawn.
+ * grey one a darker shade of it. `tint: primary` takes the colour of that name in the palette
+ * (`palette.ts`). A tint that is no colour and no name of the palette leaves the layer as drawn.
  */
 
 /** A side of a composed image, and how far a layer may sit from the origin. */
@@ -51,7 +53,7 @@ export interface ComposeLayer {
   /** The size a sliced image is drawn at; absent for its own size. Never on a layer that repeats. */
   width?: number;
   height?: number;
-  /** The colour the layer's image is multiplied by, as written (`#rrggbb`); absent: as drawn. */
+  /** The colour the layer's image is multiplied by, as written (`#rrggbb` or a name of the palette); absent: as drawn. */
   tint?: string;
 }
 
@@ -134,6 +136,7 @@ export function composeImage(
   recipe: ComposeRecipe,
   image: (name: string) => RgbaImage | undefined,
   slice: (name: string) => Slice | null | undefined = () => undefined,
+  palette?: Palette,
 ): RgbaImage | null {
   const drawn: { layer: ComposeLayer; source: RgbaImage }[] = [];
   for (const layer of recipe.layers) {
@@ -147,7 +150,7 @@ export function composeImage(
     recipe.height ?? clamp(first.layer.y + first.layer.rows * first.source.height),
   );
   for (const { layer, source: plain } of drawn) {
-    const source = layerPicture(layer, plain, slice(layer.image));
+    const source = layerPicture(layer, plain, slice(layer.image), palette);
     for (let row = 0; row < layer.rows; row++) {
       for (let column = 0; column < layer.columns; column++) {
         over(out, source, layer.x + column * source.width, layer.y + row * source.height);
@@ -165,9 +168,10 @@ export function layerPicture(
   layer: ComposeLayer,
   source: RgbaImage,
   slice: Slice | null | undefined,
+  palette?: Palette,
 ): RgbaImage {
   const sized = sizedPicture(layer, source, slice);
-  const colour = tintColour(layer.tint);
+  const colour = tintColour(tintOf(layer.tint, palette));
   return colour ? tinted(sized, colour) : sized;
 }
 
@@ -222,6 +226,8 @@ export async function renderComposed(
   kit: (name: string) => Png | Promise<Png>,
   /** The margins of a layer's image, by the name the layer writes (`kit:<name>` or a module's). */
   slice: (name: string) => Slice | null | undefined = () => undefined,
+  /** The palette a tint's name is looked up in; without it only a literal colour tints. */
+  palette?: Palette,
 ): Promise<RgbaImage | null> {
   const decoded = new Map<string, RgbaImage | undefined>();
   for (const { image: name } of recipe.layers) {
@@ -236,7 +242,7 @@ export async function renderComposed(
     }
     decoded.set(name, image);
   }
-  return composeImage(recipe, (name) => decoded.get(name), slice);
+  return composeImage(recipe, (name) => decoded.get(name), slice, palette);
 }
 
 /**

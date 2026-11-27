@@ -29,6 +29,7 @@ import {
 } from "./menuGlyphPlacements";
 import { type TextPlacement, textPlacementsFromMenus } from "./menuTextPlacements";
 import type { OverlayAsk, OverlayImageRequest } from "./overlayImages";
+import { PALETTE_FILE, paletteOf } from "./palette";
 import { type RgbaImage, encodePng } from "./png";
 import { type AssetRow, type BuildResult, buildResourcePackZip } from "./resourcePackBuilder";
 import { type GlyphContribution, mergeCodepoints } from "./rpCodepointMerger";
@@ -174,6 +175,14 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
     ? readKitThemes(input.themes, kitProject, themeProjects)
     : null;
 
+  // The colours a tint names (`palette.ts`): the themes in place from the highest, then the library.
+  const paletteFile = (project: PackProject | undefined) =>
+    project?.files.find((f) => f.path === PALETTE_FILE)?.content;
+  const palette = paletteOf([
+    ...[...(input.themes ?? [])].reverse().map((name) => paletteFile(themeProjects.get(name))),
+    paletteFile(kitProject),
+  ]);
+
   // A look that names a component is read as that component's parts (`components.ts`).
   const expandOf = packComponents(
     projects.map((project) => ({ folder: folderOf(project), files: project.files })),
@@ -304,6 +313,7 @@ export async function assembleServerPack(input: PackInput): Promise<ServerPacks>
         // In the kit module an image is a kit image under its bare name too.
         return common !== null ? kitSlices.get(common) : c.slices.get(name);
       },
+      palette,
     );
     if (image) made.push({ c, image });
   }
