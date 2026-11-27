@@ -489,7 +489,12 @@ export default {
         libraryReset: "Back to the default colour",
         libraryDrafted: "These colours are in your draft: deploy it to see them in game.",
       },
-      compare: "Without and with, in a menu",
+      compare: "Without the theme and with it",
+      sheet: {
+        filter: "Filter by name",
+        empty: "No image of that name.",
+        none: "none",
+      },
       putHint:
         "Enabling a theme sets it above the ones already enabled and rebuilds the server's pack: players receive it at their next connection. Disabling it is done from here too.",
       open: "Open the theme's folder",

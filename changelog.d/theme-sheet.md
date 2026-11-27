@@ -1,0 +1,1 @@
+- **Changed**: a theme's page shows every image of the base without the theme and with it, on a sheet filtered by name, the ones the theme redraws first. It replaces the trial menu, which had fewer slots than a base has pieces.

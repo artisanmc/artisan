@@ -497,7 +497,12 @@ const fr: typeof en = {
         libraryDrafted:
           "Ces couleurs sont dans votre brouillon : déployez-le pour les voir en jeu.",
       },
-      compare: "Sans et avec, dans un menu",
+      compare: "Sans le thème et avec",
+      sheet: {
+        filter: "Filtrer par nom",
+        empty: "Aucune image de ce nom.",
+        none: "absente",
+      },
       putHint:
         "Activer un thème le pose au-dessus de ceux qui sont déjà actifs et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le désactiver se fait d'ici aussi.",
       open: "Ouvrir le dossier du thème",
