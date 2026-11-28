@@ -91,13 +91,37 @@ describe("ProjectDocumentTree", () => {
     expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
-  it("gives each document its kind's tile, with no header per kind", () => {
+  it("gives each document its kind's tile, under a header with the kind's count", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
     const menus = screen.getByRole("list", { name: /menus/i });
     const rows = within(menus).getAllByRole("button", { name: /^m\d$/ });
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(row.querySelector("svg")).not.toBeNull();
-    expect(screen.queryByText(/^menus$/i)).toBeNull();
+    const header = screen.getByTestId("type-group-menu");
+    expect(header).toHaveTextContent(/menus/i);
+    expect(header).toHaveTextContent("2");
+  });
+
+  it("folds a crowded module's kinds, the one holding the open document and the admin's choice excepted", async () => {
+    const big = project();
+    big.documents.menu = Array.from({ length: 14 }, (_, i) => ({
+      id: `m${i}`,
+      projectId: PID,
+      title: [],
+      rows: 3,
+      layers: [],
+    })) as never;
+    useProjectsStore.setState({
+      openProjects: { projects: [big], projectOrder: [PID] },
+    } as never);
+    const { rerender } = render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    expect(screen.queryByText("m1")).toBeNull();
+    expect(screen.getByTestId("type-group-menu")).toHaveAttribute("aria-expanded", "false");
+    // The command group is folded too, until opened by hand.
+    await userEvent.setup().click(screen.getByTestId("type-group-command"));
+    expect(screen.getByText("/heal")).toBeInTheDocument();
+    rerender(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="menu/m3" />);
+    expect(screen.getByText("m1")).toBeInTheDocument();
   });
 
   it("highlights the document open in the view", () => {

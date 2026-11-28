@@ -51,7 +51,7 @@ export function EditorTour({ state, storage, actions }: EditorTourProps) {
       // The open project's Documents, in the left bar; when collapsed, show the
       // button that opens it.
       ["elements", "navigation-trigger"],
-      ["tabs"],
+      ["tabs", "navigation-trigger"],
       storage === "local" ? ["project-menu"] : ["save", "project-menu"],
     ];
     const measure = () => setTarget(visibleTarget(selectors[state.step] ?? []));

@@ -157,7 +157,7 @@ describe("ProjectTopBarControls", () => {
       act(() => useProjectsStore.setState({ openProjects: previous }));
     }
   });
-  it("separates project actions, navigation and canvas tools", () => {
+  it("separates project actions and canvas tools, with no navigation in the header", () => {
     const project = {
       id: "p1",
       name: "Test",
@@ -177,13 +177,12 @@ describe("ProjectTopBarControls", () => {
         name: /^(Deploy|Déployer)/,
       }),
     ).toBeInTheDocument();
-    expect(
-      within(screen.getByTestId("project-view-navigation")).getByTestId("open-view-board"),
-    ).toBeInTheDocument();
+    // The module's pages are rows of its tree in the sidebar, never tabs of this header.
+    expect(screen.queryByTestId("project-view-navigation")).toBeNull();
+    expect(screen.queryByTestId("open-view-board")).toBeNull();
     expect(
       within(screen.getByTestId("project-editing-tools")).getByTitle(/Undo \(|Annuler \(/i),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("open-view-board").querySelector("kbd")).toBeNull();
   });
   it("renders the lang switcher, undo/redo, and save when a project is provided", () => {
     const project = {
@@ -207,44 +206,6 @@ describe("ProjectTopBarControls", () => {
     // drafts session.
     expect(screen.getByRole("button", { name: /^(Deploy|Déployer)/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^(Save|Enregistrer)$/ })).toBeNull();
-  });
-
-  it("has one row of views for every module, with no file and no More menu in it", () => {
-    const project = {
-      id: "p1",
-      name: "Test",
-      defaultLang: "en",
-      i18nKeys: {},
-      documents: { menu: [], command: [], dialog: [] },
-      assets: [],
-    } as any;
-    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
-    const nav = screen.getByTestId("project-view-navigation");
-    expect(within(nav).queryByRole("button", { name: /^(More|Plus)$/ })).toBeNull();
-    expect(within(nav).queryByTestId("open-view-settings")).toBeNull();
-  });
-
-  it("renders the workspace view buttons with a missing-translations badge", () => {
-    const project = {
-      id: "p1",
-      name: "Test",
-      defaultLang: "fr",
-      // activeLang defaults to the browser lang in tests ("en") — count misses
-      // for en: k1 has French source text but no English value → 1 missing.
-      i18nKeys: { k1: { fr: "Bonjour" }, k2: { fr: "Au revoir", en: "Bye" } },
-      documents: {
-        menu: [],
-        command: [],
-        dialog: [],
-      },
-      assets: [],
-    } as any;
-    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
-    expect(screen.getByTestId("open-view-translations")).toBeInTheDocument();
-    // The project's data live in the sidebar, the server's sources on the server page.
-    expect(screen.queryByTestId("open-view-data-sources")).toBeNull();
-    expect(screen.getByTestId("open-view-resources")).toHaveAccessibleName(/resources|ressources/i);
-    expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
   });
 
   it("opens the per-file modal when another session advanced the draft, and applies the choice", async () => {

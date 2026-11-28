@@ -80,14 +80,14 @@ describe("the header of a place of the server's resources", () => {
 
   it("is a module's header outside the server's page, and for a module", () => {
     const { unmount } = render(<Place />);
-    expect(screen.getByTestId("project-view-navigation")).toBeInTheDocument();
+    expect(screen.getByTestId("project-header")).toBeInTheDocument();
     unmount();
     render(
       <ServerFrameContext.Provider value={frame}>
         <Place module />
       </ServerFrameContext.Provider>,
     );
-    expect(screen.getByTestId("project-view-navigation")).toBeInTheDocument();
+    expect(screen.getByTestId("project-header")).toBeInTheDocument();
     expect(screen.queryByTestId("place-server-name")).toBeNull();
   });
 });
