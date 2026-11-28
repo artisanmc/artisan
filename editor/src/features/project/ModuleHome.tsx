@@ -69,6 +69,12 @@ export function ModuleHome({ project: opened }: { project: Project }) {
 
   const goToTab = useGoToWorkspaceTab();
   const captured = project.capturedItems ?? [];
+  // No block to show: no "Content" heading over nothing.
+  const hasContent =
+    collections.length > 0 ||
+    moduleScreens.length > 0 ||
+    dataSources.length > 0 ||
+    captured.length > 0;
 
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
 
@@ -124,78 +130,80 @@ export function ModuleHome({ project: opened }: { project: Project }) {
           onOpen={(ref) => goToDocument(navigate, { serverId, project, ref })}
         />
 
-        <section className="flex flex-col gap-2.5" aria-labelledby="module-home-content">
-          <h2 id="module-home-content" className="field-label">
-            {t("moduleHome.content")}
-          </h2>
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {collections.map((c) => (
-              <CollectionPlace
-                key={c.kind}
-                project={project}
-                contribution={c}
-                label={collectionLabel(c, c.kind, uiLang)}
-                serverId={serverId}
-                onCreate={() => setCreating(c.kind)}
-              />
-            ))}
-            {moduleScreens.length > 0 && (
-              <SettingsPlace project={project} screens={moduleScreens} serverId={serverId} />
-            )}
-            {dataSources.length > 0 && (
-              <Place
-                testId="module-home-sources"
-                icon={
-                  <IconTile
-                    icon={Database}
-                    fg="var(--text-mut)"
-                    soft="var(--surface-raised-2)"
-                    size="sm"
-                  />
-                }
-                title={t("moduleHome.dataSources")}
-                count={dataSources.length}
-              >
-                {serverId &&
-                  dataSources.map((d) => (
-                    <Link
-                      key={String(d.id)}
-                      {...dataSourceDestination(project, serverId, String(d.id))}
-                      className="btn btn-outline btn-sm"
-                    >
-                      {d.name || String(d.id)}
-                    </Link>
-                  ))}
-              </Place>
-            )}
-            {captured.length > 0 && (
-              <Place
-                testId="module-home-captured"
-                icon={
-                  <IconTile
-                    icon={Package}
-                    fg="var(--text-mut)"
-                    soft="var(--surface-raised-2)"
-                    size="sm"
-                  />
-                }
-                title={t("moduleHome.captured")}
-                count={captured.length}
-                summary={t("moduleHome.capturedHint")}
-                wide
-                picture={<CapturedItemList project={project} items={captured} />}
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => goToTab("items")}
+        {hasContent && (
+          <section className="flex flex-col gap-2.5" aria-labelledby="module-home-content">
+            <h2 id="module-home-content" className="field-label">
+              {t("moduleHome.content")}
+            </h2>
+            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {collections.map((c) => (
+                <CollectionPlace
+                  key={c.kind}
+                  project={project}
+                  contribution={c}
+                  label={collectionLabel(c, c.kind, uiLang)}
+                  serverId={serverId}
+                  onCreate={() => setCreating(c.kind)}
+                />
+              ))}
+              {moduleScreens.length > 0 && (
+                <SettingsPlace project={project} screens={moduleScreens} serverId={serverId} />
+              )}
+              {dataSources.length > 0 && (
+                <Place
+                  testId="module-home-sources"
+                  icon={
+                    <IconTile
+                      icon={Database}
+                      fg="var(--text-mut)"
+                      soft="var(--surface-raised-2)"
+                      size="sm"
+                    />
+                  }
+                  title={t("moduleHome.dataSources")}
+                  count={dataSources.length}
                 >
-                  {t("moduleHome.openCaptured")}
-                </button>
-              </Place>
-            )}
-          </ul>
-        </section>
+                  {serverId &&
+                    dataSources.map((d) => (
+                      <Link
+                        key={String(d.id)}
+                        {...dataSourceDestination(project, serverId, String(d.id))}
+                        className="btn btn-outline btn-sm"
+                      >
+                        {d.name || String(d.id)}
+                      </Link>
+                    ))}
+                </Place>
+              )}
+              {captured.length > 0 && (
+                <Place
+                  testId="module-home-captured"
+                  icon={
+                    <IconTile
+                      icon={Package}
+                      fg="var(--text-mut)"
+                      soft="var(--surface-raised-2)"
+                      size="sm"
+                    />
+                  }
+                  title={t("moduleHome.captured")}
+                  count={captured.length}
+                  summary={t("moduleHome.capturedHint")}
+                  wide
+                  picture={<CapturedItemList project={project} items={captured} />}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => goToTab("items")}
+                  >
+                    {t("moduleHome.openCaptured")}
+                  </button>
+                </Place>
+              )}
+            </ul>
+          </section>
+        )}
 
         {moduleActions.length > 0 && (
           <section className="flex flex-col gap-2.5" aria-labelledby="module-home-exposes">

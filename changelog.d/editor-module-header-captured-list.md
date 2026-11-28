@@ -3,3 +3,4 @@
   empty row.
 - **Added**: The module home's **Captured items** block lists the items (picture and name), not only
   a link to them.
+- **Fixed**: The module home shows no "Content" heading when it has no block to put under it.

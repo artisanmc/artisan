@@ -174,6 +174,16 @@ describe("ModuleHome", () => {
     expect(screen.getByTestId("catalogue-doc-conversation/bruno")).toBeInTheDocument();
   });
 
+  it("shows no Content heading when the module has no block to put under it", () => {
+    clearRegistry();
+    resetDocumentKinds();
+    resetDocumentCodecs();
+    useServerScreensStore.setState({ screens: [] } as never);
+    registerEditorModule({ ...conversations, documents: [] });
+    render(<ModuleHome project={project()} />);
+    expect(screen.queryByText(/^(Contenu|Content)$/)).toBeNull();
+  });
+
   it("has no canvas or translations block: the header switch and the sidebar hold them", () => {
     render(<ModuleHome project={project()} />);
     expect(screen.queryByTestId("module-home-board")).toBeNull();
