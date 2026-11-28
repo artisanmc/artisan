@@ -27,6 +27,8 @@ class PaperOverlay(
     private val catalog: () -> AssetCatalog?,
     private val packs: PackLoadTracker,
     private val slots: OverlaySlots? = null,
+    /** A Bedrock player (Geyser): the Java pack's fonts never reach them, whatever Geyser answers. */
+    private val bedrock: (Player) -> Boolean = { false },
 ) : OverlayApi {
 
     override fun width(miniMessage: String): Int = width(LenientText.parse(miniMessage), false)
@@ -57,7 +59,7 @@ class PaperOverlay(
 
     override fun imageHeight(asset: String): Int = catalog()?.overlayImageHeight(asset) ?: -1
 
-    override fun hasPack(player: Player): Boolean = packs.hasLoaded(player.uniqueId)
+    override fun hasPack(player: Player): Boolean = !bedrock(player) && packs.hasLoaded(player.uniqueId)
 
     override fun show(player: Player, slot: OverlayApi.Slot, layer: String, priority: Int, miniMessage: String) {
         slots?.show(player.uniqueId, slot, layer, priority, miniMessage)

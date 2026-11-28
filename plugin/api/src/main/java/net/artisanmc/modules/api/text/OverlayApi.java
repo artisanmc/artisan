@@ -111,7 +111,11 @@ public interface OverlayApi {
      */
     @Nullable String image(String asset, int rise);
 
-    /** Whether {@code player}'s client has loaded Artisan's resource pack (or the host's that merges it). */
+    /**
+     * Whether {@code player}'s client has loaded Artisan's resource pack (or the host's that merges it).
+     * Always false for a Bedrock player (Geyser): the Java pack's fonts never reach their client
+     * (since 1.14.0; before, it read whatever Geyser answered to the pack request).
+     */
     boolean hasPack(Player player);
 
     /**

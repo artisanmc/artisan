@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   Coins,
   Eraser,
+  EyeOff,
   GitBranch,
   Heading,
   LayoutGrid,
@@ -17,6 +18,7 @@ import {
   MousePointerClick,
   PackageMinus,
   PackagePlus,
+  PanelsTopLeft,
   PenLine,
   Plus,
   Puzzle,
@@ -87,6 +89,9 @@ const CORE: Record<string, { family: ActionFamily; icon: LucideIcon }> = {
   // The triggers module's two actions: they change the running Game event (eventActions.ts).
   cancel_event: { family: "effect", icon: Ban },
   set_event: { family: "effect", icon: PenLine },
+  // The huds module's two actions: a temporary HUD on and off (ADR `server-huds` §3).
+  show_hud: { family: "message", icon: PanelsTopLeft },
+  hide_hud: { family: "message", icon: EyeOff },
 };
 
 /** The icon of an `if` / `else` step. */

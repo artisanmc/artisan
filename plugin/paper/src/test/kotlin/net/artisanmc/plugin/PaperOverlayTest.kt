@@ -13,6 +13,10 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import be.seeseemelk.mockbukkit.MockBukkit
+import java.util.UUID
 
 class PaperOverlayTest {
 
@@ -99,5 +103,24 @@ class PaperOverlayTest {
         assertEquals(96, overlay(tmp).imageHeight("box"))
         assertEquals(-1, overlay(tmp).imageHeight("panel"))
         assertEquals(-1, PaperOverlay({ null }, PackLoadTracker()).imageHeight("box"))
+    }
+
+    @Test
+    fun `a Bedrock player never has the pack, whatever the pack request answered`() {
+        val server = MockBukkit.mock()
+        try {
+            val java = server.addPlayer("java")
+            val bedrock = server.addPlayer("bedrock")
+            val packs = PackLoadTracker()
+            val pack = UUID.randomUUID()
+            packs.pushed(pack)
+            packs.loadedBeforeJoin(java.uniqueId, pack)
+            packs.loadedBeforeJoin(bedrock.uniqueId, pack)
+            val overlay = PaperOverlay({ null }, packs, null) { it.uniqueId == bedrock.uniqueId }
+            assertTrue(overlay.hasPack(java))
+            assertFalse(overlay.hasPack(bedrock))
+        } finally {
+            MockBukkit.unmock()
+        }
     }
 }

@@ -1,0 +1,14 @@
+{
+  "schema": "hud/v1",
+  "priority": 50,
+  "refresh": 100,
+  "layout": [
+    { "image": "hud_panel", "x": -80, "y": 0 },
+    { "text": "name", "x": -72, "y": 4, "width": 144, "align": "center" },
+    { "text": "money", "x": -72, "y": 14, "width": 144, "align": "center" }
+  ],
+  "texts": {
+    "name": "<white>{player}",
+    "money": "<gold>{var.coins} <gray>pièces"
+  }
+}

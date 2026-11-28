@@ -952,6 +952,20 @@ Non-examples:
 - A placeholder is not a Variable — it is display text, untyped and undeclared; a
   Module shares its state through Module variables, not through its placeholders.
 
+## HUD
+
+A Document (`huds/<id>.yml`, `hud/v1`) drawn on the players' screens in one overlay slot
+(`boss_bar` or `action_bar`): image and text layers in pixels, the texts Templates
+(`{player}`, `{var.coins}`). **Permanent** (on, no conditions), **conditional** (`when`) or
+**temporary** (`enabled: false`, shown by `show_hud` for a duration or until `hide_hud`).
+Drawn only for a player whose client has the pack, never a Bedrock player. HUDs of a slot stack
+with the Modules' layers by priority. Cf. ADR `server-huds`.
+
+Non-examples:
+- A Module's HUD drawn by its code (a conversation's page, the tracked quest's `quest_hud`) is a
+  layer of the same slots, not a HUD Document.
+- The scoreboard sidebar and a real boss bar are not HUDs — they are vanilla displays.
+
 ## Original
 
 A Document a **Module** ships into its own folder, kept under `originals/` (written by the server

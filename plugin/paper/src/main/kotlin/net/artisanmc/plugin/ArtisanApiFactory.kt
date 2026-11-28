@@ -127,7 +127,7 @@ internal object ArtisanApiFactory {
             .translations(plugin.translations)
             .text(net.artisanmc.plugin.text.ArtisanText)
             .network(plugin.network)
-            .overlay(net.artisanmc.plugin.resourcepack.PaperOverlay({ plugin.assetCatalogOrNull }, plugin.packLoads, plugin.overlaySlots))
+            .overlay(net.artisanmc.plugin.resourcepack.PaperOverlay({ plugin.assetCatalogOrNull }, plugin.packLoads, plugin.overlaySlots) { plugin.geyser.isBedrock(it) })
             .conditions(net.artisanmc.plugin.engine.ModuleConditions(
                 evaluator = { plugin.runtime.evaluatorOrNull },
                 ownsPlayer = { plugin.scheduler.ownsPlayer(it.uniqueId) },

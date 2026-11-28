@@ -43,6 +43,8 @@ In an `item` model field, `title` and `lore` are i18n sites, including under `ex
 
 `menu/v1` carries `$defs/Template` and `$defs/Location` (2026-11-01, additive, ADR `triggers-and-variables` §4, §6): every `number`, `integer` and `boolean` action argument is `anyOf [type, Template]` (a string holding `{` or `%`, resolved when the action runs), a location is `world x y z [yaw pitch]` or an object whose coordinates may be templates. `CoreActionSchemaConformanceTest` reads such an `anyOf` as the argument's kind. The `variable/v1` schema (`docs/schema/variable/v1/`) references `$defs/Location` for a default; its examples are validated by `modules/variables/variables.test.tsx`.
 
+The `hud/v1` schema (`docs/schema/hud/v1/`, 2026-11-28, ADR `server-huds`) references `$defs/ConditionKeyed` for `when`; its examples are validated by `modules/huds/huds.test.ts`, and `Hud.kt` reads the same file on the server (`HudTest`).
+
 `menu/v1` also carries `Appearance.item` (binding to a full item), exclusive with `material`. Schema and types: `docs/schema/menu/v1/`. Tests: `menuItemBinding.test.ts` and `MenuRendererItemValueTest`.
 
 ### `menu/v2` and `menu/v3` folded into `menu/v1` (2026-09-17)
