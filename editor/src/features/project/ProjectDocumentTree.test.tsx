@@ -97,9 +97,20 @@ describe("ProjectDocumentTree", () => {
     const rows = within(menus).getAllByRole("button", { name: /^m\d$/ });
     expect(rows).toHaveLength(2);
     for (const row of rows) expect(row.querySelector("svg")).not.toBeNull();
-    const header = screen.getByTestId("type-group-menu");
+    const header = screen.getByTestId("type-open-menu");
     expect(header).toHaveTextContent(/menus/i);
     expect(header).toHaveTextContent("2");
+  });
+
+  it("leads to the catalogue narrowed to a kind from the kind's name, folding stays on the chevron", async () => {
+    const onOpenKind = vi.fn();
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} onOpenKind={onOpenKind} />);
+    await userEvent.setup().click(screen.getByTestId("type-open-menu"));
+    expect(onOpenKind).toHaveBeenCalledWith("menu");
+    expect(screen.getByText("m1")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByTestId("type-group-menu"));
+    expect(screen.queryByText("m1")).toBeNull();
+    expect(onOpenKind).toHaveBeenCalledTimes(1);
   });
 
   it("folds a crowded module's kinds, the one holding the open document and the admin's choice excepted", async () => {

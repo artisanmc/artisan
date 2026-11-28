@@ -182,7 +182,7 @@ describe("ProjectSidebar", () => {
       expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     });
 
-    it("lists the open module's pages as rows of its tree, with the missing translations on Translations", async () => {
+    it("lists the open module's pages as rows of its tree, with the missing translations on Translations, the canvas being the header's", async () => {
       mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       const lacking = {
         ...(loaded("pack_a") as object),
@@ -194,11 +194,12 @@ describe("ProjectSidebar", () => {
       } as never);
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
-      for (const id of ["home", "board", "translations", "resources"]) {
+      for (const id of ["home", "translations", "resources"]) {
         expect(screen.getByTestId(`open-view-${id}`)).toBeInTheDocument();
       }
       expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
       expect(screen.getByTestId("sidebar-module-settings")).toBeInTheDocument();
+      expect(screen.queryByTestId("open-view-board")).toBeNull();
       // History needs the module to be on a server.
       expect(screen.queryByTestId("open-view-history")).toBeNull();
     });

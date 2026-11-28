@@ -1518,6 +1518,7 @@ const fr: typeof en = {
     },
   },
   projectPanel: {
+    openKind: "Voir les {{kind}} dans le catalogue",
     expandParts: "Afficher les parties de {{name}}",
     collapseParts: "Masquer les parties de {{name}}",
     systemDocumentHint:
@@ -2282,7 +2283,7 @@ const fr: typeof en = {
     serverOfflineExport: "Serveur hors ligne — impossible d'exporter les fichiers",
     tabs: {
       label: "Vues du module",
-      home: "Accueil",
+      home: "Catalogue",
       resources: "Ressources",
       canvas: "Canvas",
       translations: "Traductions",
@@ -2879,6 +2880,14 @@ const fr: typeof en = {
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "bouton · {{owner}}",
     ctxInDocument: "dans {{owner}}",
+  },
+  moduleCatalogue: {
+    title: "Documents",
+    search: "Chercher un document",
+    kinds: "Filtrer par type",
+    all: "Tout",
+    none: "Aucun document ne correspond.",
+    tone: { modified: "modifié", update: "mise à jour" },
   },
   moduleHome: {
     translationsMissing_one: "{{count}} texte à traduire.",

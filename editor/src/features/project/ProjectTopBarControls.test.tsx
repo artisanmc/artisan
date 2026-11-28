@@ -184,6 +184,28 @@ describe("ProjectTopBarControls", () => {
       within(screen.getByTestId("project-editing-tools")).getByTitle(/Undo \(|Annuler \(/i),
     ).toBeInTheDocument();
   });
+  it("switches between the module's catalogue and its canvas in the header", () => {
+    const project = {
+      id: "p1",
+      name: "Test",
+      defaultLang: "en",
+      i18nKeys: {},
+      documents: { menu: [], command: [], dialog: [] },
+      assets: [],
+    } as any;
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
+    const switcher = screen.getByRole("group", { name: /Vues du module|Module views/ });
+    // This file's router mock is on `?tab=board`: the canvas is the view shown.
+    expect(within(switcher).getByRole("button", { name: "Canvas" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(switcher).getByRole("button", { name: "Catalogue" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
   it("renders the lang switcher, undo/redo, and save when a project is provided", () => {
     const project = {
       id: "p1",

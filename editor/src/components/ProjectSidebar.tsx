@@ -579,9 +579,7 @@ function ActiveProjectDocuments({
   if (!project) return null;
   return (
     <div className="px-1.5 pt-0.5">
-      <div data-tour="tabs">
-        <ModuleViewRows project={project} part="views" />
-      </div>
+      <ModuleViewRows project={project} part="views" />
       <div data-tour="elements">
         <ProjectDocumentTree
           projectId={project.id}
@@ -592,6 +590,13 @@ function ActiveProjectDocuments({
           onOpen={(documentId) => {
             useSidebarStore.getState().close();
             goToDocument(navigate, { serverId, project, ref: documentId });
+          }}
+          onOpenKind={(kind) => {
+            useSidebarStore.getState().close();
+            void navigate({
+              ...projectDestination(project, serverId ?? undefined),
+              search: { kind },
+            } as never);
           }}
         />
       </div>
@@ -617,9 +622,9 @@ const VIEW_LABEL: Record<WorkspaceViewTab, string> = {
 };
 
 /**
- * The open module's own pages, as rows of its tree like its Documents: its home and its
- * canvas above them (`views`), its tools below (`tools`: Translations, Resources, History,
- * then its settings). The header holds no navigation: where you are is the row highlighted.
+ * The open module's own pages, as rows of its tree like its Documents: its catalogue above
+ * them (`views`), its tools below (`tools`: Translations, Resources, History, then its
+ * settings). The canvas is the other half of the catalogue's switch, in the header.
  * The hotbar digits follow `WORKSPACE_VIEW_TABS`, as before.
  */
 function ModuleViewRows({ project, part }: { project: Project; part: "views" | "tools" }) {
@@ -635,7 +640,7 @@ function ModuleViewRows({ project, part }: { project: Project; part: "views" | "
   const active = childOpen && !search.tab ? undefined : effectiveTab(search.tab, false);
   const missing = countMissingForLang(project, activeLang);
   const tabs = WORKSPACE_VIEW_TABS.filter((tab) =>
-    part === "views" ? tab === "home" || tab === "board" : tab !== "home" && tab !== "board",
+    part === "views" ? tab === "home" : tab !== "home" && tab !== "board",
   ).filter((tab) => tab !== "history" || !!runtime?.serverId);
   const row = "w-full text-left";
   return (
