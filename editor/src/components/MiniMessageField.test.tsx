@@ -19,3 +19,23 @@ it("offers the color and gradient button on a one-line field", () => {
   fireEvent.focus(content());
   expect(screen.getByRole("button", { name: "Couleur et dégradé" })).toBeTruthy();
 });
+
+it("in a label, a click in the text does not press the toolbar's first button", () => {
+  const onChange = vi.fn();
+  render(
+    // biome-ignore lint/a11y/noLabelWithoutControl: what a module writes
+    <label>
+      Objective
+      <MiniMessageField value="Hello" onChange={onChange} aria-label="objective" />
+    </label>,
+  );
+  fireEvent.focus(content());
+  const bold = screen.getAllByRole("button")[0];
+  const pressed = vi.fn();
+  bold.addEventListener("click", pressed);
+  // The text's line and the field's frame, both under the label.
+  fireEvent.click(content());
+  fireEvent.click(content().closest(".cm-editor") as HTMLElement);
+  expect(pressed).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
+});
