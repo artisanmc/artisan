@@ -123,6 +123,8 @@ object TreeSync {
             if (file.isFile && file.name !in named && "${SystemFiles.BASES}/${file.name}" !in changes) changes["${SystemFiles.BASES}/${file.name}"] = null
         }
         if (excludeNow.isNotEmpty()) SystemFiles.excluded(projectDir, excludeNow)?.let { (name, bytes) -> changes[name] = bytes }
+        // What this sync wrote again, for the reader to say on the module file until the next start ([clearRestored]).
+        if (restored.isNotEmpty()) changes[RESTORED] = yaml.writeValueAsBytes(mapOf("paths" to (restoredOf(projectDir) + restored).distinct()))
         if (changes.isEmpty() && index == before) return emptyList()
         changes[ShippedIndex.PATH] = ShippedIndex.serialize(index)
         val mirror = origins.filterKeys { it !in before && it !in index } + index.mapValues { it.value.origin }
@@ -134,7 +136,22 @@ object TreeSync {
         )
         merged.forEach { (path, conflicts) -> onMerged(path, conflicts) }
         restored.forEach(onRestored)
-        return changes.keys.filter { it != ProjectOrigins.PATH && it != ShippedIndex.PATH && !it.startsWith("${SystemFiles.BASES}/") }
+        return changes.keys.filter { it != ProjectOrigins.PATH && it != ShippedIndex.PATH && it != RESTORED && !it.startsWith("${SystemFiles.BASES}/") }
+    }
+
+    /** The required files the last sync wrote again after their deletion (metadata, out of the hash). */
+    const val RESTORED = ".artisan/restored.yaml"
+
+    /** At each start, before the syncs: what an earlier start wrote again is no longer news. */
+    fun clearRestored(projectDir: File) {
+        File(projectDir, RESTORED).takeIf { it.isFile }?.delete()
+    }
+
+    /** The paths of [RESTORED]; empty when absent or unreadable. */
+    fun restoredOf(projectDir: File): List<String> {
+        val file = File(projectDir, RESTORED).takeIf { it.isFile } ?: return emptyList()
+        val root = runCatching { yaml.readTree(file) }.getOrNull() ?: return emptyList()
+        return root.path("paths").mapNotNull { it.asText(null) }
     }
 
     /** What a template finds: (module, template) → its declaration, null when the module is gone. */

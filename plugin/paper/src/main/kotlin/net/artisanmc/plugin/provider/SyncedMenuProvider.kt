@@ -638,6 +638,7 @@ class SyncedMenuProvider(
             val seededBefore = seeds.seeded()
             var wrote = false
             // Before any sync: a module folder in the former layout becomes one tree (ADR `editable-module-tree`).
+            roots.all().values.forEach { runCatching { net.artisanmc.plugin.project.TreeSync.clearRestored(it) } }
             if (migrateFolders()) wrote = true
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->

@@ -138,4 +138,14 @@ class TreeSyncTest {
         assertTrue(SystemFiles.keep(folder, "menus/main.yml", templates), "already kept")
         assertFalse(SystemFiles.keep(folder, "menus/other.yml", templates))
     }
+
+    @Test
+    fun `a required file written again is recorded for the reader until the next start`() {
+        sync(system(1, "menus/main.yml" to "title: Shop\n"))
+        file("menus/main.yml").delete()
+        sync(system(1, "menus/main.yml" to "title: Shop\n"))
+        assertEquals(listOf("menus/main.yml"), TreeSync.restoredOf(folder))
+        TreeSync.clearRestored(folder)
+        assertEquals(emptyList(), TreeSync.restoredOf(folder))
+    }
 }
