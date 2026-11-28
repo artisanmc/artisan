@@ -1,0 +1,2 @@
+- **Changed**: Resources names the modules as the sidebar does, wears one amber badge for a disabled theme, labels its source menu "Images of: the base / this theme / this module", groups its four ways of adding under one Add menu, and marks a redrawn image "Redrawn" in place of "Override".
+- **Changed**: a theme's sheet lists the images it redraws, and every image of the base on demand.

@@ -1,5 +1,11 @@
 import { SplitPane } from "@/components/SplitPane";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
@@ -15,6 +21,7 @@ import { cx } from "@/lib/cx";
 import { KIT_ALIAS, KIT_FOLDER, commonImageKey, kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { useProjectsStore } from "@/state/projectsStore";
+import { ChevronDown, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { create } from "zustand";
@@ -152,8 +159,8 @@ export function ResourcesSplit({
 export function AssetsTab({
   projectId,
   compact = false,
-  capturedItems,
   components,
+  overview,
   onOpenCommon,
   onOpenMenu,
   server,
@@ -166,20 +173,19 @@ export function AssetsTab({
   onOpenCommon?: () => void;
   /** Opens the menu `menuId` of the module `projectId`, from a common image's uses. */
   onOpenMenu?: (projectId: string, menuId: string) => void;
-  /** The captured view's content, given by the page (the section lives with the canvas). */
-  capturedItems?: ReactNode;
   /** The components view's content, given by the page (it is drawn by the canvas and the inspector). */
   components?: ReactNode;
+  /** A theme's overview (`ThemeOverview`), its first view; absent outside a theme. */
+  overview?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
   // An image uploaded here went to the server's library: the list turns to it, selected.
   const [addedCommon, setAddedCommon] = useState<string | null>(null);
-  const view = useResourcesView((s) => s.view);
+  const asked = useResourcesView((s) => s.view);
+  // The overview is a theme's: elsewhere, the files.
+  const view = asked === "theme" && !overview ? "files" : asked;
   const setView = useResourcesView((s) => s.setView);
-  const captured = useProjectsStore(
-    (s) => s.openProjects.projects.find((p) => p.id === projectId)?.capturedItems?.length ?? 0,
-  );
   const studio = useResourcesView((s) => s.studio);
   const openStudio = useResourcesView((s) => s.openStudio);
   const listed = useAssetStore((s) =>
@@ -196,13 +202,10 @@ export function AssetsTab({
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
   useSaveAsAsked(projectId);
-  // The components view is the page's: a picker gives none.
-  const views: ResourcesView[] = [
-    "files",
-    ...(components ? (["components"] as const) : []),
-    "captured",
-  ];
-  const tabs = !capturedItems ? null : (
+  // The components view is the page's: a picker gives none. What goes in the players' pack
+  // only: the captured items are Documents of the module, in its tree.
+  const views: ResourcesView[] = [...(overview ? (["theme"] as const) : []), "files", "components"];
+  const tabs = !components ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {views.map((entry) => (
         <button
@@ -214,9 +217,6 @@ export function AssetsTab({
           onClick={() => setView(entry)}
         >
           {t(`resources.view.${entry}`)}
-          {entry === "captured" && captured > 0 ? (
-            <span className="ml-1 opacity-60">{captured}</span>
-          ) : null}
         </button>
       ))}
     </div>
@@ -230,24 +230,21 @@ export function AssetsTab({
         server={server}
       />
     );
-  if (view === "components" && components && capturedItems) {
+  if (view === "theme" && overview) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {tabs}
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="mx-auto max-w-7xl px-3 py-4">{overview}</div>
+        </div>
+      </div>
+    );
+  }
+  if (view === "components" && components) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         {tabs}
         <div className="min-h-0 flex-1">{components}</div>
-      </div>
-    );
-  }
-  if (view === "captured" && capturedItems) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        {tabs}
-        {/* Picker mode with nothing to pick: the tiles are looked at, removed and captured
-            here, placed on a menu from the canvas's Buttons panel. */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <p className="mb-2 text-xs text-[var(--text-mut)]">{t("resources.capturedHint")}</p>
-          {capturedItems}
-        </div>
       </div>
     );
   }
@@ -720,18 +717,30 @@ function OwnAssets({
   const list = (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" onClick={() => setNewOpen(true)}>
-          {t("imageNew.open")}
-        </Button>
-        <Button variant="outline" onClick={() => setUploadOpen(true)}>
-          {t("resources.upload")}
-        </Button>
-        <Button variant="outline" onClick={() => setImportFontOpen(true)}>
-          {t("resources.importFont")}
-        </Button>
-        <Button variant="outline" onClick={() => setImportNexoOpen(true)}>
-          {t("resources.importNexo")}
-        </Button>
+        {/* One way in, four kinds of adding: the page's main button stays Deploy. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Plus className="size-4" aria-hidden />
+              {t("resources.add")}
+              <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => setNewOpen(true)}>
+              {t("imageNew.open")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setUploadOpen(true)}>
+              {t("resources.upload")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setImportFontOpen(true)}>
+              {t("resources.importFont")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setImportNexoOpen(true)}>
+              {t("resources.importNexo")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Input
           aria-label={t("resources.search")}
           placeholder={t("resources.search")}

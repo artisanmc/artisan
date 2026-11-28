@@ -62,6 +62,15 @@ export function ProjectSource({
 }) {
   const { t } = useTranslation();
   const kitId = useKitStore((s) => s.read?.projectId);
+  // The place being edited, by what it is: the base, a theme or a module.
+  const isTheme = useKitStore((s) => Object.values(s.own).some((o) => o.projectId === projectId));
+  const hereLabel = t(
+    projectId === kitId
+      ? "projectSource.hereBase"
+      : isTheme
+        ? "projectSource.hereTheme"
+        : "projectSource.here",
+  );
   const everyOther = useOtherServerProjects(projectId);
   const others = useMemo(() => everyOther.filter((p) => p.id !== kitId), [everyOther, kitId]);
   // The common images' own Project shows them as its files.
@@ -89,7 +98,7 @@ export function ProjectSource({
                   ? t("projectSource.common")
                   : all
                     ? t("projectSource.all")
-                    : (source?.name ?? t("projectSource.here"))}
+                    : (source?.name ?? hereLabel)}
               </span>
               <ChevronDown className="size-3.5 shrink-0 text-[var(--text-mut)]" />
             </button>
@@ -105,7 +114,7 @@ export function ProjectSource({
               }
             >
               <DropdownMenuRadioItem value={HERE} className="text-xs">
-                {t("projectSource.here")}
+                {hereLabel}
               </DropdownMenuRadioItem>
               {offersCommon && (
                 <DropdownMenuRadioItem value={COMMON_IMAGES} className="text-xs">

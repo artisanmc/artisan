@@ -25,9 +25,9 @@ import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanel
 import {
   type ResourcePlace,
   ResourcePlaces,
-  ThemeBar,
   type ThemeImporter,
 } from "@/features/project/ResourcePlaces";
+import { ThemeOverview } from "@/features/project/ThemeOverview";
 import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -65,7 +65,7 @@ const NO_PICK = () => {};
 
 export type ProjectSearch = {
   /** Absent: the module's home (the board under a child page). */
-  tab?: "board" | "translations" | "resources" | "history";
+  tab?: "board" | "translations" | "resources" | "history" | "items";
   /**
    * Deep link: center the board on this Document on open (`goToDocument`): its key
    * (`menu/main`), or a bare id (the first Document of that id).
@@ -85,7 +85,8 @@ export const validateProjectSearch = (search: Record<string, unknown>): ProjectS
       : {};
   // `data-sources` (the former Data view, whose content moved to the sidebar) falls back to
   // the home like any unknown tab.
-  if (t === "translations" || t === "resources" || t === "history") return { tab: t, ...variant };
+  if (t === "translations" || t === "resources" || t === "history" || t === "items")
+    return { tab: t, ...variant };
   const doc = typeof search.doc === "string" && search.doc ? { doc: search.doc } : {};
   const kind = typeof search.kind === "string" && search.kind ? { kind: search.kind } : {};
   // `overview` was the board's name before the home: old links still open the board, and
@@ -251,22 +252,18 @@ export function ProjectCanvasPage({
               />
             ) : null}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              {serverId && placeOf(pId).kind === "theme" ? (
-                <ThemeBar
-                  name={(placeOf(pId) as { name: string }).name}
-                  onSettings={(name) =>
-                    void navigate({
-                      to: "/servers/$serverId/resources",
-                      params: { serverId },
-                      search: { theme: name },
-                    })
-                  }
-                />
-              ) : null}
               <div className="min-h-0 flex-1">
                 <AssetsTab
                   projectId={pId}
-                  capturedItems={<CapturedItemsSection projectId={pId} onPick={NO_PICK} />}
+                  overview={
+                    serverId && runtime?.serverId && placeOf(pId).kind === "theme" ? (
+                      <ThemeOverview
+                        name={(placeOf(pId) as { name: string }).name}
+                        serverId={serverId}
+                        serverKeyId={runtime.serverId}
+                      />
+                    ) : undefined
+                  }
                   components={
                     <ComponentsView
                       projectId={pId}
@@ -311,6 +308,18 @@ export function ProjectCanvasPage({
                 />
               </div>
             </div>
+          </div>
+        </WorkspaceView>
+        <WorkspaceView
+          active={presentedTab === "items"}
+          onExit={exitToCanvas}
+          title={t("project.tabs.items")}
+        >
+          {/* Looked at, renamed, removed and captured here; placed on a menu from the
+              canvas's Buttons panel, or picked in an item field. */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <p className="mb-2 text-xs text-[var(--text-mut)]">{t("resources.capturedHint")}</p>
+            <CapturedItemsSection projectId={pId} onPick={NO_PICK} />
           </div>
         </WorkspaceView>
         <WorkspaceView

@@ -1,8 +1,8 @@
 import type { Asset } from "@/domain/asset";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
-import { useProjectsStore } from "@/state/projectsStore";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetsTab, useResourcesView } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
@@ -26,6 +26,12 @@ vi.mock("@tanstack/react-virtual", () => ({
       })),
   }),
 }));
+
+/** Opens the image upload, the second entry of the Add menu. */
+async function importImage() {
+  await userEvent.click(screen.getByRole("button", { name: /^Ajouter$/ }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: /^Importer une image$/ }));
+}
 
 const A1: Asset = {
   id: "asset_1",
@@ -145,18 +151,18 @@ describe("AssetsTab", () => {
     expect(mark(/^crest · Autre taille/)).toBe("warning");
     expect(mark(/^banner · Votre version d'une image/)).toBe("brand");
     // What replaces an image below wears a word, not a dot.
-    expect(screen.getByLabelText(/^banner · /)).toHaveTextContent("Surcharge");
-    expect(screen.getByLabelText(/^crest · /)).not.toHaveTextContent("Surcharge");
+    expect(screen.getByLabelText(/^banner · /)).toHaveTextContent("Redessinée");
+    expect(screen.getByLabelText(/^crest · /)).not.toHaveTextContent("Redessinée");
     expect(mark(/^seal · Votre version : l'original du module a changé/)).toBe("warning");
     expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
     useProjectTemplatesStore.setState({ entries: {} });
   });
 
-  it("opens the upload dialog when clicking Upload", () => {
+  it("opens the upload dialog from the Add menu", async () => {
     useAssetStore.getState().setAssets([]);
     render(<AssetsTab projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
+    await importImage();
     expect(screen.getByRole("dialog", { name: /importer une image/i })).toBeTruthy();
   });
 
@@ -179,8 +185,8 @@ describe("AssetsTab", () => {
       },
     });
     render(<AssetsTab projectId={"p1" as never} />);
-    expect(screen.getByLabelText(/^window\.3/)).toHaveTextContent("Surcharge");
-    expect(screen.getByTitle("window.6")).not.toHaveTextContent("Surcharge");
+    expect(screen.getByLabelText(/^window\.3/)).toHaveTextContent("Redessinée");
+    expect(screen.getByTitle("window.6")).not.toHaveTextContent("Redessinée");
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
     useKitStore.setState({ read: undefined, own: {} } as never);
   });
@@ -198,7 +204,7 @@ describe("AssetsTab", () => {
       .mockResolvedValue({ id: "crest", projectId: "srv.artisan", name: "crest" } as never);
     useAssetStore.getState().setAssets([]);
     render(<AssetsTab projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
+    await importImage();
     fireEvent.change(screen.getByLabelText(/fichier/i), {
       target: { files: [new File(["png"], "crest.png", { type: "image/png" })] },
     });
@@ -225,7 +231,7 @@ describe("AssetsTab", () => {
     expect(screen.queryByTitle("bg_one")).toBeNull();
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
-  it("groups legacy backgrounds and decorations with menu images and scopes imports", () => {
+  it("groups legacy backgrounds and decorations with menu images and scopes imports", async () => {
     useAssetStore
       .getState()
       .setAssets([
@@ -238,7 +244,7 @@ describe("AssetsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Images du menu$/ }));
     for (const name of ["bg_one", "logo", "frame"]) expect(screen.getByTitle(name)).toBeTruthy();
     expect(screen.queryByTitle("ico_one")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/ }));
+    await importImage();
     // The import files the image under the part shown: nothing to tick.
     expect(screen.queryByRole("checkbox")).toBeNull();
   });
@@ -251,31 +257,34 @@ describe("AssetsTab", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "not-found" } });
     expect(screen.getByRole("status")).toHaveTextContent(/Aucune ressource ne correspond/);
   });
-  it("switches to the module's captured items, and back to its files", () => {
-    useProjectsStore.setState({
-      openProjects: {
-        projects: [
-          {
-            id: "p1",
-            name: "P1",
-            capturedItems: [{ id: "ci_1", name: "Golden key", stackYaml: "", display: {} }],
-          },
-        ],
-        projectOrder: ["p1"],
-      },
-    } as never);
-    render(
+  it("opens a theme on its overview, its first view, which nothing else has", () => {
+    useResourcesView.getState().setView("theme");
+    const { rerender } = render(
       <AssetsTab
         projectId={"p1" as never}
-        capturedItems={<div data-testid="captured-items-section" title="Golden key" />}
+        components={<div />}
+        overview={<div data-testid="theme-overview" />}
       />,
     );
-    expect(screen.queryByTestId("captured-items-section")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /Items capturés/ }));
-    expect(screen.getByTestId("captured-items-section")).toBeTruthy();
-    expect(screen.getByTitle("Golden key")).toBeTruthy();
-    expect(screen.queryByTitle("bg_one")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /Images et polices/ }));
-    expect(screen.getByTitle("bg_one")).toBeTruthy();
+    expect(screen.getByTestId("theme-overview")).toBeTruthy();
+    expect(screen.getAllByRole("tab")[0]).toHaveTextContent("Aperçu");
+    // A module asked for the overview shows its files.
+    rerender(<AssetsTab projectId={"p1" as never} components={<div />} />);
+    expect(screen.queryByTestId("theme-overview")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Images et polices" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    useResourcesView.getState().setView("files");
+  });
+
+  it("shows what goes in the players' pack only: no captured items among its views", () => {
+    render(<AssetsTab projectId={"p1" as never} components={<div data-testid="components" />} />);
+    const views = screen.getByTestId("resources-views");
+    expect(
+      within(views)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Images et polices", "Composants"]);
   });
 });

@@ -123,10 +123,11 @@ opens as the module it is. The places, in the order an image's name is looked up
 
 A click opens the place on the right: a theme, a module or the base on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
-its Resources an image named like one of a place below wears the word **Override**; an image
-the theme adds wears nothing. The bar above a theme's Resources says whether it is in place and leads to its
-page (**Preview and settings of the theme**: every image of the base without it and with it,
-enable, rename, delete, export).
+its Resources an image named like one of a place below wears the word **Redrawn**; an image
+the theme adds wears nothing. A theme opens on its **Overview**, the first of its views beside
+**Images and fonts** and **Components**: whether it is enabled, its colours, the images it
+redraws without it and with it (every image of the base on demand), enable, rename, delete,
+export.
 
 **Base** opens like any other place, on the same Resources screen: **Added or changed on this
 server** lists the images the server added and its versions of Artisan's, **Shipped with
@@ -210,7 +211,7 @@ image (`artisan:<name>`) or a PNG of its own module, nothing else: a layer that 
 module's image, another composed image or a deleted one is left out of the picture, and the
 deploy review lists such layers.
 
-**New image** in the Resources page asks what the image is for, which gives its size: a
+**Add → New image** in the Resources page asks what the image is for, which gives its size: a
 **menu background** (a window of 1 to 6 rows), **slots** (pick the area on a 9 × 6 grid: 3 × 1
 for a button), an **icon** (16 × 16) or a **free size**. It starts empty, to be drawn, or from
 a common image of that size, as a composed image.
@@ -269,7 +270,7 @@ transparent padding. **Stretch** fills the entire area. The source PNG is unchan
 Replacing an existing button's image keeps its area and settings. **Fit slots to image**
 recalculates its footprint when desired. Existing buttons retain their previous rendering.
 
-**Using Nexo glyphs.** In the project's **Resources** tab, **Import from Nexo** lists
+**Using Nexo glyphs.** In the project's **Resources** tab, **Add → Import from Nexo** lists
 the glyphs configured in `plugins/Nexo/glyphs/` on the server. Selected glyphs are
 copied into the project as images, so they work as buttons, backgrounds or title
 glyphs like any upload. Greyed glyphs have no texture in the Nexo pack. If you change

@@ -31,14 +31,16 @@ describe("KitThemePage", () => {
       within(screen.getByTestId("kit-theme-drawings")).getByText("close.1x1"),
     ).toBeInTheDocument();
     expect(screen.getByText("Désactivé")).toBeInTheDocument();
+    // At first only what the theme redraws: a pair of identical pictures says nothing.
+    const sheet = within(screen.getByTestId("kit-theme-sheet"));
+    expect(sheet.getAllByTestId("kit-theme-sheet-row")).toHaveLength(1);
     // Every image of the base, without the theme and with it: what it redraws comes first.
-    const rows = within(screen.getByTestId("kit-theme-sheet")).getAllByTestId(
-      "kit-theme-sheet-row",
-    );
+    fireEvent.click(sheet.getByRole("button", { name: /Toutes les images de la base/ }));
+    const rows = sheet.getAllByTestId("kit-theme-sheet-row");
     expect(rows.length).toBeGreaterThan(10);
     expect(rows[0]).toHaveTextContent("close.1x1");
-    expect(rows[0]).toHaveTextContent("Surcharge");
-    expect(rows[1]).not.toHaveTextContent("Surcharge");
+    expect(rows[0]).toHaveTextContent("Redessinée");
+    expect(rows[1]).not.toHaveTextContent("Redessinée");
     fireEvent.change(screen.getByLabelText("Filtrer par nom"), { target: { value: "window" } });
     for (const row of screen.getAllByTestId("kit-theme-sheet-row"))
       expect(row).toHaveTextContent("window");

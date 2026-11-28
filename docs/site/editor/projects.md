@@ -151,7 +151,8 @@ moves your changes into the command files once and keeps the old files in
 
 ## Use another project's images and items
 
-**Captured items**, **Images**, **Resources** and the image picker start with a **Project** menu:
+**Captured items** (a row of the module's tree, after its Documents), **Images**, **Resources**
+and the image picker start with a **Project** menu (**Images of:** in Resources):
 pick another project of the same server (read only), or **All other projects** to search them
 all. Whatever you use is **copied** into your project first, so each project stays complete:
 

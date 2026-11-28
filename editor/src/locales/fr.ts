@@ -27,8 +27,8 @@ const fr: typeof en = {
       otherSize: "Autre taille que l'original du module qu'elle remplace",
       ownVersion: "Votre version d'une image livrée par le module",
       originalChanged: "Votre version : l'original du module a changé depuis",
-      replacesBase: "Surcharge : remplace l'image de ce nom qui se trouve en dessous",
-      override: "Surcharge",
+      replacesBase: "Redessinée : remplace l’image de ce nom qui se trouve en dessous",
+      override: "Redessinée",
     },
     original: {
       label: "Original du module",
@@ -75,7 +75,7 @@ const fr: typeof en = {
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },
-    view: { files: "Images et polices", components: "Composants", captured: "Items capturés" },
+    view: { theme: "Aperçu", files: "Images et polices", components: "Composants" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -83,6 +83,7 @@ const fr: typeof en = {
     menu: "Images du menu",
     font: "Polices",
     unclassified: "À classer",
+    add: "Ajouter",
     upload: "Importer une image",
     importFont: "Importer une police",
     importNexo: "Importer depuis Nexo",
@@ -329,7 +330,6 @@ const fr: typeof en = {
     place: "Où",
     save: "Enregistrer",
     theme: "Thème « {{name}} »",
-    themeAway: "Thème « {{name}} » (désactivé)",
     newTheme: "Nouveau thème…",
     replacesModuleImage:
       "Remplace « {{name}} » du module « {{module}} » quand ce thème est actif. Les autres modules ne changent pas.",
@@ -515,6 +515,10 @@ const fr: typeof en = {
         filter: "Filtrer par nom",
         empty: "Aucune image de ce nom.",
         none: "absente",
+        all: "Toutes les images de la base ({{count}})",
+        redrawnOnly: "Seulement les images redessinées",
+        nothing:
+          "Ce thème ne redessine aucune image : la base s'affiche telle quelle, avec ses couleurs.",
       },
       putHint:
         "Activer un thème le pose au-dessus de ceux qui sont déjà actifs et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le désactiver se fait d'ici aussi.",
@@ -640,18 +644,17 @@ const fr: typeof en = {
     modules: "Modules",
     modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
     noModules: "Aucun module sur ce serveur.",
-    themeSettings: "Aperçu et réglages du thème",
     themeAway: "désactivé",
-    themeInPlace: "actif",
-    themeBar: "Thème « {{name}} »",
   },
   projectSource: {
     common: "Images communes",
     all: "Tous les modules",
     from: "Dans le module {{project}}",
     searchItems: "Rechercher un item…",
-    label: "Module :",
-    here: "Ce module",
+    label: "Images de :",
+    here: "ce module",
+    hereBase: "la base",
+    hereTheme: "ce thème",
     others: "Autres modules du serveur",
     loading: "Chargement des modules du serveur…",
     unavailable: "Impossible de lire les modules du serveur.",
@@ -2290,6 +2293,7 @@ const fr: typeof en = {
       missingTranslations: "{{count}} traduction manquante",
       missingTranslations_other: "{{count}} traductions manquantes",
       history: "Historique",
+      items: "Items capturés",
     },
   },
   breadcrumb: {

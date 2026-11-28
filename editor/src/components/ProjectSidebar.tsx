@@ -84,6 +84,7 @@ import {
   Images,
   Languages,
   LayoutDashboard,
+  Package,
   Server,
   Settings,
   Table2,
@@ -611,6 +612,7 @@ const VIEW_ICON: Record<WorkspaceViewTab, typeof Terminal> = {
   translations: Languages,
   resources: Images,
   history: History,
+  items: Package,
 };
 
 const VIEW_LABEL: Record<WorkspaceViewTab, string> = {
@@ -619,6 +621,7 @@ const VIEW_LABEL: Record<WorkspaceViewTab, string> = {
   translations: "project.tabs.translations",
   resources: "project.tabs.resources",
   history: "project.tabs.history",
+  items: "project.tabs.items",
 };
 
 /**
