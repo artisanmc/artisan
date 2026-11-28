@@ -237,7 +237,7 @@ export function ResourcePlaces({
               name,
               summary(name),
               <>
-                <Badge variant="sage">{t("places.away")}</Badge>
+                <Badge variant="amber">{t("places.away")}</Badge>
                 <button
                   type="button"
                   className={ACTION}
