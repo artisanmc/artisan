@@ -191,8 +191,8 @@ names it follows. An image of another size is left out, so that no menu is throw
 common image of the server is named the same way. A module that holds an image of that name
 shows its own in its menus; `artisan:button.3x1` names the common one there. The app writes the
 name alone, and `artisan:<name>` in that case and in a composed image's layers; `kit:<name>`,
-which it wrote before, is still read. The base itself is on the server, in
-`themes/artisan/originals/`.
+which it wrote before, is still read. The base itself is on the server, in the theme
+`artisan` (`themes/artisan/assets/textures/`).
 
 **An add-on's images.** A module that comes from an add-on ships its images, and the app may
 redraw one under the same name. When the module says what the image is for (a menu image of a

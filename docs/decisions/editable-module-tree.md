@@ -1,6 +1,6 @@
 # A module's folder holds its whole tree; what it ships is indexed beside it; the base is a theme
 
-**Status:** accepted (2026-11-28), being built. Replaces the design `originaux-modules`
+**Status:** accepted (2026-11-28), being built: steps 1 to 5 and the first part of 6 are in (see *Built so far*). Replaces the design `originaux-modules`
 (`originals/` in a module's folder, project files: `archive/architecture/design-originaux-modules.md`)
 for module folders, and the parts of `docs/architecture/project-files.md` § Originals that follow
 from it. Amends `module-templates` (consequences) and `module-config-screens` (shipped data).
@@ -222,6 +222,25 @@ is removed later. No other add-on names `originals/` (checked 2026-11-28).
 - **Keep the base theme with `originals/`** (the first revision of this ADR, after review): two
   models for one kind of content, and a base that is neither deletable nor a theme. The pack's
   only need, "is this Artisan's drawing", is answered by the index (decision 9).
+
+## Built so far
+
+What the code does today, where it departs from the decisions above:
+
+- The hub's shipped-content cache is filled when a template is fetched (the editor opening a
+  migrated folder, MCP `read_document shipped`), not at Presence; its `contents` rows are kept
+  for good. With the server off and a file never fetched, the shipped version is unavailable.
+- `keep` and `madeAgainst` are not adapted to the index: in a migrated folder the origins
+  routes answer nothing, and "update available" has no editor view yet.
+- A required file written again after its deletion is a warning in the log, not a
+  `required_restored` problem on the module file.
+- A moved Document keeps its index entry at the shipped path (`elsewhere`): the sync neither
+  writes it again nor follows it.
+- Packs: both builders read module folders as they are (step 4 needed no change; the former
+  layer stays until step 7). The theme `artisan` is migrated and its base read from the index
+  (`KitLayout`); it is still undeletable, not placed in `resource-pack.themes`, and the editor
+  still says "base": the rest of decision 9 (seeded once, deletable, installable, one stack, the
+  Resources screen) is to do.
 
 ## Steps
 

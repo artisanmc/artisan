@@ -1,70 +1,39 @@
 ---
-title: Module originals
-description: What a module ships stays the module's; your module folder only keeps what you changed or added.
+title: What a module ships
+description: A module's files sit in its folder, editable in place; those you leave as shipped follow the module's updates.
 sidebar:
   order: 12
 ---
 
-A module (shops, guilds, quests…) ships its own menus, dialogs, commands and variants. Artisan
-keeps them in the module's `originals/` folder, rewritten by the server each time it starts or
-the module is updated. Your module folder only holds what you **changed** or **added**: for the
-same id, your file wins over the original.
+A module (shops, guilds, quests…) ships its own menus, dialogs, commands, variants and messages.
+Artisan writes them into the module's folder, each at its own path, like the files you add:
+open `menus/main.yml` and edit it, there is nothing to copy first.
 
-So a module you never touched has an almost empty folder, and every shipped document follows the
-module's updates.
+Beside them, `artisan-shipped.yml` records what each file was written from. Artisan writes it;
+do not edit it. It is how a file's state is known:
+
+| State | Means |
+|---|---|
+| **Module's version** | As shipped. It follows the module's updates. |
+| **Your version** | You changed it. A module update merges into it. |
+| **Added by you** | A file the module does not ship. |
 
 ## In the editor
 
-Select a document of the module: the properties panel says where it comes from.
+Select a document of the module: the properties panel says where it comes from. On a modified
+document, **Compare with the original** shows the module's file beside yours, and **Back to the
+original** puts the module's version back (deploy to apply it). **View as > Module original**
+shows the whole module as it ships, read-only. The module's versions are read from the server
+(or, with the server off, from what the editor last fetched): until they arrive, the panel says
+nothing.
 
-| Badge | Means |
-|---|---|
-| **Module's version** | The shipped version. It follows the module's updates. |
-| **Your version** | Your version of a shipped document. It wins over the module's. |
-| **Added by you** | A document the module does not ship. |
-
-On a modified document:
-
-- **Compare with the original** shows the module's file beside yours, to copy what you need.
-- **Back to the original** drops your version. Deploy to apply it.
-
-To see the whole module as it ships, without your changes, tick **View as > Module original** in
-the module's header. It combines with the variant chosen above it (the variant's shipped
-versions, the module's elsewhere) and is read-only: look, copy what you need, untick it to edit.
-
-Edit a document and it becomes yours; edit it back to what the module ships and it is the
-module's again. Only documents that differ from the module's are written to your folder.
-
-## Images
-
-An image a module ships shows in the module's **Resources** like yours. Select it:
-
-- **As shipped**: the panel says the module ships it, and there is nothing to rename or delete.
-  Open it in the atelier and save: your version is written in your module folder under the
-  same name, at the same size, with the same settings, so the menus that show it need nothing.
-  **Add layers** does the same with a composed image: the module's drawing becomes your first
-  layer, and you set common images or other drawings over it.
-- **Your version**: the module's original shows beside it. **Restore the original** deletes
-  your version; menus show the module's again once deployed.
-- When a module update changes an original you drew over, the image says **The original changed
-  since your version**: **Keep mine** clears the notice, **Restore the original** gives the
-  image back to the module.
-
-A module may state what an image it ships is for (a menu or HUD image, a glyph), which says the
-measures its menus were laid out for: its pixel size, or its height and ascent for a glyph.
-Your version of such an image is taken as it is, at any measures. At others than the
-original's the image says **Other size than the one it replaces**, with both measures: a menu
-laid out for the original may look off, and that is yours to judge. Nothing is refused.
-
-In the list, the word **Override** under an image marks your version of an image the module
-ships. A dot in the warning colour in its corner says there is something to look at: the
-module's original changed since your version, or your version has another size than the
-original. Hover the image to read which; the bubble shows at once.
+Edit a document back to what the module ships and it is the module's again. A file reformatted
+without a change of value stays the module's; a comment you add makes it yours.
 
 ## Removing a shipped document
 
-Delete a shipped example and Artisan remembers it in the module file, so it does not come back
-at the next update:
+Delete a shipped example and it stays deleted: Artisan lists it in the module file so it is not
+written again at the next update.
 
 ```yaml
 # artisan-module.yml
@@ -72,14 +41,27 @@ originals:
   exclude: [menus/top.yml]
 ```
 
-Some menus and dialogs are **required**: the module's code opens them. They cannot be deleted;
-change them instead.
+Some menus and dialogs are **required**: the module's code opens them. Deleted, they come back
+at the next start, with a warning in the log; change them instead.
 
 ## Updates
 
-When the module is updated, the originals are replaced. A document you modified keeps your
-changes and takes in what the module changed elsewhere in it. When you and the module changed
-the same value, yours is kept and the log says so.
+At each module update, a file you left as shipped takes the new version. A file you modified
+keeps your changes and takes in what the module changed elsewhere in it. When you and the module
+changed the same value, yours is kept, the log says so, and the file is compared again at the
+next update. A file the module no longer ships is removed if you left it as shipped, kept
+otherwise.
 
-The `originals/` folder is read-only: the editor, AI apps and deploys never write into it. You can
-read it on the server to see exactly what the module ships.
+Messages are one file per language, `lang/<code>.yml`: the module's new keys are added and the
+ones it changed are updated, unless you changed them.
+
+## Upgrading from `originals/`
+
+Folders of an earlier Artisan kept what the module shipped in `originals/`. The first start of
+this version moves each one into the folder itself and removes `originals/`, after checking
+that the server loads the same menus and builds the same pack from both. If something would
+differ, the folder keeps `originals/` for now (the log says why) and the move is tried again at
+the next start.
+
+For AI apps: `list_documents` gives each document's origin, `read_document` with
+`shipped: true` reads the module's version, and `restore_document` puts it back in a draft.
