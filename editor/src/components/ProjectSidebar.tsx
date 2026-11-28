@@ -17,12 +17,20 @@ import {
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
 import { useOpenProjectSettings } from "@/features/project/projectSettings";
+import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
+import {
+  WORKSPACE_VIEW_TABS,
+  type WorkspaceViewTab,
+  effectiveTab,
+} from "@/features/project/workspaceTabs";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { isKitFolder } from "@/lib/pack/kit";
 import { projectDestination, screenDestination } from "@/lib/projectNavigation";
 import { projectUrlId } from "@/lib/projectUrlId";
 import { useKitStore } from "@/state/kitStore";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useUpdatesAvailable } from "@/state/updatesAvailableStore";
 import {
   DndContext,
@@ -72,10 +80,15 @@ import {
   CircleArrowUp,
   Folder,
   FolderOpen,
+  History,
+  Images,
+  Languages,
+  LayoutDashboard,
   Server,
   Settings,
   Table2,
   type Terminal,
+  Workflow,
 } from "lucide-react";
 import { AiCreditsLink } from "./AiCreditsLink";
 import { NewProjectDialog } from "./NewProjectDialog";
@@ -565,45 +578,117 @@ function ActiveProjectDocuments({
   );
   if (!project) return null;
   return (
-    <div data-tour="elements" className="px-1.5 pt-0.5">
-      <ProjectDocumentTree
-        projectId={project.id}
-        header="none"
-        activeId={
-          documentId && (kind ? docKey(kind, documentId) : resolveDocKey(project, documentId))
-        }
-        onOpen={(documentId) => {
-          useSidebarStore.getState().close();
-          goToDocument(navigate, { serverId, project, ref: documentId });
-        }}
-      />
-      <ModuleSettingsRow />
+    <div className="px-1.5 pt-0.5">
+      <div data-tour="tabs">
+        <ModuleViewRows project={project} part="views" />
+      </div>
+      <div data-tour="elements">
+        <ProjectDocumentTree
+          projectId={project.id}
+          header="none"
+          activeId={
+            documentId && (kind ? docKey(kind, documentId) : resolveDocKey(project, documentId))
+          }
+          onOpen={(documentId) => {
+            useSidebarStore.getState().close();
+            goToDocument(navigate, { serverId, project, ref: documentId });
+          }}
+        />
+      </div>
+      <ModuleViewRows project={project} part="tools" />
     </div>
   );
 }
 
+const VIEW_ICON: Record<WorkspaceViewTab, typeof Terminal> = {
+  home: LayoutDashboard,
+  board: Workflow,
+  translations: Languages,
+  resources: Images,
+  history: History,
+};
+
+const VIEW_LABEL: Record<WorkspaceViewTab, string> = {
+  home: "project.tabs.home",
+  board: "project.tabs.canvas",
+  translations: "project.tabs.translations",
+  resources: "project.tabs.resources",
+  history: "project.tabs.history",
+};
+
 /**
- * The open module's own settings (its `project.yaml`), a row of its tree like its Documents
- * and its settings screens: they edit a file, so they are a place, never a tab of the header.
+ * The open module's own pages, as rows of its tree like its Documents: its home and its
+ * canvas above them (`views`), its tools below (`tools`: Translations, Resources, History,
+ * then its settings). The header holds no navigation: where you are is the row highlighted.
+ * The hotbar digits follow `WORKSPACE_VIEW_TABS`, as before.
  */
-function ModuleSettingsRow() {
+function ModuleViewRows({ project, part }: { project: Project; part: "views" | "tools" }) {
   const { t } = useTranslation();
-  const open = useUiStore((s) => s.projectSettingsOpen);
+  const runtime = useProjectRuntime(project.id);
+  const activeLang = useUiStore((s) => s.activeLang);
+  const settingsOpen = useUiStore((s) => s.projectSettingsOpen);
+  const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
+  const childOpen = useChildPageOpen();
+  const go = useGoToWorkspaceTab();
   const openSettings = useOpenProjectSettings();
+  // Under a Document, a collection or a data source, its own row is the highlighted one.
+  const active = childOpen && !search.tab ? undefined : effectiveTab(search.tab, false);
+  const missing = countMissingForLang(project, activeLang);
+  const tabs = WORKSPACE_VIEW_TABS.filter((tab) =>
+    part === "views" ? tab === "home" || tab === "board" : tab !== "home" && tab !== "board",
+  ).filter((tab) => tab !== "history" || !!runtime?.serverId);
+  const row = "w-full text-left";
   return (
-    <button
-      type="button"
-      data-testid="sidebar-module-settings"
-      aria-pressed={open}
-      onClick={() => {
-        useSidebarStore.getState().close();
-        openSettings();
-      }}
-      className={`w-full text-left ${entryRowClass(open)}`}
-    >
-      <EntryTile icon={Settings} />
-      <span className="truncate flex-1">{t("projectProperties.title")}</span>
-    </button>
+    <ul className="flex flex-col">
+      {tabs.map((tab) => {
+        const label = t(VIEW_LABEL[tab]);
+        const badge = tab === "translations" ? missing : 0;
+        return (
+          <li key={tab}>
+            <button
+              type="button"
+              data-testid={`open-view-${tab}`}
+              aria-current={tab === active ? "page" : undefined}
+              title={`${label} (${WORKSPACE_VIEW_TABS.indexOf(tab) + 1})`}
+              onClick={() => {
+                useSidebarStore.getState().close();
+                go(tab);
+              }}
+              className={`${row} ${entryRowClass(tab === active)}`}
+            >
+              <EntryTile icon={VIEW_ICON[tab]} />
+              <span className="truncate flex-1">{label}</span>
+              {badge > 0 && (
+                <span
+                  title={t("project.tabs.missingTranslations", { count: badge })}
+                  className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[9.5px] text-[var(--warning-fg)]"
+                >
+                  {badge}
+                </span>
+              )}
+            </button>
+          </li>
+        );
+      })}
+      {part === "tools" && (
+        <li>
+          {/* The module's own settings (its `project.yaml`) edit a file: a place, like a Document. */}
+          <button
+            type="button"
+            data-testid="sidebar-module-settings"
+            aria-pressed={settingsOpen}
+            onClick={() => {
+              useSidebarStore.getState().close();
+              openSettings();
+            }}
+            className={`${row} ${entryRowClass(settingsOpen)}`}
+          >
+            <EntryTile icon={Settings} />
+            <span className="truncate flex-1">{t("projectProperties.title")}</span>
+          </button>
+        </li>
+      )}
+    </ul>
   );
 }
 

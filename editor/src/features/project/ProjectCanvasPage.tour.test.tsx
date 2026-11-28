@@ -4,7 +4,7 @@ import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useSelectionStore } from "@/state/selectionStore";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { ProjectCanvasPage } from "./ProjectCanvasPage";
@@ -136,14 +136,9 @@ it("restores a previously open secondary tab without changing the route or selec
   setup.tab = "resources";
   render(<ProjectCanvasPage projectRef="p1" />);
   await screen.findByRole("dialog");
-  expect(screen.getByTestId("open-view-board")).toHaveAttribute("aria-current", "page");
   await user.click(screen.getByRole("button", { name: /Plus tard|Later/ }));
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Ressources|Resources/ })).toHaveAttribute(
-      "aria-current",
-      "page",
-    ),
-  );
+  // The view stays the one the route asked for, behind the tour.
+  expect(await screen.findByRole("tabpanel", { name: /Ressources|Resources/ })).toBeInTheDocument();
   expect(setup.navigate).not.toHaveBeenCalled();
   expect(useSelectionStore.getState().ids.size).toBe(0);
 });

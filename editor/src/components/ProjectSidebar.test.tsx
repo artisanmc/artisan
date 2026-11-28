@@ -182,6 +182,27 @@ describe("ProjectSidebar", () => {
       expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     });
 
+    it("lists the open module's pages as rows of its tree, with the missing translations on Translations", async () => {
+      mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
+      const lacking = {
+        ...(loaded("pack_a") as object),
+        // activeLang defaults to the browser's ("en"): k1 has no English text.
+        i18nKeys: { k1: { fr: "Bonjour" } },
+      } as never;
+      useProjectsStore.setState({
+        openProjects: { projects: [lacking, loaded("pack_b")], projectOrder: [] },
+      } as never);
+      render(<ProjectSidebar />);
+      await screen.findByRole("group", { name: /pack_a/ });
+      for (const id of ["home", "board", "translations", "resources"]) {
+        expect(screen.getByTestId(`open-view-${id}`)).toBeInTheDocument();
+      }
+      expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
+      expect(screen.getByTestId("sidebar-module-settings")).toBeInTheDocument();
+      // History needs the module to be on a server.
+      expect(screen.queryByTestId("open-view-history")).toBeNull();
+    });
+
     it("does not expand projects that are not open", async () => {
       mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
