@@ -7,7 +7,6 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarOrderStore } from "@/state/sidebarOrderStore";
-import { useUiStore } from "@/state/uiStore";
 import { useUpdatesStore } from "@/state/updatesAvailableStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -171,15 +170,14 @@ describe("ProjectSidebar", () => {
       expect(tree).toHaveTextContent("/heal");
     });
 
-    it("puts creation on the open project's row and its settings as a row of its tree", async () => {
+    it("puts creation on the open project's row, and no settings row in its tree", async () => {
       mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
       const row = screen.getByRole("link", { name: /pack_a/ }).parentElement as HTMLElement;
       expect(within(row).queryByTestId("project-settings")).toBeNull();
       expect(within(row).getByTestId("project-create")).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId("sidebar-module-settings"));
-      expect(useUiStore.getState().projectSettingsOpen).toBe(true);
+      expect(screen.queryByTestId("sidebar-module-settings")).toBeNull();
     });
 
     it("lists the open module's pages as rows of its tree, with the missing translations on Translations, the canvas being the header's", async () => {
@@ -198,7 +196,6 @@ describe("ProjectSidebar", () => {
         expect(screen.getByTestId(`open-view-${id}`)).toBeInTheDocument();
       }
       expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
-      expect(screen.getByTestId("sidebar-module-settings")).toBeInTheDocument();
       expect(screen.queryByTestId("open-view-board")).toBeNull();
       // History needs the module to be on a server.
       expect(screen.queryByTestId("open-view-history")).toBeNull();

@@ -16,7 +16,6 @@ import {
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
-import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
 import {
   WORKSPACE_VIEW_TABS,
@@ -634,11 +633,9 @@ function ModuleViewRows({ project, part }: { project: Project; part: "views" | "
   const { t } = useTranslation();
   const runtime = useProjectRuntime(project.id);
   const activeLang = useUiStore((s) => s.activeLang);
-  const settingsOpen = useUiStore((s) => s.projectSettingsOpen);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
   const childOpen = useChildPageOpen();
   const go = useGoToWorkspaceTab();
-  const openSettings = useOpenProjectSettings();
   // Under a Document, a collection or a data source, its own row is the highlighted one.
   const active = childOpen && !search.tab ? undefined : effectiveTab(search.tab, false);
   const missing = countMissingForLang(project, activeLang);
@@ -678,24 +675,6 @@ function ModuleViewRows({ project, part }: { project: Project; part: "views" | "
           </li>
         );
       })}
-      {part === "tools" && (
-        <li>
-          {/* The module's own settings (its `project.yaml`) edit a file: a place, like a Document. */}
-          <button
-            type="button"
-            data-testid="sidebar-module-settings"
-            aria-pressed={settingsOpen}
-            onClick={() => {
-              useSidebarStore.getState().close();
-              openSettings();
-            }}
-            className={`${row} ${entryRowClass(settingsOpen)}`}
-          >
-            <EntryTile icon={Settings} />
-            <span className="truncate flex-1">{t("projectProperties.title")}</span>
-          </button>
-        </li>
-      )}
     </ul>
   );
 }

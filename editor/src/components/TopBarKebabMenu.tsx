@@ -10,6 +10,8 @@ import { useTranslation } from "react-i18next";
 
 interface TopBarKebabMenuProps {
   onRefresh?: () => void;
+  /** Opens the module's properties (id, name, description, lore width…). */
+  onProperties?: () => void;
   onImport?: () => void;
   onExportZip: () => void;
   onOpenPatterns: () => void;
@@ -20,6 +22,7 @@ interface TopBarKebabMenuProps {
 
 export function TopBarKebabMenu({
   onRefresh,
+  onProperties,
   onImport,
   onExportZip,
   onOpenPatterns,
@@ -38,6 +41,11 @@ export function TopBarKebabMenu({
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {onProperties && (
+          <DropdownMenuItem onSelect={onProperties}>
+            {t("projectProperties.title")}
+          </DropdownMenuItem>
+        )}
         {onRefresh && (
           <DropdownMenuItem onSelect={onRefresh}>{t("topbar.refresh")}</DropdownMenuItem>
         )}

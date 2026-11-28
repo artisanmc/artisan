@@ -25,6 +25,17 @@ describe("TopBarKebabMenu", () => {
     expect(onTour).toHaveBeenCalledOnce();
   });
 
+  it("opens the module's properties from the menu", async () => {
+    const user = userEvent.setup();
+    const onProperties = vi.fn();
+    render(<TopBarKebabMenu {...baseProps} onProperties={onProperties} />);
+    await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
+    await user.click(
+      screen.getByRole("menuitem", { name: /Propriétés du module|Module properties/ }),
+    );
+    expect(onProperties).toHaveBeenCalledOnce();
+  });
+
   it("opens menu on click and shows all items", async () => {
     const user = userEvent.setup();
     render(<TopBarKebabMenu {...baseProps} />);

@@ -229,14 +229,7 @@ export function ProjectCanvasPage({
     // segmented nav shows which is active; Esc / × return to the canvas.
     const secondaryViews = (
       <>
-        {presentedTab === "home" ? (
-          <ModuleHome
-            project={project}
-            onOpenBoard={() =>
-              navigate({ to: ".", search: (prev) => ({ ...(prev as object), tab: "board" }) })
-            }
-          />
-        ) : null}
+        {presentedTab === "home" ? <ModuleHome project={project} /> : null}
         <WorkspaceView
           active={presentedTab === "resources"}
           onExit={place ? undefined : exitToCanvas}

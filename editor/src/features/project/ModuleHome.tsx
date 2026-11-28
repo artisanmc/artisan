@@ -2,17 +2,14 @@ import { ModuleIcon, ModuleLogo, useModuleBrand } from "@/components/ArtisanWord
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
-import { allDocuments, docKey, documentsOf } from "@/domain/documents";
-import { listFolders } from "@/domain/folders";
+import { docKey, documentsOf } from "@/domain/documents";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
-import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { moduleScreensOf } from "@/features/project/moduleScreens";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { collectionLabel, isCollectionKind, projectCollections } from "@/lib/documentCollections";
+import { collectionLabel, projectCollections } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
-import { buildTranslationRows, countMissingPerLang } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
 import {
   collectionDestination,
@@ -25,25 +22,13 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import {
-  Blocks,
-  ChevronRight,
-  Database,
-  Languages,
-  LayoutDashboard,
-  Package,
-  Plus,
-  Settings,
-  Zap,
-} from "lucide-react";
-import { Component, type ReactNode, useMemo, useState } from "react";
+import { Blocks, ChevronRight, Database, Package, Plus, Settings, Zap } from "lucide-react";
+import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModuleCatalogue } from "./ModuleCatalogue";
-import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
 import { type PreviewLine, screenPreview } from "./screenPreview";
 import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
-import { documentLabel } from "./useProjectDocuments";
 
 /**
  * A module's entry view (`?tab=` absent, at the module's root): what the module holds and
@@ -53,10 +38,7 @@ import { documentLabel } from "./useProjectDocuments";
  * Document as a card, kind after kind, with a search and a filter by kind; the left bar lists
  * the same Documents for switching from one to another.
  */
-export function ModuleHome({
-  project: opened,
-  onOpenBoard,
-}: { project: Project; onOpenBoard: () => void }) {
+export function ModuleHome({ project: opened }: { project: Project }) {
   const { t } = useTranslation();
   // The store's version, not the one the page opened: Documents adopted once a module's kinds
   // arrive (a module page loaded directly), or created here, land there.
@@ -67,7 +49,6 @@ export function ModuleHome({
   // `?kind=` narrows the catalogue to one kind: a kind of the sidebar links to it.
   const { kind: shownKind } = useSearch({ strict: false }) as { kind?: string };
   const uiLang = useUiStore((s) => s.editorLang);
-  const activeLang = useUiStore((s) => s.activeLang);
   const screens = useServerScreensStore((s) => s.screens);
   const actions = useServerActionsStore((s) => s.actions);
   const [creating, setCreating] = useState<string | null>(null);
@@ -81,79 +62,14 @@ export function ModuleHome({
   const brand = useModuleBrand(owner);
   const collections = projectCollections(project);
 
-  // The board's Documents: every kind but the collections, which have no node there.
-  const boardCounts = new Map<string, number>();
-  for (const { kind } of allDocuments(project))
-    if (!isCollectionKind(kind)) boardCounts.set(kind, (boardCounts.get(kind) ?? 0) + 1);
-  const boardTotal = [...boardCounts.values()].reduce((a, b) => a + b, 0);
-  // A board worth looking at holds more than commands: menus, dialogs, linked to each other.
-  // It leads the page, wide and with its picture; otherwise the lists come first and the
-  // board, a few commands at most, closes the content.
-  const boardFirst = [...boardCounts.keys()].some((kind) => kind !== "command");
-  const folderCount = listFolders(project).filter((p) => !p.includes("/")).length;
-
   // A collection shows its own settings screen at the top of its page: not twice.
   const moduleScreens = moduleScreensOf(project, screens);
   const dataSources = listedDataSources(project, screens);
 
   const goToTab = useGoToWorkspaceTab();
-  // Every text of the module, its own messages included, and what each language lacks.
-  const texts = useMemo(() => buildTranslationRows(project, project.defaultLang).length, [project]);
-  const missingTexts = useMemo(
-    () => Object.values(countMissingPerLang(project)).reduce((a, b) => a + b, 0),
-    [project],
-  );
   const captured = project.capturedItems ?? [];
 
-  const commands = documentsOf(project, "command");
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
-
-  const boardPlace = (
-    <Place
-      testId="module-home-board"
-      wide={boardFirst}
-      icon={
-        <IconTile
-          icon={LayoutDashboard}
-          fg="var(--text-mut)"
-          soft="var(--surface-raised-2)"
-          size="sm"
-        />
-      }
-      title={t("project.tabs.canvas")}
-      count={boardTotal}
-      summary={
-        boardTotal === 0
-          ? t("moduleHome.boardEmpty")
-          : [
-              ...[...boardCounts].map(([kind, n]) => `${typeLabel(kind, t)} ${n}`),
-              ...(folderCount > 0 ? [t("moduleHome.folders", { count: folderCount })] : []),
-            ].join(" · ")
-      }
-      picture={
-        boardFirst ? (
-          <button
-            type="button"
-            onClick={onOpenBoard}
-            aria-label={t("moduleHome.openBoard")}
-            className="relative min-h-44 w-full flex-1 overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] hover:border-[var(--border-strong)]"
-          >
-            {/* Out of the flow: the picture takes the block's height (at least 11rem, more
-                when its row is taller), never its own. In the flow, its viewBox ratio set
-                its height from the block's width, a tall board making the block huge. */}
-            <BoardThumbnail
-              project={project}
-              className="absolute top-2 left-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)]"
-            />
-          </button>
-        ) : undefined
-      }
-    >
-      <button type="button" className="btn btn-outline btn-sm" onClick={onOpenBoard}>
-        {t("moduleHome.openBoard")}
-      </button>
-    </Place>
-  );
 
   return (
     <div
@@ -211,7 +127,6 @@ export function ModuleHome({
             {t("moduleHome.content")}
           </h2>
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {boardFirst && boardPlace}
             {collections.map((c) => (
               <CollectionPlace
                 key={c.kind}
@@ -251,35 +166,6 @@ export function ModuleHome({
                   ))}
               </Place>
             )}
-            {!boardFirst && boardPlace}
-            {texts > 0 && (
-              <Place
-                testId="module-home-translations"
-                icon={
-                  <IconTile
-                    icon={Languages}
-                    fg="var(--text-mut)"
-                    soft="var(--surface-raised-2)"
-                    size="sm"
-                  />
-                }
-                title={t("project.tabs.translations")}
-                count={texts}
-                summary={
-                  missingTexts > 0
-                    ? t("moduleHome.translationsMissing", { count: missingTexts })
-                    : t("moduleHome.translationsHint")
-                }
-              >
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => goToTab("translations")}
-                >
-                  {t("moduleHome.openTranslations")}
-                </button>
-              </Place>
-            )}
             {captured.length > 0 && (
               <Place
                 testId="module-home-captured"
@@ -307,31 +193,12 @@ export function ModuleHome({
           </ul>
         </section>
 
-        {(commands.length > 0 || moduleActions.length > 0) && (
+        {moduleActions.length > 0 && (
           <section className="flex flex-col gap-2.5" aria-labelledby="module-home-exposes">
             <h2 id="module-home-exposes" className="field-label">
               {t("moduleHome.exposes")}
             </h2>
             <ul className="flex flex-wrap gap-2" data-testid="module-home-exposes">
-              {commands.map((c) => {
-                const look = kindAppearance("command");
-                return (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      className="chip inline-flex items-center gap-1.5"
-                      onClick={() =>
-                        goToDocument(navigate, { serverId, project, ref: docKey("command", c.id) })
-                      }
-                    >
-                      <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="xs" />
-                      <span className="font-mono">
-                        {documentLabel(project, docKey("command", c.id), activeLang)}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
               {moduleActions.map((a) => (
                 <li
                   key={a.name}

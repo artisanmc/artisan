@@ -48,14 +48,14 @@ describe("ContextMenu — canvas background", () => {
         onOpenProjectSettings={onOpenProjectSettings}
       />,
     );
-    await user.click(screen.getByText(/Paramètres du module|Module settings/i));
+    await user.click(screen.getByText(/Propriétés du module|Module properties/i));
     expect(onOpenProjectSettings).toHaveBeenCalled();
   });
 
   /** In focus view, "create here" disappears — settings stay. */
   it("keeps them in focus view, without the 'create here' entries", () => {
     render(<ContextMenu {...baseProps} state={emptyTargetState} />);
-    expect(screen.getByText(/Paramètres du module|Module settings/i)).toBeInTheDocument();
+    expect(screen.getByText(/Propriétés du module|Module properties/i)).toBeInTheDocument();
     expect(screen.queryByText(/^(Nouveau|New)$/)).toBeNull();
   });
 

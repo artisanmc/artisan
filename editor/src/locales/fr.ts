@@ -891,7 +891,7 @@ const fr: typeof en = {
     create: "Créer",
   },
   projectProperties: {
-    title: "Paramètres du module",
+    title: "Propriétés du module",
     id: "id",
     name: "nom",
     description: "description",
