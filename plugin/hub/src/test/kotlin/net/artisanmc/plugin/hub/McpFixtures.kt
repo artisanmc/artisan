@@ -22,6 +22,8 @@ object McpFixtures {
         config: Map<String, Any?> = emptyMap(),
         /** The protocol the server's plugin speaks, read each time: an older one keeps its themes in its common images. */
         protocol: () -> String = { net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT },
+        /** A module's templates as shipped, by `<module>/<template>`: what `template_fetch` answers. */
+        templates: Map<String, Map<String, String>> = emptyMap(),
     ): EditorServer = object : EditorServer {
         override val protocolVersion get() = protocol()
         override val id = "u-local"
@@ -36,6 +38,11 @@ object McpFixtures {
                 "asset_read" -> modules[message["project_id"]]?.images?.get(message["path"])
                     ?.let { mapOf("ok" to true, "content_base64" to java.util.Base64.getEncoder().encodeToString(it)) }
                     ?: mapOf("ok" to false, "error" to "not_found")
+                "template_fetch" -> templates["${message["module_id"]}/${message["template_id"]}"]?.let { files ->
+                    mapOf("ok" to true, "files" to files.map { (path, content) ->
+                        mapOf("path" to path, "content_base64" to java.util.Base64.getEncoder().encodeToString(content.toByteArray()))
+                    })
+                } ?: mapOf("ok" to false, "error" to "not_found")
                 "project_create" ->
                     if (message["project_id"] == "shop" || message["project_id"] in modules.keys) mapOf("ok" to false, "error" to "project_exists") else mapOf("ok" to true)
                 "project_read" -> mapOf(

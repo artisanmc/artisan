@@ -1,6 +1,8 @@
 package net.artisanmc.plugin.hub
 
 import com.fasterxml.jackson.databind.node.ObjectNode
+import net.artisanmc.plugin.model.DocumentLayout
+import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -76,6 +78,29 @@ class McpProjects(
 
     /** The bytes a draft holds under [hash] (`write_blob`); null when no draft kept them. */
     fun blob(hash: String): ByteArray? = draftStorage?.content(hash)
+
+    /**
+     * What [module]'s [template] shipped at [path] (ADR `editable-module-tree`): the content of
+     * [hash], the version the file was written from, kept by the hub once fetched; else the
+     * template's current file at that path, read from the server. Null when neither is there.
+     */
+    fun shipped(project: ProjectRef, module: String, template: String, path: String, hash: String): ByteArray? {
+        val known = { h: String -> draftStorage?.content(h)?.takeIf { ContentHash.hashBytes(it) == h } }
+        known(hash)?.let { return it }
+        if (!project.server.online) return null
+        val reply = runCatching {
+            request(project.server, mapOf("type" to "template_fetch", "module_id" to module, "template_id" to template))
+        }.getOrNull()?.takeIf { it["ok"] != false } ?: return null
+        var atPath: ByteArray? = null
+        (reply["files"] as? List<*>)?.forEach { f ->
+            val file = f as? Map<*, *> ?: return@forEach
+            val bytes = (file["content_base64"] as? String)?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() } ?: return@forEach
+            val h = ContentHash.hashBytes(bytes)
+            runCatching { if (draftStorage?.content(h) == null) draftStorage?.putContent(h, bytes) }
+            if ((file["path"] as? String)?.let(DocumentLayout::sameFile) == DocumentLayout.sameFile(path)) atPath = bytes
+        }
+        return known(hash) ?: atPath
+    }
 
     /** `documents_check` on the Project's own server: its kinds, its schemas, its reader. */
     fun check(project: ProjectRef, files: Map<String, String>, deletes: Collection<String>): List<Map<String, Any?>> {

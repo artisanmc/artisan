@@ -19,8 +19,10 @@ import net.artisanmc.plugin.pack.PixelArt
 import net.artisanmc.plugin.pack.PixelRect
 import net.artisanmc.plugin.pack.Png
 import net.artisanmc.plugin.pack.RgbaImage
+import net.artisanmc.plugin.project.ContentHash
 import net.artisanmc.plugin.project.ProjectMetadataPaths
 import net.artisanmc.plugin.project.ProjectPathPolicy
+import net.artisanmc.plugin.project.ShippedIndex
 import net.artisanmc.plugin.protocol.ProtocolVersion
 import java.util.UUID
 
@@ -77,8 +79,14 @@ class McpTools(
         ),
         Tool(
             "read_document", "Read a document",
-            "Reads one file of a Project (YAML text), as deployed, or as a draft has it when draft_id is given.",
-            schema("project" to PROJECT, "path" to PATH, "draft_id" to DRAFT_OPTIONAL, required = listOf("project", "path")), readOnly = true, ::readDocument,
+            "Reads one file of a Project (YAML text), as deployed, or as a draft has it when draft_id is given. " +
+                "shipped: true reads instead what the module shipped at that path (a file list_documents gives an origin).",
+            schema(
+                "project" to PROJECT, "path" to PATH, "draft_id" to DRAFT_OPTIONAL,
+                "shipped" to mapOf("type" to "boolean", "description" to "Read what the module shipped at this path, not the file."),
+                required = listOf("project", "path"),
+            ),
+            readOnly = true, ::readDocument,
         ),
         Tool(
             "get_kind_guide", "Document kind guide",
@@ -146,6 +154,16 @@ class McpTools(
                 required = listOf("project", "draft_id", "path"),
             ),
             readOnly = false, ::writeDocument,
+        ),
+        Tool(
+            "restore_document", "Restore a shipped document",
+            "Writes back in a draft what the module shipped at path: a Document the owner changed, or deleted, becomes the " +
+                "module's again and follows its updates. Only for a file list_documents gives an origin (modified, or under deleted).",
+            schema(
+                "project" to PROJECT, "draft_id" to string("The draft from start_draft."), "path" to PATH,
+                required = listOf("project", "draft_id", "path"),
+            ),
+            readOnly = false, ::restoreDocument,
         ),
         Tool(
             "read_image", "Read an image",
@@ -540,17 +558,24 @@ class McpTools(
             Triple(e.variant, e.dir, e.id) in shipped -> "modified"
             else -> "added"
         }
-        val hasOriginals = shipped.isNotEmpty()
+        // A folder that holds the module's whole tree (ADR `editable-module-tree`): the index says what each file was written from.
+        val shippedIndex = if (shipped.isEmpty()) ShippedIndex.parse(tree[ShippedIndex.PATH]) else emptyMap()
+        val inTree = shippedIndex.isNotEmpty()
+        fun treeOrigin(e: DocumentLayout.Entry): String {
+            val indexed = shippedIndex[e.path] ?: return "added"
+            return if (ContentHash.hashBytes(tree[e.path].orEmpty().toByteArray(Charsets.UTF_8)) == indexed.hash) "original" else "modified"
+        }
+        val hasOriginals = shipped.isNotEmpty() || inTree
         fun entry(e: DocumentLayout.Entry, vararg extra: Pair<String, Any?>) =
             linkedMapOf<String, Any?>("path" to e.path, "kind" to kinds[e.dir], "id" to e.id).apply {
                 putAll(extra)
-                if (hasOriginals) put("origin", origin(e))
+                if (inTree) put("origin", treeOrigin(e)) else if (hasOriginals) put("origin", origin(e))
             }
         val documents = layout.documents.map { entry(it) }
         val variantDocs = layout.variants.map { entry(it, "variant" to it.variant) }
         val rulesFile = DocumentLayout.variantsPath(tree.keys)
         val listed = (documents + variantDocs).map { it["path"] }.toSet() + listOfNotNull(rulesFile) +
-            tree.keys.filter { it.startsWith(prefix) }
+            tree.keys.filter { it.startsWith(prefix) || Originals.isServerWritten(it) }
         @Suppress("UNCHECKED_CAST")
         val failed = (read["failed"] as? List<Map<String, Any?>>).orEmpty()
         val drafts = runCatching { projects.draft(principal, project, "list") }.getOrNull()
@@ -568,7 +593,14 @@ class McpTools(
                     "documents" to variantDocs,
                 )
             },
-            "originals" to if (!hasOriginals) null else mapOf(
+            "originals" to if (inTree) mapOf(
+                "layout" to "tree",
+                "modules" to shippedIndex.values.map { it.module }.distinct(),
+                "required" to shippedIndex.filterValues { it.required }.keys.sorted(),
+                // Shipped Documents the owner deleted: restore_document brings one back.
+                "deleted" to deletedShipped(shippedIndex.keys, tree.keys, layout, kinds.keys),
+                "excluded" to manifest?.originals?.exclude.orEmpty(),
+            ) else if (!hasOriginals) null else mapOf(
                 "module" to index.module, "version" to index.version, "required" to index.required,
                 "excluded" to exclusions.excluded, "exclusions_refused" to exclusions.refused,
             ),
@@ -589,8 +621,42 @@ class McpTools(
         val path = path(args)
         val draftId = args.path("draft_id").asText("").ifEmpty { null }
         val tree = if (draftId != null) draftSnapshot(principal, project, draftId).tree else files(projects.read(project))
+        if (args.path("shipped").asBoolean(false)) {
+            val content = shippedText(project, tree, path)
+            return mapOf("project" to project.id, "path" to path, "shipped" to true, "content" to content)
+        }
         val content = tree[path] ?: throw McpRefusal("not_found", "No file '$path' in ${if (draftId != null) "draft $draftId" else project.id}.")
         return mapOf("project" to project.id, "path" to path, "draft_id" to draftId, "content" to content)
+    }
+
+    /**
+     * The indexed Documents absent from [paths], none of the same (variant, kind, id) at another path: deleted by the
+     * owner. Other indexed files (messages, data) are not Documents: absent, they are just absent.
+     */
+    private fun deletedShipped(indexed: Set<String>, paths: Set<String>, layout: DocumentLayout.Result, kindDirs: Set<String>): List<String> {
+        val present = (layout.documents + layout.variants).mapTo(HashSet()) { Triple(it.variant, it.dir, it.id) }
+        val probe = DocumentLayout.classify(indexed.filter { it !in paths } + listOfNotNull(DocumentLayout.variantsPath(paths)), kindDirs)
+        return (probe.documents + probe.variants).filter { Triple(it.variant, it.dir, it.id) !in present }.map { it.path }.sorted()
+    }
+
+    /** What the module shipped at [path] of a folder in the tree layout (ADR `editable-module-tree`). */
+    private fun shippedText(project: ProjectRef, tree: Map<String, String>, path: String): String {
+        if (tree.keys.any(Originals::isOriginal)) throw McpRefusal("not_found", "This module keeps what it ships in originals/: read originals/$path.")
+        val entry = ShippedIndex.parse(tree[ShippedIndex.PATH])[path]
+            ?: throw McpRefusal("not_found", "The module shipped nothing at '$path' (list_documents gives each Document's origin).")
+        val bytes = projects.shipped(project, entry.module, entry.template, path, entry.hash)
+            ?: throw McpRefusal("server_offline", "What ${entry.module} shipped at '$path' can be read only while its server is online.")
+        return bytes.toString(Charsets.UTF_8)
+    }
+
+    private fun restoreDocument(principal: McpPrincipal, args: JsonNode): Any {
+        requireEdit(principal)
+        val project = projects.project(text(args, "project"))
+        val draftId = text(args, "draft_id")
+        val path = path(args)
+        val content = shippedText(project, draftSnapshot(principal, project, draftId).tree, path)
+        val write = Call.mapper.createObjectNode().put("project", project.id).put("draft_id", draftId).put("path", path).put("content", content)
+        return writeDocument(principal, write)
     }
 
     private fun kindGuide(principal: McpPrincipal, args: JsonNode): Any {
@@ -737,7 +803,7 @@ class McpTools(
         val content = if (delete) null else args.get("content")?.takeIf { it.isTextual }?.asText()
             ?: throw McpRefusal("invalid_input", "content is required, unless delete is true.")
         if (!contentPath(path)) throw McpRefusal("invalid_path", "'$path' is not a path a Project file can have.")
-        if (Originals.isOriginal(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
+        if (Originals.isServerWritten(path)) throw McpRefusal("originals_read_only", ORIGINALS_HOWTO)
         if (content != null && content.length > MAX_FILE) throw McpRefusal("too_large", "A file is at most $MAX_FILE characters.")
         // A theme holds images, its palette and no Document: another file it still has can only be removed.
         val ownTheme = isOwnTheme(project)
@@ -2062,13 +2128,14 @@ class McpTools(
 
         /** How a module's originals work, through the same file tools (design `originaux-modules`). */
         const val ORIGINALS_HOWTO =
-            "Originals: `originals/` in a module holds what the module ships (its menus, dialogs, commands, variants), " +
-                "written by the server only and updated with the module; it cannot be written. The module's own files hold only " +
-                "what the owner changed or added, and a Document there wins over the original of the same kind and id (same " +
-                "variant). To change an original, write it without the `originals/` prefix (read it first: start from its " +
-                "content). To go back to the original, delete that file. To drop an original, add its path relative to " +
-                "`originals/` to `originals: {exclude: [...]}` in artisan-module.yml; `originals/originals.yml` lists the " +
-                "required ones, which cannot be dropped. list_documents gives each Document's origin: original, modified or added."
+            "What a module ships (ADR `editable-module-tree`): its menus, dialogs, commands and messages are files of its folder " +
+                "like the owner's, at their own path; `artisan-shipped.yml` says what each was written from, is written by the server " +
+                "only and cannot be written. list_documents gives each Document's origin: original (as shipped: it follows the module's " +
+                "updates), modified (the owner's: a module update merges into it) or added. To change one, write it. To see what the " +
+                "module shipped, read_document with shipped: true. To go back to it, restore_document. To drop an optional one, delete " +
+                "it: it is not written again (`originals: {exclude: [...]}` in artisan-module.yml records it); a required one comes back. " +
+                "A module not migrated yet keeps what it ships in `originals/`, read-only: there, write a file without the `originals/` " +
+                "prefix to change it, delete it to go back, and list its path under `originals.exclude` to drop it."
 
         /** A result as the model reads it: prose as it is, anything else as JSON, indented for an MCP client's reader. */
         fun resultText(body: Any?, indent: Boolean = true): String = body as? String
