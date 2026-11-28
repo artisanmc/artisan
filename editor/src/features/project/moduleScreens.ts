@@ -7,8 +7,8 @@ import { projectCollections } from "@/lib/documentCollections";
 /**
  * The settings screens of a module's folder: the screens of its own tables and those of
  * the plugin module that owns it. A collection shows its own screen at the top of its
- * page, so it is not one of them. They are views of the folder: its home lists them and
- * its header has them under **More** (never rows of the sidebar, which lists places).
+ * page, so it is not one of them. Each edits its own file: its home lists them, and the
+ * sidebar has them as rows under the module's Documents, like its data sources.
  */
 export function moduleScreensOf(
   project: Project,

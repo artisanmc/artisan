@@ -7,6 +7,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { useSidebarOrderStore } from "@/state/sidebarOrderStore";
+import { useUiStore } from "@/state/uiStore";
 import { useUpdatesStore } from "@/state/updatesAvailableStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -170,15 +171,15 @@ describe("ProjectSidebar", () => {
       expect(tree).toHaveTextContent("/heal");
     });
 
-    it("puts creation on the open project's row; its settings are a view of its header", async () => {
+    it("puts creation on the open project's row and its settings as a row of its tree", async () => {
       mockParams.current = { serverId: "sk_1", projectId: "pack_a" };
       render(<ProjectSidebar />);
-      const tree = await screen.findByRole("group", { name: /pack_a/ });
+      await screen.findByRole("group", { name: /pack_a/ });
       const row = screen.getByRole("link", { name: /pack_a/ }).parentElement as HTMLElement;
       expect(within(row).queryByTestId("project-settings")).toBeNull();
       expect(within(row).getByTestId("project-create")).toBeInTheDocument();
-      expect(within(tree).queryByTestId("project-settings")).toBeNull();
-      expect(tree).not.toHaveTextContent(/Paramètres du projet/);
+      fireEvent.click(screen.getByTestId("sidebar-module-settings"));
+      expect(useUiStore.getState().projectSettingsOpen).toBe(true);
     });
 
     it("does not expand projects that are not open", async () => {
@@ -295,7 +296,7 @@ describe("ProjectSidebar", () => {
     ).toBeTruthy();
   });
 
-  it("leaves the screens of a module's folder to the folder's header: the sidebar lists places", async () => {
+  it("lists a module's screens as rows of their own once the module is opened, without a header", async () => {
     vi.mocked(listServerProjects).mockResolvedValue({
       ok: true,
       projectIds: ["boutique_shop"],
@@ -327,9 +328,53 @@ describe("ProjectSidebar", () => {
     const toggle = screen.getByRole("button", { name: "Afficher les documents de Boutique" });
     expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
     fireEvent.click(toggle);
-    await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "true"));
-    expect(screen.queryByRole("link", { name: "Catalogue" })).toBeNull();
+    expect(await screen.findByRole("link", { name: "Catalogue" })).toBeInTheDocument();
     expect(screen.queryByText("Autres")).toBeNull();
+  });
+
+  it("opens a screen of the module's folder inside that folder, which stays open on it", async () => {
+    vi.mocked(listServerProjects).mockResolvedValue({
+      ok: true,
+      projectIds: ["boutique_shop"],
+      projects: [
+        {
+          id: "boutique_shop",
+          name: "boutique_shop",
+          externalId: "boutique_shop",
+          hash: "",
+          serverKeyId: "sk_1",
+          ownerModule: "boutique",
+        },
+      ],
+    } as never);
+    useServerScreensStore.setState({
+      screens: [
+        {
+          id: "boutique:settings",
+          moduleId: "boutique",
+          label: "Réglages",
+          table: "data/shop_settings",
+          projectId: "boutique_shop",
+        },
+      ],
+    } as never);
+    // The screen's page is the project's child route: the folder is the active project.
+    mockParams.current = {
+      serverId: "sk_1",
+      projectId: "boutique_shop",
+      screenId: "boutique:settings",
+    } as never;
+    render(<ProjectSidebar />);
+    // Once the disk listing names the folder, the link leads into it.
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Réglages" }).getAttribute("href")).toBe(
+        "/servers/$serverId/projects/$projectId/screen/$screenId",
+      ),
+    );
+    // Shown without unfolding anything: the folder is open on its screen.
+    expect(
+      screen.getByRole("button", { name: "Afficher les documents de Boutique" }),
+    ).toHaveAttribute("aria-expanded", "true");
   });
 
   it("lists the screens of a module without a folder, its only pages", async () => {

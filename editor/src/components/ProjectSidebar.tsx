@@ -16,6 +16,7 @@ import {
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
+import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { isKitFolder } from "@/lib/pack/kit";
@@ -63,6 +64,7 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useServersStore } from "@/state/serversStore";
 import { applyOrder, sidebarOrderOf, useSidebarOrderStore } from "@/state/sidebarOrderStore";
 import { useSidebarStore } from "@/state/sidebarStore";
+import { useUiStore } from "@/state/uiStore";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
@@ -575,7 +577,33 @@ function ActiveProjectDocuments({
           goToDocument(navigate, { serverId, project, ref: documentId });
         }}
       />
+      <ModuleSettingsRow />
     </div>
+  );
+}
+
+/**
+ * The open module's own settings (its `project.yaml`), a row of its tree like its Documents
+ * and its settings screens: they edit a file, so they are a place, never a tab of the header.
+ */
+function ModuleSettingsRow() {
+  const { t } = useTranslation();
+  const open = useUiStore((s) => s.projectSettingsOpen);
+  const openSettings = useOpenProjectSettings();
+  return (
+    <button
+      type="button"
+      data-testid="sidebar-module-settings"
+      aria-pressed={open}
+      onClick={() => {
+        useSidebarStore.getState().close();
+        openSettings();
+      }}
+      className={`w-full text-left ${entryRowClass(open)}`}
+    >
+      <EntryTile icon={Settings} />
+      <span className="truncate flex-1">{t("projectProperties.title")}</span>
+    </button>
   );
 }
 
@@ -872,9 +900,9 @@ function PluginModuleItem({
   const [expanded, setExpanded] = useState(showsChild);
   // A module that ships no icon, or whose brand the hub has not announced yet, shows Artisan's.
   const icon = useModuleBrand(module.id)?.icon ?? DEFAULT_MODULE_ICON;
-  // A module's screens are views of its folder (its header's **More**): listed here only for
-  // a module without a folder, whose screens are then its only pages.
-  const entries = module.projects.length === 0 && module.entries.length > 0 && (
+  // A module's settings screens edit their own file, like a Document or a data source: they
+  // are places, rows under the module's Documents (never tabs of its header).
+  const entries = module.entries.length > 0 && (
     <ModuleEntries entries={module.entries} serverId={serverId} projects={module.projects} />
   );
   const [only] = module.projects;
