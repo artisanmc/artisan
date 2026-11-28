@@ -126,6 +126,23 @@ it("drops an image on the resolved slot, selects it and does nothing outside a m
   }
 });
 
+it("drops a component as a button that names it, at its first image's size", () => {
+  // Another project's image is refused; a component, sized by the image it draws, is named.
+  const asset = { id: "button.3x1", projectId: "elsewhere", width: 54, height: 18 };
+  setStageSlotHitTest(() => ({ menuId: m, position: 2 }));
+  try {
+    expect(dropImageButton(p, asset, 0, 0)).toBe(false);
+    expect(dropImageButton(p, asset, 0, 0, "confirm")).toBe(true);
+    expect(current().layers[0]!.elements.at(-1)).toMatchObject({
+      positions: "2-4",
+      display: { component: "confirm" },
+      states: [],
+    });
+  } finally {
+    setStageSlotHitTest(null);
+  }
+});
+
 it("converts and resizes together, and preserves the old item when its image area is occupied", () => {
   const store = useProjectsStore.getState();
   const before = structuredClone(current());

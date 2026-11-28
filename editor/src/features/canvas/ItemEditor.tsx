@@ -66,6 +66,13 @@ export interface ItemEditorProps {
   onCount: (value: number | undefined) => void;
   onAdvanced: (patch: AdvancedFields) => void;
   onFocus?: () => void;
+  /**
+   * An image button's look: only its name and lore are the item's, so the dialog
+   * offers those two and shows `image` in the slot (no count, no advanced fields).
+   */
+  tooltipOnly?: boolean;
+  /** The picture in the slot and on the card, instead of the material's texture. */
+  image?: string;
 }
 
 const NO_ENTRIES: PlaceholderEntry[] = [];
@@ -94,6 +101,8 @@ export function ItemEditor({
   onAdvanced,
   onHead,
   onFocus,
+  tooltipOnly = false,
+  image: imageOverride,
 }: ItemEditorProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
@@ -131,7 +140,9 @@ export function ItemEditor({
     ? resolveDisplayRef(project, preview.material ?? "")
     : { material: preview.material, head: preview.head };
   const texture = useTextureUrl(display.material ?? "");
-  const image = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
+  const itemImage = useHeadPreviewUrl(preview.head ?? display.head) ?? texture;
+  const image = imageOverride ?? itemImage;
+  const dialogTitle = t(tooltipOnly ? "itemBinding.editTooltip" : "itemBinding.editItem");
   const reset = (field: "title" | "lore" | "count", customized: boolean) =>
     customized ? (
       <button
@@ -236,7 +247,7 @@ export function ItemEditor({
         <DialogTrigger asChild>
           <button
             type="button"
-            aria-label={t("itemBinding.editItem")}
+            aria-label={dialogTitle}
             className="card flex w-full items-start gap-3 p-3 text-left hover:border-[var(--border-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--brand)]"
             onClick={() => {
               onFocus?.();
@@ -259,10 +270,14 @@ export function ItemEditor({
             </span>
             <span className="min-w-0 flex-1">
               <MiniMessageInline
-                source={preview.title || display.material || t("itemBinding.choose")}
+                source={
+                  preview.title ||
+                  (tooltipOnly ? t("itemBinding.noTooltip") : display.material) ||
+                  t("itemBinding.choose")
+                }
                 className="block truncate text-sm font-medium"
               />
-              {preview.title && (
+              {preview.title && !tooltipOnly && (
                 <span className="block truncate font-mono text-[11px] text-[var(--text-faint)]">
                   {display.material}
                 </span>
@@ -292,7 +307,7 @@ export function ItemEditor({
           className="flex h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-6xl flex-col overflow-hidden"
         >
           <DialogHeader className="shrink-0 pr-6">
-            <DialogTitle>{t("itemBinding.editItem")}</DialogTitle>
+            <DialogTitle>{dialogTitle}</DialogTitle>
           </DialogHeader>
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:grid md:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
             <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-4 md:overflow-y-auto md:overscroll-contain md:pr-3 md:[scrollbar-gutter:stable]">
@@ -304,40 +319,44 @@ export function ItemEditor({
               )}
               <div className="flex items-start gap-2">
                 {textField("title", title, titleLabel ?? t("flow.titleLabel", { lang: "" }))}
-                <div className="w-28 shrink-0">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="field-label">{t("flow.countLabel")}</span>
-                    {reset("count", appearance.count !== undefined)}
+                {!tooltipOnly && (
+                  <div className="w-28 shrink-0">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="field-label">{t("flow.countLabel")}</span>
+                      {reset("count", appearance.count !== undefined)}
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={64}
+                      value={appearance.count ?? ""}
+                      placeholder={String(inherited.count ?? 1)}
+                      aria-label={t("flow.countLabel")}
+                      className="h-8 px-2 text-xs"
+                      onFocus={onFocus}
+                      onChange={(e) => {
+                        if (e.target.value === "") onCount(undefined);
+                        else {
+                          const n = Number(e.target.value);
+                          if (Number.isInteger(n) && n >= 1 && n <= 64) onCount(n);
+                        }
+                      }}
+                    />
                   </div>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={64}
-                    value={appearance.count ?? ""}
-                    placeholder={String(inherited.count ?? 1)}
-                    aria-label={t("flow.countLabel")}
-                    className="h-8 px-2 text-xs"
-                    onFocus={onFocus}
-                    onChange={(e) => {
-                      if (e.target.value === "") onCount(undefined);
-                      else {
-                        const n = Number(e.target.value);
-                        if (Number.isInteger(n) && n >= 1 && n <= 64) onCount(n);
-                      }
-                    }}
-                  />
-                </div>
+                )}
               </div>
               {textField("lore", lore, loreLabel ?? t("flow.loreLabel", { lang: "" }))}
-              <AdvancedItemSection
-                appearance={appearance}
-                material={preview.material}
-                inheritedEnchants={inherited.enchants}
-                onChange={onAdvanced}
-                onFocus={onFocus}
-              />
+              {!tooltipOnly && (
+                <AdvancedItemSection
+                  appearance={appearance}
+                  material={preview.material}
+                  inheritedEnchants={inherited.enchants}
+                  onChange={onAdvanced}
+                  onFocus={onFocus}
+                />
+              )}
               {details}
-              {display.material?.toLowerCase() === "player_head" && onHead && (
+              {!tooltipOnly && display.material?.toLowerCase() === "player_head" && onHead && (
                 <HeadField head={appearance.head ?? ""} onChange={onHead} />
               )}
             </div>
@@ -345,7 +364,9 @@ export function ItemEditor({
               <ItemPreviewColumn
                 preview={preview}
                 image={image}
-                materialName={display.material ? humanizeMaterial(display.material) : undefined}
+                materialName={
+                  !tooltipOnly && display.material ? humanizeMaterial(display.material) : undefined
+                }
                 loreMaxWidth={project?.loreMaxWidth}
               />
               <SimulationPanel

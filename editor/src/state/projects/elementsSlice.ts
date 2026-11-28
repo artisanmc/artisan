@@ -517,6 +517,8 @@ export interface ElementsSlice {
     menuId: MenuId;
     position: number;
     asset: { id: string; width: number; height: number };
+    /** A component the button names, in place of the image: `asset` gives its size. */
+    component?: string;
   }) => ElementId | undefined;
   /**
    * Shift every position of every element in `elementIds` by (dCol, dRow)
@@ -1198,7 +1200,7 @@ export const createElementsSlice = ({
         appearance.ifJoins[joinIndex] = op;
       });
     },
-    addImageButton: ({ projectId: pId, menuId: mId, position, asset }) => {
+    addImageButton: ({ projectId: pId, menuId: mId, position, asset, component }) => {
       let created: ElementId | undefined;
       mutateMenu(pId, mId, (menu, project) => {
         const size = imageButtonSize(asset.width, asset.height);
@@ -1212,7 +1214,7 @@ export const createElementsSlice = ({
             menu.rows,
             menu.playerInventory,
           ),
-          display: { image: { asset: asset.id, fit: "native" } },
+          display: component ? { component } : { image: { asset: asset.id, fit: "native" } },
           states: [],
         };
         assertImageButtonPlacement(menu, element);

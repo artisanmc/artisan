@@ -124,3 +124,50 @@ it("lists the server's library before the module's images, each under its bare n
   expect(screen.queryByText("window.6")).toBeNull();
   useKitStore.setState({ read: undefined });
 });
+
+it("lists the module's components first, each a tile to drag onto the menu", async () => {
+  const { useProjectsStore } = await import("@/state/projectsStore");
+  useProjectsStore.setState({
+    openProjects: {
+      projects: [
+        {
+          id: "p",
+          name: "P",
+          moduleData: {
+            components: {
+              __files: { "confirm.yml": "parts:\n  - image: tall\n  - label: '{text}'\n" },
+            },
+          },
+        },
+      ],
+      projectOrder: ["p"],
+    },
+  } as never);
+  useAssetStore.setState({
+    assets: [
+      {
+        id: "tall",
+        name: "Tall",
+        projectId: "p",
+        type: "glyph",
+        width: 16,
+        height: 48,
+        usages: ["button"],
+      } as never,
+    ],
+    loading: false,
+    error: null,
+  });
+  render(
+    <DndContext>
+      <ImageButtonLibrary projectId={"p" as never} />
+    </DndContext>,
+  );
+  const tile = await screen.findByTestId("component-tile");
+  expect(tile).toHaveTextContent("confirm");
+  // Sized by the image it draws.
+  expect(tile).toHaveTextContent("1 × 3 slots");
+  const heading = screen.getByText("Composants");
+  expect(heading.compareDocumentPosition(tile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  useProjectsStore.setState({ openProjects: { projects: [], projectOrder: [] } } as never);
+});

@@ -2,13 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetOfferedFor } from "@/domain/assetUsage";
+import { componentLook, knownComponents } from "@/domain/components";
 import { imageButtonSize } from "@/domain/imageButton";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssetPreview } from "@/features/assets/AssetPreview";
 import { AssetUploadDialog } from "@/features/assets/AssetUploadDialog";
 import { useAssetStore } from "@/features/assets/assetStore";
-import { useCommonImageRef, useKitAssets } from "@/features/assets/kitAssets";
+import { useCommonImageRef, useImageAsset, useKitAssets } from "@/features/assets/kitAssets";
 import { useLibraryFor } from "@/features/assets/libraryDraft";
+import { useComponentsFeed } from "@/features/assets/useComponentsFeed";
 import { useOtherProjectAssets } from "@/features/assets/useOtherProjectAssets";
 import { ProjectSource } from "@/features/project/ProjectSource";
 import { useProjectLibraryStore } from "@/features/project/projectLibraryStore";
@@ -30,6 +32,48 @@ export function ImageButtonDragPreview({ asset, scale }: { asset: Asset; scale: 
     >
       <AssetPreview asset={asset} className="h-full w-full max-w-none object-contain" />
     </div>
+  );
+}
+
+/**
+ * A component of the Project, dragged onto the menu as a button that names it: its first image
+ * shows it and gives its size, its parameters are set in the button's properties after.
+ */
+function ComponentTile({ projectId, name }: { projectId: ProjectId; name: string }) {
+  const { t } = useTranslation();
+  const first = componentLook({ component: name }, projectId)?.images[0]?.asset;
+  const image = useImageAsset(projectId, first);
+  // What follows the pointer and sizes the button: the component's first image.
+  const asset = image
+    ? ({ ...image, projectId } as Asset)
+    : ({ id: name, projectId, name, width: 18, height: 18 } as unknown as Asset);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable(
+    draggableProps({ kind: "imageButton", asset, component: name }),
+  );
+  const size = imageButtonSize(asset.width, asset.height);
+  return (
+    <Button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      variant="outline"
+      data-testid="component-tile"
+      className="h-auto min-w-0 touch-none flex-col gap-1 p-2 cursor-grab active:cursor-grabbing"
+      style={{ opacity: isDragging ? 0.4 : 1, height: "auto", minHeight: 108 }}
+      title={t("imageButton.componentHint", { name })}
+    >
+      {image ? (
+        <AssetPreview
+          asset={image}
+          lazy
+          className="h-12 w-full object-contain pointer-events-none"
+        />
+      ) : (
+        <span className="h-12" />
+      )}
+      <span className="w-full truncate text-xs">{name}</span>
+      <span className="text-[11px] text-[var(--text-mut)]">{t("imageButton.slots", size)}</span>
+    </Button>
   );
 }
 
@@ -107,6 +151,11 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
   const library = useLibraryFor(projectId);
   const kit = useKitAssets();
   const commonRef = useCommonImageRef(projectId);
+  // The Project's components first: a button drawn once, named by each menu that uses it.
+  useComponentsFeed();
+  const components = source
+    ? []
+    : knownComponents(projectId).filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const common =
     library && !source
       ? kit.filter(
@@ -150,6 +199,12 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
         )}
       </p>
       <div className="grid min-h-0 flex-1 grid-cols-3 content-start gap-2 overflow-y-auto">
+        {components.length > 0 && (
+          <p className="eyebrow col-span-3">{t("imageButton.components")}</p>
+        )}
+        {components.map((component) => (
+          <ComponentTile key={component.name} projectId={projectId} name={component.name} />
+        ))}
         {common.length > 0 && <p className="eyebrow col-span-3">{t("imageButton.fromLibrary")}</p>}
         {common.map((asset) => (
           <ImageTile
@@ -175,7 +230,7 @@ function ImageGrid({ projectId, sources }: { projectId: ProjectId; sources: Proj
             }
           />
         ))}
-        {(loading || error || (!images.length && !common.length)) && (
+        {(loading || error || (!images.length && !common.length && !components.length)) && (
           <p
             role={error ? "alert" : "status"}
             className="col-span-3 py-4 text-sm text-[var(--text-mut)]"

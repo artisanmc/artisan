@@ -26,7 +26,7 @@ import { useTextureUrl } from "@/features/canvas/textureStore";
 import { useHeadPreviewUrl } from "@/features/canvas/useHeadPreviewUrl";
 import { MiniMessageInline } from "@/lib/MiniMessageInline";
 import { listLanguages } from "@/lib/i18nUsages";
-import { CONTAINER_TITLE, ITEM_NAME, LORE } from "@/lib/mm/profiles";
+import { CONTAINER_TITLE } from "@/lib/mm/profiles";
 import { lookupPath } from "@/lib/placeholders";
 import { useGetText } from "@/lib/useText";
 import { useFlowSelectionStore } from "@/state/flowSelectionStore";
@@ -259,6 +259,9 @@ function useStableAppearanceIds(appearances: readonly Appearance[]): string[] {
     });
   }, [appearances]);
 }
+
+/** An image button has no base item: nothing of its name or lore is inherited. */
+const NO_ITEM = { lore: [] as string[] };
 
 function StateCard({
   dragId,
@@ -500,52 +503,34 @@ function StateCard({
   }
 
   const partImages = !!appearance.parts?.some((part) => "image" in part);
-  const tooltipFields = (
-    <>
-      {translations && (
-        <LocalizedField
-          label={t("flow.titleName")}
-          langs={translations.langs}
-          activeLang={translations.activeLang}
-          defaultLang={translations.defaultLang}
-          values={translations.title}
-          onChange={(lang, value) => translations.onText("title", lang, value)}
-          renderEditor={({ value, fallback, label, onChange }) => (
-            <MmEditor
-              value={value}
-              onChange={onChange}
-              aria-label={label}
-              profile={ITEM_NAME}
-              entries={placeholderEntries}
-              placeholder={fallback || t("flow.titlePlaceholder")}
-              toolbar="focus"
-              minHeight="0"
-            />
-          )}
-        />
-      )}
-      {translations && (
-        <LocalizedField
-          label={t("flow.loreName")}
-          langs={translations.langs}
-          activeLang={translations.activeLang}
-          defaultLang={translations.defaultLang}
-          values={translations.lore}
-          onChange={(lang, value) => translations.onText("lore", lang, value)}
-          renderEditor={({ value, fallback, label, onChange }) => (
-            <MmEditor
-              value={value}
-              onChange={onChange}
-              aria-label={label}
-              profile={LORE}
-              entries={placeholderEntries}
-              placeholder={fallback || t("flow.lorePlaceholder")}
-              toolbar="focus"
-            />
-          )}
-        />
-      )}
-    </>
+  // An image button's name and lore: the item's dialog, rich editors and in-game preview,
+  // without what only an item has (count, enchants, head).
+  const tooltipFields = project && (
+    <ItemEditor
+      tooltipOnly
+      project={project}
+      source={null}
+      image={textureUrl}
+      appearance={appearance}
+      inherited={NO_ITEM}
+      preview={previewItem(appearance, lorePreviewCtx, project, activeLang)}
+      previewScope={lorePreviewCtx}
+      previewFor={(ctx) => previewItem(appearance, ctx, project, activeLang)}
+      title={appearance.title ? (ownText(appearance.title, activeLang) ?? "") : undefined}
+      lore={appearance.lore ? (ownText(appearance.lore, activeLang) ?? "") : undefined}
+      translations={translations}
+      titleLabel={t("flow.titleName")}
+      loreLabel={t("flow.loreName")}
+      entries={placeholderEntries}
+      onFocus={() => setSub({ kind: "state", stateIndex })}
+      onText={(field, value) => {
+        if (value === undefined) update(field, undefined);
+        else if (field === "title") updateTitle(value);
+        else updateLore(value);
+      }}
+      onCount={() => {}}
+      onAdvanced={() => {}}
+    />
   );
 
   return (
@@ -703,86 +688,105 @@ function StateCard({
             />
           )}
 
-          {translations && !element.iterates && !element.places && !appearance.parts && (
-            <LabelEditor
-              label={appearance.label}
-              text={
-                <LocalizedField
-                  label={t("elementLabel.text")}
-                  langs={translations.langs}
-                  activeLang={translations.activeLang}
-                  defaultLang={translations.defaultLang}
-                  values={Object.fromEntries(
-                    translations.langs.map((lang) => [lang, ownText(appearance.label?.text, lang)]),
-                  )}
-                  onChange={(lang, value) =>
-                    useProjectsStore.getState().setAppearanceLabelText({
-                      projectId,
-                      ...target,
-                      appearanceIndex: stateIndex,
-                      lang,
-                      value,
-                    })
-                  }
-                  renderEditor={({ value, fallback, label, onChange }) => (
-                    <MmEditor
-                      value={value}
-                      onChange={onChange}
-                      aria-label={label}
-                      profile={CONTAINER_TITLE}
-                      entries={placeholderEntries}
-                      placeholder={fallback || t("elementLabel.placeholder")}
-                      toolbar="focus"
-                      minHeight="0"
-                    />
-                  )}
-                />
-              }
-              onPlacement={(patch) =>
-                useProjectsStore
-                  .getState()
-                  .setAppearanceLabel({ projectId, ...target, appearanceIndex: stateIndex, patch })
-              }
-              onRemove={() =>
-                useProjectsStore.getState().setAppearanceLabel({
-                  projectId,
-                  ...target,
-                  appearanceIndex: stateIndex,
-                  patch: null,
-                })
-              }
-            />
-          )}
+          {/* A text over a button is a component's or a piece's now: a look that has a label
+              keeps it, editable, and none is offered on another. */}
+          {translations &&
+            !element.iterates &&
+            !element.places &&
+            !appearance.parts &&
+            !!appearance.label && (
+              <LabelEditor
+                label={appearance.label}
+                text={
+                  <LocalizedField
+                    label={t("elementLabel.text")}
+                    langs={translations.langs}
+                    activeLang={translations.activeLang}
+                    defaultLang={translations.defaultLang}
+                    values={Object.fromEntries(
+                      translations.langs.map((lang) => [
+                        lang,
+                        ownText(appearance.label?.text, lang),
+                      ]),
+                    )}
+                    onChange={(lang, value) =>
+                      useProjectsStore.getState().setAppearanceLabelText({
+                        projectId,
+                        ...target,
+                        appearanceIndex: stateIndex,
+                        lang,
+                        value,
+                      })
+                    }
+                    renderEditor={({ value, fallback, label, onChange }) => (
+                      <MmEditor
+                        value={value}
+                        onChange={onChange}
+                        aria-label={label}
+                        profile={CONTAINER_TITLE}
+                        entries={placeholderEntries}
+                        placeholder={fallback || t("elementLabel.placeholder")}
+                        toolbar="focus"
+                        minHeight="0"
+                      />
+                    )}
+                  />
+                }
+                onPlacement={(patch) =>
+                  useProjectsStore.getState().setAppearanceLabel({
+                    projectId,
+                    ...target,
+                    appearanceIndex: stateIndex,
+                    patch,
+                  })
+                }
+                onRemove={() =>
+                  useProjectsStore.getState().setAppearanceLabel({
+                    projectId,
+                    ...target,
+                    appearanceIndex: stateIndex,
+                    patch: null,
+                  })
+                }
+              />
+            )}
 
-          {translations && !element.iterates && !element.places && (
-            <ComponentEditor
-              projectId={projectId}
-              appearance={appearance}
-              lang={translations.activeLang}
-              onComponent={(component) =>
-                useProjectsStore.getState().setAppearanceComponent({
-                  projectId,
-                  ...target,
-                  appearanceIndex: stateIndex,
-                  component,
-                })
-              }
-              onDetach={(look) =>
-                useProjectsStore.getState().detachAppearanceComponent({
-                  projectId,
-                  ...target,
-                  appearanceIndex: stateIndex,
-                  look,
-                  lang: translations.activeLang,
-                })
-              }
-              onSave={(name) =>
-                useProjectsStore
-                  .getState()
-                  .saveLookAsComponent({ projectId, ...target, appearanceIndex: stateIndex, name })
-              }
-            />
-          )}
+          {/* A component is drawn from images: an item's look offers none, an image button's does. */}
+          {translations &&
+            !element.iterates &&
+            !element.places &&
+            (appearance.component !== undefined || !!appearance.image || partImages) && (
+              <ComponentEditor
+                projectId={projectId}
+                appearance={appearance}
+                lang={translations.activeLang}
+                onComponent={(component) =>
+                  useProjectsStore.getState().setAppearanceComponent({
+                    projectId,
+                    ...target,
+                    appearanceIndex: stateIndex,
+                    component,
+                  })
+                }
+                onDetach={(look) =>
+                  useProjectsStore.getState().detachAppearanceComponent({
+                    projectId,
+                    ...target,
+                    appearanceIndex: stateIndex,
+                    look,
+                    lang: translations.activeLang,
+                  })
+                }
+                onSave={(name) =>
+                  useProjectsStore.getState().saveLookAsComponent({
+                    projectId,
+                    ...target,
+                    appearanceIndex: stateIndex,
+                    name,
+                  })
+                }
+              />
+            )}
 
           {translations &&
             !element.iterates &&

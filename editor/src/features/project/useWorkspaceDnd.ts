@@ -21,13 +21,18 @@ import { type WorkspaceDrop, decodeDragEnd, dragStartMaterial } from "./workspac
 export function applyWorkspaceDrop(projectId: ProjectId, drop: WorkspaceDrop): void {
   switch (drop.kind) {
     case "imageButton":
-      // An image of the server's library is named, not copied (`dropImageButton`).
-      if (drop.asset.projectId !== projectId && drop.asset.projectId !== KIT_FOLDER) {
+      // An image of the server's library is named, not copied (`dropImageButton`); a
+      // component is named too.
+      if (
+        !drop.component &&
+        drop.asset.projectId !== projectId &&
+        drop.asset.projectId !== KIT_FOLDER
+      ) {
         void dropCopiedImageButton(projectId, drop.asset, drop.x, drop.y);
         return;
       }
       try {
-        dropImageButton(projectId, drop.asset, drop.x, drop.y);
+        dropImageButton(projectId, drop.asset, drop.x, drop.y, drop.component);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : String(error));
       }

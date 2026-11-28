@@ -1,0 +1,3 @@
+- **Added**: the menu's library lists the module's components first; drag one onto the menu to place a button that names it.
+- **Changed**: an image button's name and lore open the item button's dialog, with the rich text editors and the in-game preview.
+- **Changed**: a component is offered only on an image button, and a label only on a look that already has one.

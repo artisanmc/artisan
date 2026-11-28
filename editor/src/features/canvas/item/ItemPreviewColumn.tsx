@@ -52,7 +52,12 @@ export function ItemPreviewColumn({
             <img
               src={image}
               alt=""
-              style={{ width: 16 * SCALE, height: 16 * SCALE, imageRendering: "pixelated" }}
+              style={{
+                width: 16 * SCALE,
+                height: 16 * SCALE,
+                objectFit: "contain",
+                imageRendering: "pixelated",
+              }}
             />
           ) : (
             <ImageIcon size={20} className="text-[var(--mc-slot-dark)]" />

@@ -14,8 +14,12 @@ export type DragPayload =
       /** A captured item of another project: copied into this one when the drop uses it. */
       captured?: CapturedItem;
     }
-  /** An image asset, dropped on the menu grid as an image button. */
-  | { kind: "imageButton"; asset: Asset }
+  /**
+   * An image asset, dropped on the menu grid as an image button. With `component`, a
+   * component of the Project: the button names it, `asset` (its first image) gives its
+   * size and the picture that follows the pointer.
+   */
+  | { kind: "imageButton"; asset: Asset; component?: string }
   /** A static-source row, pinned onto a slot of its element's own menu. */
   | {
       kind: "placementRow";
@@ -47,7 +51,12 @@ function dragKey(payload: DragPayload): string {
     case "material":
       return keyOf(payload.kind, payload.material);
     case "imageButton":
-      return keyOf(payload.kind, payload.asset.projectId, payload.asset.id);
+      return keyOf(
+        payload.kind,
+        payload.asset.projectId,
+        payload.asset.id,
+        payload.component ?? "",
+      );
     case "placementRow":
       return keyOf(payload.kind, payload.menuId, payload.elementId, payload.key);
   }
