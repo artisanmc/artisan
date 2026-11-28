@@ -39,7 +39,7 @@ show the cost:
 1. **The module's folder holds the whole tree, and all of it is the owner's.** At sync the
    server writes every shipped file at its own path (`menus/main.yml`,
    `variants/textured/menus/main.yml`, `lang/fr.yml`, `data/settings.yml`, `assets/...`). There
-   is no `originals/` folder in a module's folder. Loading is a plain read: no layer, no
+   is no `originals/` folder, in a module's folder or a theme's. Loading is a plain read: no layer, no
    exclusion applied at read time. `originals` stays a reserved first segment for good (an older
    Artisan writes it back, decision 8).
 
