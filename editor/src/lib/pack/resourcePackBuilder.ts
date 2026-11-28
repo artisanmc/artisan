@@ -15,6 +15,7 @@ import {
   minYForSize,
 } from "./fontJsonBuilder";
 import { type ImageButtonPlacement, buildImageButtons } from "./imageButtons";
+import { bossBarFiles } from "./bossBar";
 import { inventoryLabelFiles } from "./inventoryLabel";
 import type { GlyphPlacement } from "./menuGlyphPlacements";
 import { TEXT_SIZES, TEXT_Y_MAX, type TextPlacement } from "./menuTextPlacements";
@@ -113,6 +114,7 @@ export function buildResourcePackZip(
     Object.assign(files, buildVanillaGuiFiles(vanillaGui.sources, vanillaGui.transparent));
   if (hideInventoryLabel)
     for (const [path, json] of Object.entries(inventoryLabelFiles())) files[path] = strToU8(json);
+  Object.assign(files, bossBarFiles());
   buildImageButtons(files, assetIndex, glyphPngs, imageButtons, remapped);
   buildOverlayImages(files, assetIndex, glyphPngs, overlayImages);
   files["assets/artisan/asset-index.json"] = strToU8(JSON.stringify(assetIndex, null, 2));

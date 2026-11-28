@@ -426,6 +426,7 @@ object ResourcePackBuilder {
         val index = AssetIndex(remapped, transparent)
         VanillaGui.files(sources, transparent, files)
         if (hideInventoryLabel) InventoryLabel.files(files)
+        BossBar.files(files)
         ImageButtons.build(files, index, glyphPngs, imageButtons, remapped)
         OverlayImages.build(files, index, glyphPngs, overlayImages)
         files["assets/artisan/asset-index.json"] = Js.stringifyBytes(index.json(), 2)

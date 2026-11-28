@@ -75,6 +75,7 @@ export {
   type OverlaySlotDeclaration,
   type OverlayPreviewContent,
   type OverlayComposerProps,
+  type OverlayScreenSlot,
   type OverlaySlotsComposerProps,
   type AssetInputProps,
   type LocalizedFieldProps,

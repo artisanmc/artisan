@@ -529,7 +529,15 @@ export interface OverlayComposerProps {
   preview?: OverlayPreviewContent;
   /** The module's own controls in the composer's toolbar (which page, which speaker). */
   toolbar?: ReactNode;
+  /**
+   * The slot of the screen the layout is drawn in (`OverlayApi.Slot`), which places its origin:
+   * above the hotbar (default) or the top boss bar's name (SDK 1.24).
+   */
+  slot?: OverlayScreenSlot;
 }
+
+/** A slot of the screen a HUD is drawn in, as `OverlayApi.Slot` on the server (SDK 1.24). */
+export type OverlayScreenSlot = "action_bar" | "boss_bar";
 
 export interface OverlaySlotsComposerProps {
   projectId: string;

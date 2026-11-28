@@ -11,9 +11,10 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The slots of the screen Artisan owns (`OverlayApi.show`/`hide`): each player's layers, drawn
  * together. Every layer leaves the pen at the slot's centre, so the slot's line is the layers
- * one after the other, by ascending priority (then by first show). A slot that holds a layer is
- * sent again every [KEEP_ALIVE] ticks, on the player's thread: the client fades the action bar
- * after 3 s. [send] gets `""` when the last layer goes, which clears the slot.
+ * one after the other, by ascending priority (then by first show). The action bar, while it holds
+ * a layer, is sent again every [KEEP_ALIVE] ticks, on the player's thread: the client fades it
+ * after 3 s. The boss bar stays until changed. [send] gets `""` when the last layer goes, which
+ * clears the slot.
  */
 class OverlaySlots(
     private val scheduler: Scheduler,
@@ -54,7 +55,7 @@ class OverlaySlots(
     private fun flush(player: UUID, slot: OverlayApi.Slot) {
         val screen = screens[player] ?: return
         send(player, slot, line(player, slot))
-        if (screen.layers[slot].isNullOrEmpty()) return
+        if (screen.layers[slot].isNullOrEmpty() || slot !in FADING) return
         if (screen.alive.add(slot)) keepAlive(player, slot)
     }
 
@@ -77,5 +78,8 @@ class OverlaySlots(
 
     companion object {
         const val KEEP_ALIVE = 20L
+
+        /** The slots the client clears by itself, sent again while they hold a layer. */
+        private val FADING = setOf(OverlayApi.Slot.ACTION_BAR)
     }
 }

@@ -43,12 +43,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "4a51c949ee3cca2dc6d928a0c92d32b8e5dd7b89",
+      "sha1": "e8d37c4da5f00d9d197d7bb38418bdeda4edddf5",
       "entryHashes": {
         "assets/artisan/asset-index.json": "b64f9c96478bf19b162db993dc6327d5d59143e3d6e500ea68b87efdf100ffdb",
         "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
@@ -71,6 +73,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -123,12 +127,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "0cf692936ff21c9f56bf232cef6e1f2dde2f5106",
+      "sha1": "d4e6933d3e180f1f6f941c67a6d87daa42c3d06b",
       "entryHashes": {
         "assets/artisan/asset-index.json": "01ea76c0cabef4adb1af8b024f5f1c7457aeb2d484e2a50d1174aecace486eee",
         "assets/artisan/font/default.json": "d78b9ef3f6e8e277549137dae84237637e733921253b552cc280f1da8bb40953",
@@ -150,6 +156,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -223,12 +231,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "fb282aa3af38a4c90967992ba22be60af9217ec7",
+      "sha1": "ec5782ca77cd3316a52889545adb784fef698db7",
       "entryHashes": {
         "assets/artisan/asset-index.json": "e38c8f7545345b4fbd520e035e21440dc62cfc14fd1ea5d4e35a3ffc2b5ac44c",
         "assets/artisan/font/buttons/c3e2d78f3ff335724b4029f06505b511e4f8f01e258828de29849b36b40b55d0_18_18_contain_84_-1_0.json": "584dec2731002a56db11f5c1a7d802d1c5800c785ee4104ceae87c5f148a03f7",
@@ -258,6 +268,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -325,12 +337,14 @@
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/dispenser.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "b5a13d0465aa162f7ca4aa399249572d4bfea993",
+      "sha1": "53435d669268a810705c598d223be9ee44d260e7",
       "entryHashes": {
         "assets/artisan/asset-index.json": "9110b4b85cc25a5e28594ecf9bd5e6d7ca97266218a303cdaadf0c8dbe0b8232",
         "assets/artisan/font/default.json": "a89928ee6906b6bf8b296e4fc01fc777aa3a7220020832c3a1fc418318a69077",
@@ -352,6 +366,8 @@
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/dispenser.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -449,12 +465,14 @@
         "assets/artisan/textures/overlay/26f8567f2569182294c3fa5b9f9cb2270b554eef628b4c149cf82a42888ff4ae_81_1.png",
         "assets/artisan/textures/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_12_0.png",
         "assets/artisan/textures/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_19_0.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "c84ca5a2c639be14510b917dbeca79b0e004f52d",
+      "sha1": "1d66ad454fa1e3b6655b03ffd71a121d2075b460",
       "entryHashes": {
         "assets/artisan/asset-index.json": "81ee03c6ebd4b4ccd4ce658d375f75adf40f5f2a23b80adc037e1f767973fc81",
         "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
@@ -480,6 +498,8 @@
         "assets/artisan/textures/overlay/26f8567f2569182294c3fa5b9f9cb2270b554eef628b4c149cf82a42888ff4ae_81_1.png": "aa9c31fccd8d672999eb39eb4f241303931c0d66f4c1ba4f0e16e66c81b3a9f3",
         "assets/artisan/textures/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_12_0.png": "b31ad1deb1a0e864aa5521baad2d4f03c2c907f308da940d474922cb85524136",
         "assets/artisan/textures/overlay/864ea39fe7e2b27155a29e46fb9458d05e2ccade4151d02b7c851b10257eda7a_19_0.png": "36c9e393653975f16197c1ac11d4a713b96dbdf0bc7fa771caba6878a0111569",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -727,12 +747,14 @@
         "assets/minecraft/lang/zlm_arab.json",
         "assets/minecraft/textures/gui/container/dispenser.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "af7fa9a35e466e3d6063094516358c4a378b2b9d",
+      "sha1": "f7639e515ffed65b16aa01e5a576a9b49630853b",
       "entryHashes": {
         "assets/artisan/asset-index.json": "88d9acae0211d4fed505d2cfb729acba6264985386c9c99b5a9e23f146b9b753",
         "assets/artisan/font/Big_Font.json": "14614bde06fe4dab4cfbe87939592dcb1050cbef88161fcef2d491505a6a9fc5",
@@ -936,6 +958,8 @@
         "assets/minecraft/lang/zlm_arab.json": "e6b72162dc214760435781a839defe4435a4c545d20c678a34f1c286b3712672",
         "assets/minecraft/textures/gui/container/dispenser.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -1043,6 +1067,8 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1080,12 +1106,14 @@
         "assets/artisan/textures/gui/generic_9x6.png": "8bf9cdb83a9d4eb43db6b50120b666e20d77b79dd3dbbdc4e19898885e79fb78",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 169,
       "textUpFonts": 129,
-      "sha1": "e5e4f671bd33210b935d910816e76b202cb5aac0",
+      "sha1": "db1c25d611563661cd28d7eed9d9acf7ca7509d7",
       "textYSized": [
         "assets/artisan/font/text_y30_h16.json"
       ]
@@ -1200,6 +1228,8 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1236,12 +1266,14 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/hopper.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "5a4229478f10f86b534c71cf565444a0472dd4dd",
+      "sha1": "04e872d84d8cd0ef6fcc1979798b0f4f69613c3e",
       "textYSized": []
     },
     {
@@ -1352,6 +1384,8 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1388,12 +1422,14 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/hopper.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "5a4229478f10f86b534c71cf565444a0472dd4dd",
+      "sha1": "04e872d84d8cd0ef6fcc1979798b0f4f69613c3e",
       "textYSized": []
     },
     {
@@ -1448,12 +1484,14 @@
         "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_0.png",
         "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_1.png",
         "assets/artisan/textures/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20_0.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "139dc86b30fed3765cd8a4c31050c506912a2b59",
+      "sha1": "b99ccad85530f2b53817225af5b26ade8078a246",
       "entryHashes": {
         "assets/artisan/asset-index.json": "72ddb3d810deb18efa80ff1dafcd9485c6df45f09e44a4619b5d56d29f654dba",
         "assets/artisan/font/default.json": "b5f2753c7c38eac17fb8d8d5e4fcd0758c1ebfaa3e3e6337dcdf491300aa1a3c",
@@ -1477,6 +1515,8 @@
         "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_0.png": "8dfb5a55d07b70223653ee34e87d24f0b6d443e3e2ee71d4cc17cea2dc77d529",
         "assets/artisan/textures/overlay/78cf4842afe41dcb96be60c73489b311db583418c3c4e98f4f1dea3fc42995ad_10_1.png": "57c25e4e11f9244a58ab02ccf3b7b96f8c71e708627dd86cdca6051e94de60de",
         "assets/artisan/textures/overlay/9dff50df08c635815f4b19da10f756605a34a79a48d4ba48712782502975a70e_20_0.png": "5804b77d14097e8b57ddf372b3b59d1c7bf46d9c3a52bb034b9a2d822ddcaa51",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -1525,12 +1565,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "80321c2108b16a95ec322eaa104b35e4862b2c0f",
+      "sha1": "2520b8e649dbeebb54688b0648500c98655526e3",
       "entryHashes": {
         "assets/artisan/asset-index.json": "6d5cea52adceee4d9974c1a18dffafea1df893d23b437919260f3b7ac96e5122",
         "assets/artisan/font/buttons/01979b66ee1794c473f53cafff0889e714aac28b2515e3572072424b919634f3_18_18_contain_17.json": "44713a2796f783435380f74b2b8dc40b2831de77d51d0cb9d519c0a6a7894a9d",
@@ -1554,6 +1596,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -1594,6 +1638,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1618,12 +1664,14 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "d0e390585fab9b3b43b3d0e9b01405bcf0c31236",
+      "sha1": "6b47b0cd0e5bbfca8450eef04e33cd641b968004",
       "textYSized": []
     },
     {
@@ -1659,6 +1707,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1680,6 +1730,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -1743,7 +1795,7 @@
         "assets/artisan/font/text_y94_h20.json"
       ],
       "textUpFonts": 129,
-      "sha1": "bab0d483a4a723d1738434ebda4cddfc1faaff64"
+      "sha1": "226d3312d08d4e1632ad8d10ef3f2beb62791fdc"
     },
     {
       "name": "decorations: an underlined or struck title text puts the bars in the text fonts",
@@ -1778,6 +1830,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1800,6 +1854,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -1808,7 +1864,7 @@
         "assets/artisan/font/text_y20_h12.json"
       ],
       "textUpFonts": 129,
-      "sha1": "3ec6d2e02912cc028ff51f35acd319ca5668ba59"
+      "sha1": "2ac31043b634f2820d9327c5746402bf982d1d11"
     },
     {
       "name": "text characters: the Latin blocks always, a Cyrillic word of a lang file kept, the rest of the vanilla sheets left out",
@@ -1842,6 +1898,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -1863,13 +1921,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "e459c4b2d19caa3cd60880facf668b1daceceea0"
+      "sha1": "33eae31608e25bc1fbcd05c1d41744a8b03bd24d"
     },
     {
       "name": "ui kit: kit:<name> from the base, the kit module's image winning at the base's size and at another, a kit image outside the base, an unknown one, a module image, kit images in a title after a module's glyph",
@@ -1983,12 +2043,14 @@
         "assets/artisan/textures/overlay/a2efbca5ff8a60c2a9cbd4e70763b5a63c5b294f70975d4bccd539659c8530c2_8_0.png",
         "assets/artisan/textures/overlay/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_10_0.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "edb468f301e30fa11cc13a13f6b4ce851267295b",
+      "sha1": "6c68f4fc48e8b7b0b2da0af15e3fb74282a08e08",
       "entryHashes": {
         "assets/artisan/asset-index.json": "ec73f81eae1a26bbace795f657603b7414fb94f2c4f4b014897799e621d8ffb2",
         "assets/artisan/font/buttons/694b6c1dfced0ff56d4d3a74a8c8631032474dc52469444ccbab5da47c6abea1_18_18_native_17.json": "ef7b853853f23d214e99dd66b2c9e3aaf65676019c19187ead443a8932958304",
@@ -2029,6 +2091,8 @@
         "assets/artisan/textures/overlay/a2efbca5ff8a60c2a9cbd4e70763b5a63c5b294f70975d4bccd539659c8530c2_8_0.png": "a8e712a52a42962f545fe89f732c0261367c447a01da71d21264a0f7503ef3f4",
         "assets/artisan/textures/overlay/d59ece59d6a7bb8d62eb5745dc7cfd35f1bd5ecc1e1b57238f7d8e96adb22509_10_0.png": "5dd4c970feb3822372781bfba6f3eaeabc44abfa73267abd58267dc290b501f1",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -2136,12 +2200,14 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "fc2535e248e3b8b254d344c9f78374f96435f8c4",
+      "sha1": "a27366ee716507239886285d666dc4dbf5c61509",
       "entryHashes": {
         "assets/artisan/asset-index.json": "91fae590109e3a3af80e03a3dad52926d2f9ca4a12029ccfd03b93050770265a",
         "assets/artisan/font/buttons/07ad2a4081c5dc88afc2c4c9d149eb7a40cbbbee33aa0fc5d5ad36a4693a4fec_54_18_native_53.json": "419d28d2d5b02d44bfef40f5724bf65bb4451eab9dd761c032d2a94189767c4f",
@@ -2175,6 +2241,8 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -2313,12 +2381,14 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "7a4c93581dd6d80966c8357426c115d819a3205a",
+      "sha1": "b7e7fe05db7772845f423bd5e4b57a9f0003bc6e",
       "entryHashes": {
         "assets/artisan/asset-index.json": "8e881dc83547e15050a6527eed85501470c8fb70842273fb7feae77f344a43a1",
         "assets/artisan/font/buttons/07ad2a4081c5dc88afc2c4c9d149eb7a40cbbbee33aa0fc5d5ad36a4693a4fec_54_18_native_35.json": "0c338ad4f3637d87b1a08685cb2ea860b8587ef5ae1adb4bcde03612a5a6e134",
@@ -2362,6 +2432,8 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -2482,12 +2554,14 @@
         "assets/artisan/textures/gui/hopper.png",
         "assets/artisan/textures/overlay/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_10_0.png",
         "assets/artisan/textures/overlay/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_4_0.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "3dc4f72d06742afbad67e6f71e9dddbb0c06dd38",
+      "sha1": "55737a8022611dd40a8b4d5e1351f9bdfea21fef",
       "entryHashes": {
         "assets/artisan/asset-index.json": "1b90d3bf5b5465e3fd4d72a9f2efa000074299ad7b8b9c1359c86af83ad35d37",
         "assets/artisan/font/buttons/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_54_18_stretch_17.json": "8dc4b0bf2c672a2a32932c74a4d29c31751dd4af4817b129aa0ab10032871177",
@@ -2523,6 +2597,8 @@
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/artisan/textures/overlay/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_10_0.png": "a6229caf9f6f6bc736221dedbd27689e2597ef42c384024ba96aee473a089ca2",
         "assets/artisan/textures/overlay/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_4_0.png": "85798dbb6889510f6cdda6ed28ade58296497c23f95c815cf8e6f21225ebd239",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -2672,6 +2748,8 @@
         "assets/artisan/textures/overlay/320b549a72c90a2c692df3085225af4251e29686ce94dcd779776816959cf43a_8_0.png",
         "assets/artisan/textures/overlay/3d728ec66644b807589f675d9d932d67e56394f0063a6bca79a9255fcd1b4e10_10_0.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -2723,13 +2801,15 @@
         "assets/artisan/textures/overlay/320b549a72c90a2c692df3085225af4251e29686ce94dcd779776816959cf43a_8_0.png": "a8e712a52a42962f545fe89f732c0261367c447a01da71d21264a0f7503ef3f4",
         "assets/artisan/textures/overlay/3d728ec66644b807589f675d9d932d67e56394f0063a6bca79a9255fcd1b4e10_10_0.png": "5dd4c970feb3822372781bfba6f3eaeabc44abfa73267abd58267dc290b501f1",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "402193a917c2d72911d7b760e1cd827154775b5d"
+      "sha1": "cd15c0054237f798965ba72eb1ec306e51566f77"
     },
     {
       "name": "image functions: the owner's image of an original that declares a function is taken at any measures (a menu image, a HUD image, a glyph with another height and ascent), as one of an original without a function is",
@@ -2803,6 +2883,8 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/artisan/textures/overlay/8805cdea2b197df5fd555dc359a7f5beed2e6d65de498ce3df3de94d78e1e262_10_0.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -2835,12 +2917,14 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/artisan/textures/overlay/8805cdea2b197df5fd555dc359a7f5beed2e6d65de498ce3df3de94d78e1e262_10_0.png": "efec51f45549d8a8d4807434c3a2115c73fdaa214ebee25011b99d2e356cf538",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "9b0edeffcebf398d4f8e1e04a424287f7e1f12cd",
+      "sha1": "a0edd3b97420d643ebbe6fe70a2c5ba4c0c1e044",
       "textYSized": []
     },
     {
@@ -2976,12 +3060,14 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "28736b7f9a96ad26181c6d4d64a4cefb6e22cc49",
+      "sha1": "a8c5a397e5d32d07dc5308cebe878e2c65bb1eb2",
       "entryHashes": {
         "assets/artisan/asset-index.json": "8e881dc83547e15050a6527eed85501470c8fb70842273fb7feae77f344a43a1",
         "assets/artisan/font/buttons/07ad2a4081c5dc88afc2c4c9d149eb7a40cbbbee33aa0fc5d5ad36a4693a4fec_54_18_native_35.json": "0c338ad4f3637d87b1a08685cb2ea860b8587ef5ae1adb4bcde03612a5a6e134",
@@ -3025,6 +3111,8 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -3197,12 +3285,14 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "c05617b081e32e9a0c42c745f0009b6041f62616",
+      "sha1": "cb92e9e67341c8d9b20766f56066c3ff2bb273f6",
       "entryHashes": {
         "assets/artisan/asset-index.json": "6b1f713880705b98dc65c840167aacb5063693173de642c692a2ac09a26edb01",
         "assets/artisan/font/buttons/07ad2a4081c5dc88afc2c4c9d149eb7a40cbbbee33aa0fc5d5ad36a4693a4fec_54_18_native_35.json": "0c338ad4f3637d87b1a08685cb2ea860b8587ef5ae1adb4bcde03612a5a6e134",
@@ -3246,6 +3336,8 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -3419,12 +3511,14 @@
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
         "assets/minecraft/textures/gui/container/generic_54.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "c05617b081e32e9a0c42c745f0009b6041f62616",
+      "sha1": "cb92e9e67341c8d9b20766f56066c3ff2bb273f6",
       "entryHashes": {
         "assets/artisan/asset-index.json": "6b1f713880705b98dc65c840167aacb5063693173de642c692a2ac09a26edb01",
         "assets/artisan/font/buttons/07ad2a4081c5dc88afc2c4c9d149eb7a40cbbbee33aa0fc5d5ad36a4693a4fec_54_18_native_35.json": "0c338ad4f3637d87b1a08685cb2ea860b8587ef5ae1adb4bcde03612a5a6e134",
@@ -3468,6 +3562,8 @@
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/minecraft/textures/gui/container/generic_54.png": "d7a82c85633dad3888d58785831147ac9d4cce18901b31c411828da5919c2201",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -3632,6 +3728,8 @@
         "assets/artisan/textures/gui/hopper.png",
         "assets/artisan/textures/overlay/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_10_0.png",
         "assets/artisan/textures/overlay/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_4_0.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -3672,13 +3770,15 @@
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
         "assets/artisan/textures/overlay/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_10_0.png": "22a731c4ef15941f80ea0217e9d5cb18cb64a2d1b8085498dd286dcecc7e8ff1",
         "assets/artisan/textures/overlay/b3a1984ba0b1d8ad7f9dc881dfd9c9dc78c76c647a7692fbbfd6fcdcb9d9a121_4_0.png": "81ce32ac7a23a9e954bd177ee7ec80c76012e17f74b84c5c7fb6842029eae34b",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "d73e8f3039c920dfb8e968fc68102d8d2a1c92b2"
+      "sha1": "f635f90fa5a70f215f9f47da5e63fc9814054059"
     },
     {
       "name": "ramps and scope are no longer read: no theme's colours repaint an image, whatever its descriptor says (ramps: true) and whatever the theme's file says (scope)",
@@ -3867,12 +3967,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "10b49660f6660eb1c23f45aa2e416c288db23eb6",
+      "sha1": "e59ced23e52e30ad8848a4721621df2e9ce23374",
       "entryHashes": {
         "assets/artisan/asset-index.json": "eb6da896e51114cdf701dc7efecbb54d6226780cf612fa8259d246caadf9b2db",
         "assets/artisan/font/buttons/24d7f03d8dc3c3666969e6fa5bb1fac4736d3f1353c28307ed51b320f9dc42d3_54_18_stretch_17.json": "8dc4b0bf2c672a2a32932c74a4d29c31751dd4af4817b129aa0ab10032871177",
@@ -3920,6 +4022,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -4027,12 +4131,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "afd82fd21b96626bc0771621fdbe752ad297a425",
+      "sha1": "47c9cd13f189f162c5fa3f7ddee06985fc152220",
       "entryHashes": {
         "assets/artisan/asset-index.json": "e2949511a2eb8b7ed3d3146aaf4f1dd9e94cbe43c423eade4130c039dcf37e05",
         "assets/artisan/font/buttons/e247b1096f89b57d4568dfb669d2417962fa73356712f70ba8ba68a28354ef74_54_18_stretch_17.json": "45a8feac462aaac3fbe3a8c85d99848aa00770f6375c6642bb547a0716cab4eb",
@@ -4060,6 +4166,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -4150,6 +4258,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4184,13 +4294,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "2b1e062854cff2f537c31ff0184bbd43a15e8591"
+      "sha1": "0e508bed28a7dc2d92c7c75fdbbb006c1ed5d289"
     },
     {
       "name": "composed image: a layer of a sliced image drawn at the layer's size, corners copied and the rest repeated; a size on an image without margins, on margins it cannot hold or on a layer that repeats is ignored",
@@ -4250,6 +4362,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4272,13 +4386,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "1b22574ac5a8b9744133f2dff24f9a36b0049ba9"
+      "sha1": "5a808279178de9f91ecb90148867051987c7e0ce"
     },
     {
       "name": "parts: a look of several pieces draws one glyph per image (a sliced one at the rectangle, another at its own size and anchor) and one text font per label; image and label alone mean the same two pieces; a Bedrock player gets the first image",
@@ -4357,6 +4473,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4391,6 +4509,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -4409,7 +4529,7 @@
         "assets/artisan/font/text_y89_h12.json"
       ],
       "textUpFonts": 129,
-      "sha1": "4eceabd51103892b4733ed6a28b13655009fb8b4"
+      "sha1": "c3d719d724ad980d998a5fa105227ae73bc5c0c3"
     },
     {
       "name": "components: a look that names a component is read as its parts, parameters put in; the module's component before the common one, the server's common one before the one Artisan ships, another module's by its name; a component's own images are its owner's, an image the look gives is the look's module's; a name nothing answers draws nothing",
@@ -4530,6 +4650,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4570,6 +4692,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -4593,7 +4717,7 @@
         "assets/artisan/font/text_y95_h12.json"
       ],
       "textUpFonts": 129,
-      "sha1": "3d57e4c1c35cd5d2461ebf360a3a9a63c20d719b"
+      "sha1": "ff1ee4cab70f85543bf58a0890a7c37041693533"
     },
     {
       "name": "base margins: a base button larger than its drawing keeps its edges and repeats its middle (button, panel, card); at its own size it is as drawn; the server's redraw of a base image declares its own margins or is drawn by its fit",
@@ -4648,6 +4772,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4682,13 +4808,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "2561c47284497f761c2e853f2e3b2fd233e8bb00"
+      "sha1": "69b656e0b1be7cf5ce8a81247d0a2b6ea47cfdc2"
     },
     {
       "name": "the use decides: a module's image of assets/textures/ a title is drawn with is a glyph of the menu font (a PNG, a composed one, a theme's own), its codepoint after the modules' glyphs, its ascent under its height; the same image still draws a button; a texture no title names stays a texture",
@@ -4760,12 +4888,14 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
       "textYFonts": 168,
       "textUpFonts": 129,
-      "sha1": "2de0419a33276816b0f138f36de55aadf76efb18",
+      "sha1": "243bbb38983b12c3621a8c8ffbbf3b0ac1ae9a2a",
       "entryHashes": {
         "assets/artisan/asset-index.json": "2082dc7314806735f1314d1cee6e008120a560ec46b172ac808afeb1f90349b1",
         "assets/artisan/font/buttons/630c74b2de45669259227b267211f2cbc1b0d85d38728a506258a9e8bdf42acc_54_18_stretch_35.json": "02c32d3baaf1db2189e788ed6edb141edc4b64fac4a0b4c8ee2ad772cfee321c",
@@ -4796,6 +4926,8 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
@@ -4837,6 +4969,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4859,13 +4993,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "4208484b9f08369ff73a12ca6df931e846360604"
+      "sha1": "593812d3854d42f5e3d54999c69fca357ff91f37"
     },
     {
       "name": "palette: a tint that names a colour takes it from palette.yml of the themes in place, the highest first, then of the library, then from the default palette; an entry that is no colour is not read, a name no place gives leaves the layer as drawn",
@@ -4944,6 +5080,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -4966,13 +5104,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "aaa3202e4f40aabc8a50a7f6f43b6d7575daee19"
+      "sha1": "7fbc384a9f647aba9872b08dfa41bdc1a0a2895b"
     },
     {
       "name": "coloured variants of the base: button.<color>.3x1 is the base's neutral button, as the themes in place show it, multiplied by the palette's colour (a theme's, the library's, the default one); in a menu, a title and a composed image's layer; the server's own image of that name is shown as drawn",
@@ -5047,6 +5187,8 @@
         "assets/artisan/textures/gui/generic_9x5.png",
         "assets/artisan/textures/gui/generic_9x6.png",
         "assets/artisan/textures/gui/hopper.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png",
         "pack.mcmeta",
         "pack.png"
       ],
@@ -5083,13 +5225,15 @@
         "assets/artisan/textures/gui/generic_9x5.png": "d3713c7febb2f8be10ac7091573cf2600ea3917c525b9e53119addad0f5b92a5",
         "assets/artisan/textures/gui/generic_9x6.png": "09a251969567e5ab92bebc5a417c4b94853bbd9e24255f483c6ed2927989bd28",
         "assets/artisan/textures/gui/hopper.png": "31274103752e53306bb3e0ddba62399c0733dac9f839c6ee5e13d3ef06bc3670",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_background.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
+        "assets/minecraft/textures/gui/sprites/boss_bar/yellow_progress.png": "e665b2f316494c4edaa690a7f12eb0c4cf923b276cf4176a151dc2e7ba8b8ba6",
         "pack.mcmeta": "1a76b715130471e8dc5fbfaa00dd7e8ca02f70098d173b628d7e412592d48b2e",
         "pack.png": "bdece32050b09433af905d3fc867cbd0d6657f5e42f2ac005e0c990f1d2fa40e"
       },
       "textYFonts": 168,
       "textYSized": [],
       "textUpFonts": 129,
-      "sha1": "d7116a4537837dd8abdd557442554dd3d166c880"
+      "sha1": "b3eac54e539596bd8e7c4e0a6637a289e3b1b5a9"
     }
   ]
 }

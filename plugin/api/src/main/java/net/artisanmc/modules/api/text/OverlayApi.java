@@ -39,10 +39,20 @@ public interface OverlayApi {
     /** Lowest rise (the deepest drop) of {@link #raise} and {@link #image}. */
     int MIN_RISE = -166;
 
-    /** Where a layer is drawn. More slots (the boss bar, the sidebar) come on the same contract. */
+    /** Where a layer is drawn. More slots (the sidebar) come on the same contract. */
     enum Slot {
         /** Above the hotbar, centred: the action bar's line, which Artisan resends while a layer is shown. */
-        ACTION_BAR
+        ACTION_BAR,
+        /**
+         * At the top of the screen, centred: the name of a boss bar Artisan shows while a layer is
+         * there, whose bar the pack makes transparent (colour yellow, reserved: any yellow bar loses
+         * its bar for a player with the pack). The name's line sits 3 px from the top of the
+         * screen, so a layer draws downwards (negative rise); the bars of other plugins stack
+         * under it or above it, in the order they were shown.
+         *
+         * @since 1.13.0
+         */
+        BOSS_BAR
     }
 
     /** Inert default (tests / partial wiring): no pack, nothing moves, rises or shows. */

@@ -18,7 +18,9 @@ import {
   type OverlayContent,
   type OverlayLayer,
   type OverlayPreviewContent,
+  type OverlayScreenSlot,
   type OverlaySlotDeclaration,
+  bossBarAt,
   overlayLayerBox,
   overlayPlan,
   overlaySlotFill,
@@ -131,6 +133,7 @@ export function OverlayComposer({
   slots,
   preview,
   toolbar,
+  slot = "action_bar",
 }: OverlayComposerProps) {
   const { t } = useTranslation();
   const items = useMemo(() => (Array.isArray(value) ? value : []), [value]);
@@ -399,6 +402,7 @@ export function OverlayComposer({
                 <Stage
                   projectId={projectId}
                   geometry={geometry}
+                  slot={slot}
                   layers={shown}
                   hidden={hidden}
                   content={content}
@@ -500,9 +504,12 @@ export function Stage({
   onDragMove,
   onDragEnd,
   editable = () => true,
+  slot = "action_bar",
 }: {
   projectId: string;
   geometry: McScreenGeometry;
+  /** The slot of the screen the layout is drawn in, which places its origin. */
+  slot?: OverlayScreenSlot;
   layers: readonly (OverlayLayer | null)[];
   hidden: ReadonlySet<number>;
   content: OverlayContent;
@@ -518,7 +525,8 @@ export function Stage({
 }) {
   const { layout, scale, textLift } = geometry;
   const ox = layout.centerX;
-  const oy = layout.actionBarTop;
+  // The slot's text line: above the hotbar, or the top boss bar's name.
+  const oy = slot === "boss_bar" ? (bossBarAt(layout, 0)?.nameTop ?? 3) : layout.actionBarTop;
   // Drawn layers only, each draw knowing its entry.
   const drawable = layers
     .map((layer, index) => ({ layer, index }))
