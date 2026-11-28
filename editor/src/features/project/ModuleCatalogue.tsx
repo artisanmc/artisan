@@ -1,7 +1,6 @@
 import { IconTile } from "@/components/ui/icon-tile";
 import { docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
-import { isCollectionKind } from "@/lib/documentCollections";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useUiStore } from "@/state/uiStore";
 import { Puzzle, Search } from "lucide-react";
@@ -13,8 +12,8 @@ import { buildProjectDocuments } from "./useProjectDocuments";
 /**
  * Every Document of a module, kind after kind, as cards: the module's way in. A search and one
  * chip per kind narrow it (`kind` is the page's `?kind=`, so a kind of the sidebar is a link);
- * a card opens its Document. The collections of a module list their own Documents on their
- * own page, so they are not here.
+ * a card opens its Document. A module's collections (quest groups, speakers…) are kinds like
+ * the others here: their own chip, their cards, found by the search.
  */
 export function ModuleCatalogue({
   project,
@@ -33,9 +32,7 @@ export function ModuleCatalogue({
   const activeLang = useUiStore((s) => s.activeLang);
   const originOf = useOriginOf(project);
   const [query, setQuery] = useState("");
-  const groups = buildProjectDocuments(project, activeLang).filter(
-    (g) => !isCollectionKind(g.type) && g.items.length > 0,
-  );
+  const groups = buildProjectDocuments(project, activeLang).filter((g) => g.items.length > 0);
   const needle = query.trim().toLowerCase();
   const shown = groups
     .filter((g) => !kind || g.type === kind)

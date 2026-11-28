@@ -23,6 +23,7 @@ import { ScopeHeader } from "@/components/ui/scope-header";
 import { Segmented } from "@/components/ui/segmented";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
+import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
 import type { WorkspaceViewTab } from "@/features/project/workspaceTabs";
@@ -106,6 +107,7 @@ export function ProjectTopBarControls({
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
   const trail = useDocumentTrailStore((s) => s.trail);
   const server = place ?? null;
+  const openProperties = useOpenProjectSettings();
 
   // Offline is not a banner: the server badge already shows it in red, and the
   // tooltip gives the exact reason (copy date, draft, never-published).
@@ -201,6 +203,7 @@ export function ProjectTopBarControls({
             renderTrigger={(onRefresh) => (
               <TopBarKebabMenu
                 onRefresh={onRefresh}
+                onProperties={server ? undefined : openProperties}
                 onImport={onImport}
                 onExportZip={onExportZip ?? (() => {})}
                 onOpenPatterns={onOpenPatterns ?? (() => {})}

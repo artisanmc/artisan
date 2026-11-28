@@ -874,7 +874,7 @@ export default {
     create: "Create",
   },
   projectProperties: {
-    title: "Module settings",
+    title: "Module properties",
     id: "id",
     name: "name",
     description: "description",

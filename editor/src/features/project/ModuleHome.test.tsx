@@ -102,61 +102,22 @@ describe("ModuleHome", () => {
     const docs = opened.documents as Record<string, unknown[]>;
     // The page opened before the module's kind arrived: no conversation yet.
     const before = { ...opened, documents: { ...docs, conversation: [] } } as Project;
-    render(<ModuleHome project={before} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={before} />);
     const list = screen.getByTestId("module-home-collection-conversation");
     expect(within(list).getByText("2")).toBeInTheDocument();
   });
 
-  it("shows one block per place, with counts, not one row per Document", () => {
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const board = screen.getByTestId("module-home-board");
-    // The command is on the board; the conversations, a collection, are not.
-    expect(within(board).getByText("1")).toBeInTheDocument();
+  it("shows one block per place, with counts, not one row per Document in a block", () => {
+    render(<ModuleHome project={project()} />);
     const list = screen.getByTestId("module-home-collection-conversation");
     expect(within(list).getByText("2")).toBeInTheDocument();
-    expect(screen.queryByText("bruno")).toBeNull();
+    // The blocks hold no row per Document: they are the catalogue's cards.
+    expect(within(list).queryByText("bruno")).toBeNull();
     expect(screen.getByTestId("module-home-settings")).toHaveTextContent("Speakers");
   });
 
-  it("puts a board with only commands after the lists, without its picture", () => {
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const blocks = screen
-      .getAllByRole("listitem")
-      .map((li) => li.getAttribute("data-testid"))
-      .filter(Boolean);
-    expect(blocks.indexOf("module-home-board")).toBeGreaterThan(
-      blocks.indexOf("module-home-collection-conversation"),
-    );
-    expect(screen.queryByTestId("board-thumbnail")).toBeNull();
-  });
-
-  it("leads with a board of menus, wide, with its picture", () => {
-    useProjectsStore.setState({
-      openProjects: {
-        projects: [
-          projectFromFiles(PID, {
-            [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr]\n",
-            [`${base}/menus/main.yml`]: "schema: menu/v1\ntitle: Main\nsize: 27\n",
-            [`${base}/conversations/bruno.yml`]: "schema: conversation/v1\n",
-          }),
-        ],
-        projectOrder: [PID],
-      },
-    } as never);
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const blocks = screen
-      .getAllByRole("listitem")
-      .map((li) => li.getAttribute("data-testid"))
-      .filter(Boolean);
-    expect(blocks[0]).toBe("module-home-board");
-    expect(screen.getByTestId("module-home-board").className).toContain("md:col-span-2");
-    // Out of the flow, so its viewBox ratio never sets the block's height (a tall board
-    // made the block hundreds of pixels high).
-    expect(screen.getByTestId("board-thumbnail").getAttribute("class")).toContain("absolute");
-  });
-
   it('names a lone settings screen after itself, not "Settings" twice', () => {
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={project()} />);
     const settings = screen.getByTestId("module-home-settings");
     expect(within(settings).getByRole("heading")).toHaveTextContent("Speakers");
     expect(within(settings).getByRole("link")).toHaveTextContent(/^Open$|^Ouvrir$/);
@@ -189,7 +150,7 @@ describe("ModuleHome", () => {
         },
       ],
     } as never);
-    render(<ModuleHome project={withData} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={withData} />);
     const settings = screen.getByTestId("module-home-settings");
     expect(within(settings).getByRole("heading")).toHaveTextContent(/^Settings$|^Réglages$/);
     const rows = within(settings).getAllByRole("link");
@@ -199,19 +160,24 @@ describe("ModuleHome", () => {
     ]);
   });
 
-  it("opens the board from its block", () => {
-    const onOpenBoard = vi.fn();
-    render(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
-    fireEvent.click(within(screen.getByTestId("module-home-board")).getByRole("button"));
-    expect(onOpenBoard).toHaveBeenCalledOnce();
+  it("lists what the module exposes: its own actions only, no command", () => {
+    render(<ModuleHome project={project()} />);
+    const exposes = screen.getByTestId("module-home-exposes");
+    expect(exposes).toHaveTextContent("conversations:start");
+    expect(exposes).not.toHaveTextContent("/conversations");
+    expect(exposes).not.toHaveTextContent("open_menu");
   });
 
-  it("lists what the module exposes: its commands and its own actions only", () => {
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const exposes = screen.getByTestId("module-home-exposes");
-    expect(exposes).toHaveTextContent("/conversations");
-    expect(exposes).toHaveTextContent("conversations:start");
-    expect(exposes).not.toHaveTextContent("open_menu");
+  it("lists a collection's Documents in the catalogue, with their own filter", () => {
+    render(<ModuleHome project={project()} />);
+    expect(screen.getByTestId("catalogue-kind-conversation")).toHaveTextContent("2");
+    expect(screen.getByTestId("catalogue-doc-conversation/bruno")).toBeInTheDocument();
+  });
+
+  it("has no canvas or translations block: the header switch and the sidebar hold them", () => {
+    render(<ModuleHome project={project()} />);
+    expect(screen.queryByTestId("module-home-board")).toBeNull();
+    expect(screen.queryByTestId("module-home-translations")).toBeNull();
   });
 
   it("shows the module's own section above the blocks, with its project", () => {
@@ -220,11 +186,11 @@ describe("ModuleHome", () => {
       ...conversations,
       home: ({ projectId }) => <p>Own section of {projectId}</p>,
     });
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={project()} />);
     const own = screen.getByTestId("module-home-own");
     expect(own).toHaveTextContent("Own section of conversations");
     expect(
-      own.compareDocumentPosition(screen.getByTestId("module-home-board")) &
+      own.compareDocumentPosition(screen.getByTestId("module-home-settings")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
@@ -238,9 +204,9 @@ describe("ModuleHome", () => {
         throw new Error("broken");
       },
     });
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={project()} />);
     expect(screen.getByTestId("module-home-own")).toBeEmptyDOMElement();
-    expect(screen.getByTestId("module-home-board")).toBeInTheDocument();
+    expect(screen.getByTestId("module-home-settings")).toBeInTheDocument();
     quiet.mockRestore();
   });
 
@@ -268,44 +234,30 @@ describe("ModuleHome", () => {
         },
       ],
     });
-    render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
+    render(<ModuleHome project={project()} />);
     expect(screen.queryByTestId("module-home-settings")).toBeNull();
   });
 
-  it("leads to the translations, and to the captured items when the module has some", () => {
-    const onOpenBoard = vi.fn();
-    const withText = (extra: Partial<Project> = {}) =>
-      useProjectsStore.setState({
-        openProjects: {
-          projects: [{ ...project(), i18nKeys: { "greeting.hello": { fr: "Salut" } }, ...extra }],
-          projectOrder: [PID],
-        },
-      } as never);
-    const { rerender } = render(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
-    // No text, no captured item: neither block.
-    expect(screen.queryByTestId("module-home-translations")).toBeNull();
+  it("leads to the captured items when the module has some", () => {
+    const { rerender } = render(<ModuleHome project={project()} />);
     expect(screen.queryByTestId("module-home-captured")).toBeNull();
-    withText();
-    rerender(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
-    fireEvent.click(
-      within(screen.getByTestId("module-home-translations")).getByRole("button", {
-        name: "Ouvrir les traductions",
-      }),
-    );
-    expect(navigate).toHaveBeenCalledWith(
-      expect.objectContaining({ search: expect.any(Function) }),
-    );
-
-    withText({
-      capturedItems: [{ id: "ci_1", name: "Key", stackYaml: "", display: {} }],
+    useProjectsStore.setState({
+      openProjects: {
+        projects: [
+          {
+            ...project(),
+            capturedItems: [{ id: "ci_1", name: "Key", stackYaml: "", display: {} }],
+          },
+        ],
+        projectOrder: [PID],
+      },
     } as never);
-    rerender(<ModuleHome project={project()} onOpenBoard={onOpenBoard} />);
+    rerender(<ModuleHome project={project()} />);
     fireEvent.click(
       within(screen.getByTestId("module-home-captured")).getByRole("button", {
         name: "Voir les items capturés",
       }),
     );
-    expect(onOpenBoard).not.toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledTimes(2);
+    expect(navigate).toHaveBeenCalledOnce();
   });
 });
