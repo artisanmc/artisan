@@ -1,15 +1,20 @@
 import { Badge } from "@/components/ui/badge";
 import { SortableList } from "@/components/ui/sortable-list";
+import type { Project } from "@/domain/types";
 import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { publishedKitTheme } from "@/features/assets/kitAssets";
 import { serverThemeNames } from "@/features/assets/kitTheme";
 import { useResourcesView } from "@/features/assets/resourcesView";
+import { buildModuleList } from "@/features/projects/projectGroups";
 import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
+import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { patchServerConfig } from "@/lib/api/serverConfig";
 import { cx } from "@/lib/cx";
 import { THEMES_CONFIG_KEY, themeChange, themesMoved } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
+import { useModulesStore } from "@/state/modulesStore";
+import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -70,10 +75,16 @@ export function ResourcePlaces({
   // The highest first: what is on top of the list is found first.
   const stack = useMemo(() => [...inPlace].reverse(), [inPlace]);
   const away = held.filter((name) => !inPlace.includes(name));
+  const screens = useServerScreensStore((s) => s.screens);
+  const mountedModuleIds = useModulesStore((s) => s.mountedIds);
   const modules = useMemo(() => {
     const themeIds = new Set(Object.values(own).map((theme) => theme.projectId));
-    return every.filter((p) => p.id !== read?.projectId && !themeIds.has(p.id));
-  }, [every, read, own]);
+    return moduleLabels(
+      every.filter((p) => p.id !== read?.projectId && !themeIds.has(p.id)),
+      screens,
+      mountedModuleIds,
+    );
+  }, [every, read, own, screens, mountedModuleIds]);
 
   const open = (place: ResourcePlace) => {
     // A theme of its own folder is edited in its Project, like a module; one the common images
@@ -254,10 +265,45 @@ export function ResourcePlaces({
           <p className="text-[12px] text-[var(--text-faint)]">{t("places.noModules")}</p>
         ) : (
           modules.map((p) => (
-            <div key={p.id}>{entry({ kind: "module", id: p.id }, p.name, null)}</div>
+            <div key={p.id}>{entry({ kind: "module", id: p.id }, p.label, null)}</div>
           ))
         )}
       </section>
     </nav>
   );
+}
+
+/**
+ * The modules' rows, named and ordered as the sidebar names them (`buildModuleList`): a
+ * plugin's module by its name ("Daily rewards", never its folder "daily"), then the admin's
+ * own folders. A plugin with several folders names each after it.
+ */
+export function moduleLabels(
+  projects: readonly Project[],
+  screens: ServerEditorScreen[],
+  mountedModuleIds: string[],
+): { id: string; label: string }[] {
+  const { pluginModules, contentModules } = buildModuleList({
+    projects: projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      hash: "",
+      updatedAt: p.updatedAt,
+      serverKeyId: "",
+      ...(p.diskId ? { externalId: p.diskId } : {}),
+      ...(p.ownerModule ? { ownerModule: p.ownerModule } : {}),
+    })),
+    screens,
+    mountedModuleIds,
+    localProjects: [],
+  });
+  return [
+    ...pluginModules.flatMap((module) =>
+      module.projects.map((p) => ({
+        id: p.id,
+        label: module.projects.length === 1 ? module.label : `${module.label} · ${p.name}`,
+      })),
+    ),
+    ...contentModules.map((p) => ({ id: p.id, label: p.name })),
+  ];
 }
