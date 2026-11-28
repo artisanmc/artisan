@@ -1,5 +1,6 @@
 import type { Project } from "@/domain/types";
-import { renderHook } from "@testing-library/react";
+import { useViewAsStore } from "@/state/viewAsStore";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateProjectSearch } from "./ProjectCanvasPage";
 import { useVariantInUrl } from "./useVariantInUrl";
@@ -45,34 +46,42 @@ describe("useVariantInUrl", () => {
   beforeEach(() => {
     navigate.mockClear();
     showVariant.mockClear();
+    useViewAsStore.setState({ variant: undefined });
   });
 
-  it("shows the URL's variant once the module is loaded, without touching the URL", () => {
+  it("shows the variant picked in the last module, the URL saying nothing", () => {
+    useViewAsStore.setState({ variant: "bedrock" });
+    renderHook(() => useVariantInUrl(project(), undefined));
+    expect(showVariant).toHaveBeenCalledWith("guilds", "bedrock");
+  });
+
+  it("makes the URL's variant the pick, then shows it once the module has it", () => {
     renderHook(() => useVariantInUrl(project(), "textured"));
+    expect(useViewAsStore.getState().variant).toBe("textured");
     expect(showVariant).toHaveBeenCalledWith("guilds", "textured");
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("writes the shown variant to the URL, and drops it back on Default", () => {
+  it("writes the pick to the URL, and drops it back on Default", () => {
     const { rerender } = renderHook(({ p, v }) => useVariantInUrl(p, v), {
-      initialProps: { p: project(), v: undefined as string | undefined },
+      initialProps: { p: project("bedrock"), v: undefined as string | undefined },
     });
-    rerender({ p: project("bedrock"), v: undefined });
-    const search = navigate.mock.calls.at(-1)?.[0].search;
-    expect(search({ tab: "board" })).toEqual({ tab: "board", variant: "bedrock" });
-    rerender({ p: project(), v: "bedrock" });
-    expect(navigate.mock.calls.at(-1)?.[0].search({ variant: "bedrock" })).toEqual({
-      variant: undefined,
+    act(() => useViewAsStore.setState({ variant: "bedrock" }));
+    expect(navigate.mock.calls.at(-1)?.[0].search({ tab: "board" })).toEqual({
+      tab: "board",
+      variant: "bedrock",
     });
-    expect(showVariant).not.toHaveBeenCalled();
+    rerender({ p: project("bedrock"), v: "bedrock" });
+    act(() => useViewAsStore.setState({ variant: undefined }));
+    // The module shows its own Documents again.
+    expect(showVariant).toHaveBeenCalledWith("guilds", undefined);
   });
 
-  it("drops a variant the module does not have", () => {
+  it("keeps a variant the module has no version of as the pick, on its own Documents", () => {
+    useViewAsStore.setState({ variant: "winter" });
     renderHook(() => useVariantInUrl(project(), "winter"));
     expect(showVariant).not.toHaveBeenCalled();
-    expect(navigate.mock.calls[0]?.[0].search({ variant: "winter" })).toEqual({
-      variant: undefined,
-    });
+    expect(useViewAsStore.getState().variant).toBe("winter");
   });
 
   it("waits for the module's variants before reading the URL", () => {

@@ -1,11 +1,13 @@
 import { IconTile } from "@/components/ui/icon-tile";
+import { Segmented } from "@/components/ui/segmented";
 import { docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useUiStore } from "@/state/uiStore";
-import { Puzzle, Search } from "lucide-react";
+import { LayoutGrid, List, Puzzle, Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CataloguePreview } from "./CataloguePreview";
 import { originLabelOf, typeLabel, useOriginOf } from "./ProjectDocumentTree";
 import { buildProjectDocuments } from "./useProjectDocuments";
 
@@ -20,6 +22,7 @@ export function ModuleCatalogue({
   kind,
   onKind,
   onOpen,
+  serverId,
 }: {
   project: Project;
   /** The kind shown alone; every kind when absent. */
@@ -27,11 +30,14 @@ export function ModuleCatalogue({
   onKind: (kind: string | undefined) => void;
   /** Its argument: the Document's key (`docKey`). */
   onOpen: (documentKey: string) => void;
+  /** The module's server: a menu's card draws it in grid mode only with one. */
+  serverId?: string;
 }) {
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
   const originOf = useOriginOf(project);
   const [query, setQuery] = useState("");
+  const [layout, setLayout] = useCatalogueLayout();
   const groups = buildProjectDocuments(project, activeLang).filter((g) => g.items.length > 0);
   const needle = query.trim().toLowerCase();
   const shown = groups
@@ -58,6 +64,23 @@ export function ModuleCatalogue({
         <h2 id="module-catalogue-title" className="field-label mr-auto">
           {t("moduleCatalogue.title")}
         </h2>
+        <Segmented
+          label={t("moduleCatalogue.layout")}
+          value={layout}
+          onChange={setLayout}
+          options={[
+            {
+              value: "list",
+              label: <List className="size-3.5" aria-label={t("moduleCatalogue.list")} />,
+              title: t("moduleCatalogue.list"),
+            },
+            {
+              value: "grid",
+              label: <LayoutGrid className="size-3.5" aria-label={t("moduleCatalogue.grid")} />,
+              title: t("moduleCatalogue.grid"),
+            },
+          ]}
+        />
         <label className="relative flex items-center">
           <Search
             className="pointer-events-none absolute left-2.5 size-3.5 text-[var(--text-faint)]"
@@ -108,7 +131,11 @@ export function ModuleCatalogue({
               </h3>
               <ul
                 aria-label={typeLabel(g.type, t)}
-                className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4"
+                className={
+                  layout === "grid"
+                    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+                    : "grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4"
+                }
               >
                 {g.items.map((it) => {
                   const key = docKey(g.type, it.id);
@@ -120,9 +147,21 @@ export function ModuleCatalogue({
                         type="button"
                         data-testid={`catalogue-doc-${key}`}
                         onClick={() => onOpen(key)}
-                        className="card flex w-full items-center gap-2 p-2.5 text-left hover:border-[var(--border-strong)]"
+                        className={`card flex w-full gap-2 p-2.5 text-left hover:border-[var(--border-strong)] ${
+                          layout === "grid" ? "flex-col" : "items-center"
+                        }`}
                       >
-                        <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
+                        {layout === "grid" && (
+                          <CataloguePreview
+                            project={project}
+                            kind={g.type}
+                            id={it.id}
+                            serverId={serverId}
+                          />
+                        )}
+                        {layout === "list" && (
+                          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-medium">{it.label}</span>
                           {it.folder && (
@@ -157,4 +196,29 @@ export function ModuleCatalogue({
       )}
     </section>
   );
+}
+
+type Layout = "list" | "grid";
+const LAYOUT_KEY = "artisan.catalogue.layout";
+
+/** The catalogue's layout, kept in this browser: a convenience, the page works without it. */
+function useCatalogueLayout(): [Layout, (layout: Layout) => void] {
+  const [layout, set] = useState<Layout>(() => {
+    try {
+      return localStorage.getItem(LAYOUT_KEY) === "grid" ? "grid" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  return [
+    layout,
+    (next) => {
+      set(next);
+      try {
+        localStorage.setItem(LAYOUT_KEY, next);
+      } catch {
+        // Private window or blocked storage: the layout lasts until the page closes.
+      }
+    },
+  ];
 }

@@ -22,6 +22,7 @@ import {
 import { ScopeHeader } from "@/components/ui/scope-header";
 import { Segmented } from "@/components/ui/segmented";
 import type { Project, ProjectId } from "@/domain/types";
+import { VariantSwitcher } from "@/features/canvas/VariantSwitcher";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
@@ -174,6 +175,7 @@ export function ProjectTopBarControls({
               )}
             </div>
           )}
+          {!server && <VariantSwitcher projectId={projectId} />}
           {serverRef && !server && (
             // A link to the server's Play tab, this module first: it says so, it is no tool here.
             <Link

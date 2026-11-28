@@ -184,6 +184,23 @@ describe("ProjectTopBarControls", () => {
       within(screen.getByTestId("project-editing-tools")).getByTitle(/Undo \(|Annuler \(/i),
     ).toBeInTheDocument();
   });
+  it("holds the View as select, which the canvas tools no longer carry", () => {
+    const project = {
+      id: "p1",
+      name: "Test",
+      defaultLang: "en",
+      i18nKeys: {},
+      documents: { menu: [], command: [], dialog: [] },
+      assets: [],
+    } as any;
+    useProjectsStore.setState({
+      openProjects: { projects: [project], projectOrder: ["p1" as any] },
+    } as never);
+    render(<ProjectTopBarControls project={project} projectId={"p1" as any} />);
+    expect(
+      within(screen.getByTestId("project-header")).getByTestId("variant-select"),
+    ).toBeInTheDocument();
+  });
   it("switches between the module's catalogue and its canvas in the header", () => {
     const project = {
       id: "p1",
