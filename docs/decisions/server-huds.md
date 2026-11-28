@@ -2,6 +2,8 @@
 
 **Status:** proposed (2026-11-28), draft, not yet accepted. Revised the same day after review:
 scope reduced to the kind and its runtime; corners and Bedrock moved to *Next steps*.
+Prerequisite and §1–5 implemented the same day (API 1.14.0: core module `huds`, `hud/v1`,
+`show_hud` / `hide_hud`, the editor's HUD page); §6 (migration of `quest_hud`) not yet.
 **Builds on:** `triggers-and-variables` §10 (module variables), the HUD layers of `modules.md`
 (`OverlayApi`, `OverlayLayout`, `Slot.ACTION_BAR` / `Slot.BOSS_BAR`), `extensible-document-kinds`
 (itself still proposed).
@@ -176,7 +178,8 @@ a text). The same answer covers "the player turns a HUD off".
 - The action bar is shared with every plugin that sends action bar messages: a HUD there flickers
   with them. The boss bar slot is the default.
 - Yellow boss bars stay reserved (already true since API 1.13.0).
-- The core knows one add-on format (`quest_hud/v1`) for one version.
+- The core knows no add-on format: the `quest_hud/v1` reader of §6 lives in ArtisanQuests and is
+  handed to Artisan through its kind declaration.
 
 ## Open questions (what would change the decision)
 

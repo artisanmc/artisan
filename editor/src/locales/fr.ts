@@ -4,6 +4,7 @@ import { changesFr } from "./changes";
 import { draftsFr } from "./drafts";
 import { editorSessionsFr } from "./editorSessions";
 import type en from "./en";
+import { hudsFr } from "./huds";
 import { mcpFr } from "./mcp";
 import { mmEditorFr, textToolFr } from "./mmEditor";
 import { onboardingFr } from "./onboarding";
@@ -621,6 +622,7 @@ const fr: typeof en = {
   actionCatalog: actionCatalogFr,
   triggers: triggersFr,
   variables: variablesFr,
+  huds: hudsFr,
   navigation: {
     label: "Navigation principale",
     open: "Ouvrir la navigation",
@@ -1107,6 +1109,8 @@ const fr: typeof en = {
       set_var: { var: "variable", value: "valeur" },
       add_var: { var: "variable", amount: "quantité" },
       clear_var: { var: "variable" },
+      show_hud: { hud: "HUD", duration: "durée (ticks, vide : jusqu'à ce qu'on le cache)" },
+      hide_hud: { hud: "HUD" },
       record_event: { event: "nom de l'événement", dimensions: "catégories", value: "valeur" },
       chat_button: {
         text: "texte avant le bouton (MiniMessage)",
@@ -1556,6 +1560,7 @@ const fr: typeof en = {
     dialogs: "Dialogs",
     triggers: "Triggers",
     variables: "Variables",
+    huds: "HUD",
     edit: "Éditer",
     delete: "Supprimer du module",
     empty: "Aucun élément pour l'instant",

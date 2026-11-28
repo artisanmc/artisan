@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.artisanmc.net/schema/hud/v1.json",
+  "title": "Artisan HUD",
+  "description": "A HUD is what stays drawn on the players' screens in one overlay slot: images and texts laid out in pixels, the texts Templates that read the player and the Variables. Permanent, conditional (`when`) or temporary (`enabled: false`, shown by `show_hud`). File `huds/<id>.yml`; the id is the file name. Drawn only for a player whose client has the resource pack (never a Bedrock player).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema"],
+  "properties": {
+    "schema": { "const": "hud/v1" },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "false: drawn only while a `show_hud` lasts (a temporary HUD)."
+    },
+    "slot": {
+      "enum": ["boss_bar", "action_bar"],
+      "default": "boss_bar",
+      "description": "Where it is drawn: under the top of the screen (`boss_bar`) or above the action bar. The HUDs of one slot stack by `priority`."
+    },
+    "priority": {
+      "type": "integer",
+      "default": 100,
+      "description": "Order in its slot: the highest is drawn on top. Equal priorities in the order they first showed."
+    },
+    "refresh": {
+      "type": "integer",
+      "default": 20,
+      "description": "Ticks between two checks of its conditions and texts: 0 (on a change of Variable, join, pack loaded, show_hud, reload only) or 5 to 1200. A value out of range is brought within it and reported. A change of Variable updates it at once whatever this value."
+    },
+    "when": {
+      "type": "array",
+      "items": { "$ref": "https://docs.artisanmc.net/schema/menu/v1.json#/$defs/ConditionKeyed" },
+      "description": "Conditions, all required, checked for the player at each check: the HUD is drawn while they hold."
+    },
+    "layout": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Layer" },
+      "description": "The layers, drawn in this order, x and y in GUI pixels from the slot's origin (x from the centre of the screen). `list` and `image_slot` layers are filled by a module's code: a HUD leaves them out and reports them."
+    },
+    "texts": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "The MiniMessage of each text layer, by its name. `{…}` values (`{player}`, `{var.coins}`) are drawn as text, never read as markup; `%papi%` placeholders are resolved as in menus. A line break or `<newline>` starts a row; each row is wrapped to the layer's width and cut at its `lines`."
+    },
+    "notes": {
+      "type": "string",
+      "description": "The author's notes, never read by the server."
+    }
+  },
+  "$defs": {
+    "Layer": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["image"],
+          "properties": {
+            "image": { "type": "string", "description": "A file of the Project's `assets/`." },
+            "x": { "type": "integer" },
+            "y": { "type": "integer" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["text", "width"],
+          "properties": {
+            "text": { "type": "string", "description": "Its name, the key of its text in `texts`." },
+            "x": { "type": "integer" },
+            "y": { "type": "integer" },
+            "width": { "type": "integer", "minimum": 1 },
+            "lines": { "type": "integer", "minimum": 1, "default": 1 },
+            "row": { "type": "integer", "minimum": 1, "description": "Pixels between two rows." },
+            "align": { "enum": ["left", "center", "right"], "default": "left" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["list"]
+        },
+        {
+          "type": "object",
+          "required": ["image_slot"]
+        }
+      ]
+    }
+  }
+}

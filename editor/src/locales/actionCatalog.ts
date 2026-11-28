@@ -40,6 +40,8 @@ export const actionCatalogFr = {
     record_event: "Compter un événement",
     cancel_event: "Annuler l'événement",
     set_event: "Modifier l'événement",
+    show_hud: "Afficher un HUD",
+    hide_hud: "Cacher un HUD",
   },
   branch: { if: "Si", elseIf: "Sinon si", else: "Sinon" },
 };
@@ -85,6 +87,8 @@ export const actionCatalogEn: typeof actionCatalogFr = {
     record_event: "Count an event",
     cancel_event: "Cancel the event",
     set_event: "Change the event",
+    show_hud: "Show a HUD",
+    hide_hud: "Hide a HUD",
   },
   branch: { if: "If", elseIf: "Else if", else: "Else" },
 };

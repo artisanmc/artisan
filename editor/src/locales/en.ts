@@ -3,6 +3,7 @@ import { aiEn } from "./ai";
 import { changesEn } from "./changes";
 import { draftsEn } from "./drafts";
 import { editorSessionsEn } from "./editorSessions";
+import { hudsEn } from "./huds";
 import { mcpEn } from "./mcp";
 import { mmEditorEn, textToolEn } from "./mmEditor";
 import { onboardingEn } from "./onboarding";
@@ -613,6 +614,7 @@ export default {
   actionCatalog: actionCatalogEn,
   triggers: triggersEn,
   variables: variablesEn,
+  huds: hudsEn,
   navigation: {
     label: "Main navigation",
     open: "Open navigation",
@@ -1090,6 +1092,8 @@ export default {
       set_var: { var: "variable", value: "value" },
       add_var: { var: "variable", amount: "amount" },
       clear_var: { var: "variable" },
+      show_hud: { hud: "HUD", duration: "duration (ticks, empty: until hidden)" },
+      hide_hud: { hud: "HUD" },
       record_event: { event: "event name", dimensions: "categories", value: "value" },
       chat_button: {
         text: "text before the button (MiniMessage)",
@@ -1532,6 +1536,7 @@ export default {
     dialogs: "Dialogs",
     triggers: "Triggers",
     variables: "Variables",
+    huds: "HUDs",
     edit: "Edit",
     delete: "Delete from module",
     empty: "No elements yet",

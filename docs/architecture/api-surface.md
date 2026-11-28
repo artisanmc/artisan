@@ -128,6 +128,19 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 |---|---|---|
 | `TemplateDeclaration.fromResourceFolder(loader, root, id, version)`: `fromResources` with every file under `root` (any depth, code unit order, a path with a dot segment left out), read from the module's jar (`jar:` resource, the jar must hold the folder's directory entry, as Gradle and Shadow write it) or a classes directory (`file:`); `IllegalArgumentException` when the folder is missing or empty. `fromResources` with its list is unchanged | `TemplateDeclaration.Builder` | 1.10.0 |
 
+## 1.14.0 — server HUDs; `hasPack` false for Bedrock
+
+| Member | Type | Since |
+|---|---|---|
+| `OverlayApi.hasPack(player)` always false for a Bedrock player (Geyser) | behavior | 1.14.0 |
+| `hud` Document kind (`huds/`, `hud/v1`), actions `show_hud` / `hide_hud` (core module `huds`) | content format | 1.14.0 |
+
+Before 1.14.0, `hasPack` read whatever Geyser answered to the pack request, so a module drew
+pack-font layers a Bedrock client shows as raw glyphs; it now falls back as for a Java player
+without the pack. The `hud` kind is the core's own HUD (ADR `server-huds`): a module that ships a
+`huds/` file or runs `show_hud` requires 1.14.0. Its layers go through the same `OverlayApi`
+slots as a module's, named `artisan:hud/<project>/<id>`.
+
 ## 1.13.0 — a HUD in the boss bar
 
 | Member | Type | Since |

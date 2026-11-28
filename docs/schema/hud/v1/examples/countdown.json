@@ -1,0 +1,8 @@
+{
+  "schema": "hud/v1",
+  "enabled": false,
+  "priority": 200,
+  "refresh": 0,
+  "layout": [{ "text": "line", "x": -100, "y": 4, "width": 200, "align": "center" }],
+  "texts": { "line": "<#ffc58a>Le boss apparaît dans {var.event_timer} s" }
+}

@@ -75,4 +75,19 @@ class HudTest {
         assertEquals(1, hud.problems.size, hud.problems.toString())
         assertTrue(hud.problems.single().startsWith("layout[2]"))
     }
+
+    @Test
+    fun `pack images are each image layer where the layout draws it, as hudPackImages`() {
+        // Same case as huds.test.ts.
+        val images = Hud.packImages(
+            mapOf(
+                "layout" to listOf(
+                    mapOf("image" to "panel", "x" to -60, "y" to 2),
+                    mapOf("text" to "name", "width" to 100),
+                    mapOf("image" to "coin", "x" to 10, "y" to -4),
+                ),
+            ),
+        )
+        assertEquals(listOf(OverlayLayout.PackImage.at("panel", -2), OverlayLayout.PackImage.at("coin", 4)), images)
+    }
 }

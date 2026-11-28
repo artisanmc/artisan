@@ -17,6 +17,7 @@ import { detectInitialTheme } from "@/state/themeStore";
 import { listModules } from "@artisan/editor-sdk";
 import { commandsModule } from "./modules/commands";
 import { dialogsModule } from "./modules/dialogs";
+import { hudsModule } from "./modules/huds";
 import { menusModule } from "./modules/menus";
 import { triggersModule } from "./modules/triggers";
 import { variablesModule } from "./modules/variables";
@@ -40,6 +41,7 @@ if (listModules().length === 0) {
   registerEditorModule(dialogsModule);
   registerEditorModule(triggersModule);
   registerEditorModule(variablesModule);
+  registerEditorModule(hudsModule);
 }
 
 const router = createRouter({
