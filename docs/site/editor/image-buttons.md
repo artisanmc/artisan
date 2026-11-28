@@ -91,7 +91,7 @@ example). The other modules are read as deployed, the open module's menus, compo
 and files as you are editing them. A menu whose module holds an image of the same name is not listed,
 since it shows its own.
 
-**Save as.** In the atelier, under the layers, **Save as** copies the image open into another
+**Save as.** In the atelier, in the bar beside Save, **Save as** copies the image open into another
 place: the server's library, a theme of the server, or a new theme created on the way. Only a
 name and a place are asked. A module's own image saved into a theme keeps its name and
 replaces that module's image, and no other's, while the theme is in place: the theme's

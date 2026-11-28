@@ -1,0 +1,2 @@
+- **Added**: a component's page has undo and redo (buttons, Ctrl+Z, Ctrl+Shift+Z), and a choice parameter lists the names it offers beside what each writes, with its default picked among them.
+- **Changed**: the text of a piece keeps its style toolbar shown; in the atelier, Save as sits in the bar beside Save, and the pencil starts white so that a first stroke shows on an empty layer.

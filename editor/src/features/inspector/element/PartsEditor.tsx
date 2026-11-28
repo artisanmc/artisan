@@ -273,14 +273,15 @@ function PartRow({
           </Button>
         </div>
       ) : (
-        // A text takes colours and styles like any label of a menu: the toolbar shows on focus.
+        // A text takes colours and styles like any label of a menu: its toolbar stays shown,
+        // so that it is found before the field is clicked.
         <MmEditor
           value={text}
           onChange={onText}
           aria-label={t("parts.text")}
           profile={CONTAINER_TITLE}
           placeholder={t("elementLabel.placeholder")}
-          toolbar="focus"
+          toolbar="always"
           minHeight="0"
         />
       )}

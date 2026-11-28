@@ -169,7 +169,7 @@ export function ImageStudio({
       footer={(picture) =>
         server ? (
           <div data-testid="studio-save-as">
-            <Tooltip content={t("saveAs.hint")} side="top">
+            <Tooltip content={t("saveAs.hint")} side="bottom">
               <Button variant="outline" size="sm" onClick={() => setSavingAs(true)}>
                 {t("saveAs.button")}
               </Button>

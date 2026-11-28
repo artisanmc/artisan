@@ -5,14 +5,16 @@ import { imageButtonRect } from "@/domain/imageButton";
 import type { Element, Menu, ProjectId } from "@/domain/types";
 import { StudioFrame } from "@/features/assets/StudioFrame";
 import { TEX_SCALE } from "@/features/canvas/menuLayout";
+import { useUndoShortcuts } from "@/features/project/undoShortcuts";
 import { cx } from "@/lib/cx";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { X } from "lucide-react";
+import { Plus, Redo2, Undo2, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { PartsEditor } from "../element/PartsEditor";
 import { ComponentPreview } from "./ComponentPreview";
 import {
@@ -76,6 +78,10 @@ export function ComponentsView({
   const [error, setError] = useState("");
   // The slots the component covers, lined over it: what its pieces are placed against.
   const [slots, setSlots] = useState(true);
+  // The Project's history holds every change made here: its keys and buttons are this page's.
+  useUndoShortcuts();
+  const canUndo = useStore(useProjectsStore.temporal, (s) => s.pastStates.length > 0);
+  const canRedo = useStore(useProjectsStore.temporal, (s) => s.futureStates.length > 0);
   const drag = useRef<{ x: number; y: number; left: number; top: number; paused: boolean } | null>(
     null,
   );
@@ -224,14 +230,36 @@ export function ComponentsView({
       parts={{
         rail: null,
         controls: (
-          <button
-            type="button"
-            aria-pressed={slots}
-            className={cx("chip text-[12px]", slots && "is-active")}
-            onClick={() => setSlots((shown) => !shown)}
-          >
-            {t("studio.guides.slots")}
-          </button>
+          <>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t("pixel.undo")}
+              title={t("pixel.undo")}
+              disabled={!canUndo}
+              onClick={() => useProjectsStore.temporal.getState().undo()}
+            >
+              <Undo2 size={15} />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label={t("pixel.redo")}
+              title={t("pixel.redo")}
+              disabled={!canRedo}
+              onClick={() => useProjectsStore.temporal.getState().redo()}
+            >
+              <Redo2 size={15} />
+            </Button>
+            <button
+              type="button"
+              aria-pressed={slots}
+              className={cx("chip text-[12px]", slots && "is-active")}
+              onClick={() => setSlots((shown) => !shown)}
+            >
+              {t("studio.guides.slots")}
+            </button>
+          </>
         ),
         actions: error ? (
           <span role="alert" className="max-w-xs text-xs text-[var(--danger)]">
@@ -391,7 +419,26 @@ export function ComponentsView({
   );
 }
 
-/** The parameters a component takes: a name, a text or an image, and what it is by default. */
+/** The names a choice offers and what each writes, in the file's order. */
+const choiceRows = (values: unknown): [string, string][] =>
+  Array.isArray(values)
+    ? choiceNames(values).map((name) => [name, name])
+    : Object.entries((values ?? {}) as Record<string, unknown>).map(([name, written]) => [
+        name,
+        typeof written === "string" ? written : name,
+      ]);
+
+/** The `values` of a choice: a list while each name writes itself, else a map. */
+const choiceValues = (rows: [string, string][]): unknown =>
+  rows.every(([name, written]) => written === name || written === "")
+    ? rows.map(([name]) => name)
+    : Object.fromEntries(rows.map(([name, written]) => [name, written || name]));
+
+/**
+ * The parameters a component takes: a name, a text, an image or a choice, and what it is by
+ * default. A choice lists the names it offers, each beside what it writes where `{name}` stands
+ * (an image's name for a colour of button); its default is one of them.
+ */
 function ParamsEditor({
   file,
   onChange,
@@ -408,71 +455,142 @@ function ParamsEditor({
       {params.map(([param, raw]) => {
         const type = raw?.type === "image" ? "image" : raw?.type === "choice" ? "choice" : "text";
         const values = raw?.values;
-        // Names mapped to what each writes are edited in the file: here the list of names alone.
-        const mapped = type === "choice" && !!values && !Array.isArray(values);
+        const rows = type === "choice" ? choiceRows(values) : [];
         const fallback = typeof raw?.default === "string" ? raw.default : "";
+        const set = (next: { default?: string; values?: unknown }) =>
+          onChange(setComponentParam(file, param, { type, default: fallback, values, ...next }));
+        const setRows = (next: [string, string][]) =>
+          set({
+            values: choiceValues(next),
+            // A default that is no longer offered goes.
+            default: next.some(([offered]) => offered === fallback) ? fallback : "",
+          });
         return (
-          <div key={param} className="flex items-end gap-2" data-testid="component-param">
-            <span className="w-20 shrink-0 truncate pb-2 font-mono text-xs">{`{${param}}`}</span>
-            <select
-              className="input w-24"
-              aria-label={t("components.paramType", { name: param })}
-              value={type}
-              onChange={(event) =>
-                onChange(
-                  setComponentParam(file, param, {
-                    type: event.target.value as "text" | "image" | "choice",
-                    default: fallback,
-                    values,
-                  }),
-                )
-              }
-            >
-              <option value="text">{t("components.text")}</option>
-              <option value="image">{t("components.image")}</option>
-              <option value="choice">{t("components.choice")}</option>
-            </select>
-            {type === "choice" && (
-              <Input
-                className="flex-1"
-                aria-label={t("components.paramValues", { name: param })}
-                placeholder={t("components.values")}
-                title={mapped ? t("components.valuesMapped") : undefined}
-                disabled={mapped}
-                value={choiceNames(values).join(", ")}
+          <div key={param} className="card flex flex-col gap-2 p-2" data-testid="component-param">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate font-mono text-xs">{`{${param}}`}</span>
+              <select
+                className="input w-28"
+                aria-label={t("components.paramType", { name: param })}
+                value={type}
                 onChange={(event) =>
                   onChange(
                     setComponentParam(file, param, {
-                      type,
+                      type: event.target.value as "text" | "image" | "choice",
                       default: fallback,
-                      values: event.target.value
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
+                      values,
                     }),
                   )
                 }
+              >
+                <option value="text">{t("components.text")}</option>
+                <option value="image">{t("components.image")}</option>
+                <option value="choice">{t("components.choice")}</option>
+              </select>
+              <button
+                type="button"
+                aria-label={t("components.paramRemove", { name: param })}
+                className="flex h-8 w-7 items-center justify-center rounded text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                onClick={() => onChange(setComponentParam(file, param, null))}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            {type === "choice" ? (
+              <>
+                <p className="text-xs text-[var(--text-mut)]">
+                  {t("components.choiceHint", { param: `{${param}}` })}
+                </p>
+                <ul
+                  className="flex flex-col gap-1"
+                  aria-label={t("components.paramValues", { name: param })}
+                >
+                  {rows.map(([offered, written], index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a name being typed is no key, the order is
+                    <li key={index} className="flex items-center gap-1" data-testid="choice-row">
+                      <Input
+                        className="min-w-0 flex-1"
+                        aria-label={t("components.choiceName", { index: index + 1 })}
+                        value={offered}
+                        onChange={(event) => {
+                          const renamed = event.target.value.trim();
+                          if (
+                            !renamed ||
+                            rows.some(([other], at) => at !== index && other === renamed)
+                          )
+                            return;
+                          const next = rows.map((row, at): [string, string] =>
+                            at === index ? [renamed, written === offered ? renamed : written] : row,
+                          );
+                          set({
+                            values: choiceValues(next),
+                            default: fallback === offered ? renamed : fallback,
+                          });
+                        }}
+                      />
+                      <Input
+                        className="min-w-0 flex-[1.4] font-mono"
+                        aria-label={t("components.choiceWrites", { name: offered })}
+                        placeholder={offered}
+                        value={written === offered ? "" : written}
+                        onChange={(event) =>
+                          setRows(
+                            rows.map((row, at): [string, string] =>
+                              at === index ? [offered, event.target.value.trim()] : row,
+                            ),
+                          )
+                        }
+                      />
+                      <button
+                        type="button"
+                        aria-label={t("components.choiceRemove", { name: offered })}
+                        className="flex h-8 w-7 shrink-0 items-center justify-center rounded text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                        onClick={() => setRows(rows.filter((_, at) => at !== index))}
+                      >
+                        <X size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="self-start"
+                  onClick={() => {
+                    let added = t("components.choiceNew");
+                    for (let n = 2; rows.some(([other]) => other === added); n++)
+                      added = `${t("components.choiceNew")}${n}`;
+                    setRows([...rows, [added, added]]);
+                  }}
+                >
+                  <Plus size={14} />
+                  {t("components.choiceAdd")}
+                </Button>
+                <label className="field-label !mb-0">
+                  {t("components.default")}
+                  <select
+                    className="input w-full"
+                    aria-label={t("components.paramDefault", { name: param })}
+                    value={rows.some(([offered]) => offered === fallback) ? fallback : ""}
+                    onChange={(event) => set({ default: event.target.value })}
+                  >
+                    <option value="">{t("components.noDefault")}</option>
+                    {rows.map(([offered]) => (
+                      <option key={offered} value={offered}>
+                        {offered}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <Input
+                aria-label={t("components.paramDefault", { name: param })}
+                placeholder={t("components.default")}
+                value={fallback}
+                onChange={(event) => set({ default: event.target.value })}
               />
             )}
-            <Input
-              className="flex-1"
-              aria-label={t("components.paramDefault", { name: param })}
-              placeholder={t("components.default")}
-              value={fallback}
-              onChange={(event) =>
-                onChange(
-                  setComponentParam(file, param, { type, default: event.target.value, values }),
-                )
-              }
-            />
-            <button
-              type="button"
-              aria-label={t("components.paramRemove", { name: param })}
-              className="flex h-8 w-7 items-center justify-center rounded text-[var(--text-faint)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-              onClick={() => onChange(setComponentParam(file, param, null))}
-            >
-              <X size={14} />
-            </button>
           </div>
         );
       })}
