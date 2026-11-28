@@ -37,6 +37,50 @@ interface Cached {
 
 const cache = new Map<string, Cached>();
 
+/** A project of the index, parsed from the files the server returned for [summary]. */
+function parseRead(
+  summary: ProjectSummary,
+  diskId: string,
+  files: Record<string, string>,
+): Project {
+  const canonical: Record<string, string> = {};
+  for (const [rel, content] of Object.entries(files)) {
+    canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
+  }
+  return projectFromFiles(summary.id as ProjectId, canonical, {
+    name: summary.name,
+    diskId,
+    serverKeyId: summary.serverKeyId ?? undefined,
+  });
+}
+
+/**
+ * The index again with the Document kinds registered since, **without a round trip**: a module's
+ * view arriving only adds kinds, and what the server holds did not move. Null when the index
+ * holds nothing for [serverId] (a full read is needed). [failed] stays what the last read found.
+ */
+export function reparseServerProjects(
+  serverId: string,
+  failed: string[],
+): ServerProjectsResult | null {
+  const kinds = documentKindsGeneration();
+  const known = [...cache.entries()].filter(([key]) => key.startsWith(`${serverId}/`));
+  if (known.length === 0) return null;
+  const projects = known.map(([key, entry]) => {
+    if (entry.kinds !== kinds) {
+      const diskId = key.slice(serverId.length + 1);
+      try {
+        entry.project = parseRead(entry.read.summary, diskId, entry.read.files);
+        entry.kinds = kinds;
+      } catch {
+        // Kept as it was: the next full read reports it.
+      }
+    }
+    return entry.project;
+  });
+  return { status: "ready", projects, failed, reads: known.map(([, entry]) => entry.read) };
+}
+
 export const clearServerIndexCache = (): void => cache.clear();
 
 /**
@@ -68,17 +112,7 @@ export async function loadServerProjects(args: {
         const read = await readProjectFiles({ serverId, diskId }, known?.hash);
         if (!read.ok) return { diskId, project: null };
         const kinds = documentKindsGeneration();
-        const parse = (files: Record<string, string>): Project => {
-          const canonical: Record<string, string> = {};
-          for (const [rel, content] of Object.entries(files)) {
-            canonical[`plugins/Artisan/projects/${diskId}/${rel}`] = content;
-          }
-          return projectFromFiles(summary.id as ProjectId, canonical, {
-            name: summary.name,
-            diskId,
-            serverKeyId: summary.serverKeyId ?? undefined,
-          });
-        };
+        const parse = (files: Record<string, string>): Project => parseRead(summary, diskId, files);
         if (read.unchanged) {
           if (!known) return { diskId, project: null };
           // A module's kind registered since the last read: its Documents were skipped

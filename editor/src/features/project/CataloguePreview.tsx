@@ -51,10 +51,17 @@ export function CataloguePreview({
     <div
       ref={ref}
       data-testid="catalogue-preview"
-      className="pointer-events-none relative aspect-video w-full overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]"
+      className="pointer-events-none relative aspect-[4/3] w-full overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]"
     >
       {live && seen && serverId && preview ? (
-        preview({ serverId, projects, projectId: project.id, menuId: id })
+        preview({
+          serverId,
+          projects,
+          projectId: project.id,
+          menuId: id,
+          // A chest menu nearly fills it: the thumbnail shows the menu, not the sky around it.
+          frame: { width: 352, height: 264 },
+        })
       ) : (
         <div className="flex h-full items-center justify-center">
           <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="lg" />

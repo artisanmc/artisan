@@ -27,6 +27,8 @@ vi.mock("@/lib/api/projectFiles", () => ({
 }));
 
 vi.mock("@/lib/api/site", () => ({ listSiteModules: vi.fn() }));
+// The sidebar reads the server's index itself; these tests set the store by hand.
+vi.mock("@/features/serverIndex/useServerIndexLoader", () => ({ useServerIndexLoader: vi.fn() }));
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =

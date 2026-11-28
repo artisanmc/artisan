@@ -28,13 +28,11 @@ import {
   type ThemeImporter,
 } from "@/features/project/ResourcePlaces";
 import { ThemeOverview } from "@/features/project/ThemeOverview";
-import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useGlobalSearchShortcut } from "@/features/search/useGlobalSearchShortcut";
 import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
-import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { TranslationPanelContent } from "@/features/translations/TranslationPanel";
 import { projectDestination } from "@/lib/projectNavigation";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
@@ -184,10 +182,6 @@ export function ProjectCanvasPage({
   const { t } = useTranslation();
 
   useGlobalSearchShortcut();
-  const indexRereads = useKnownVersionsFromIndex(serverId);
-  // A theme created from the Resources' places is read with the server's Projects again.
-  const placesRereads = useServerIndexRereads((state) => state.count);
-  useServerIndexLoader(serverId, !!project && !loadError, indexRereads + placesRereads);
   useWorkspaceTabShortcuts(!!runtime?.serverId, !place);
 
   const [patternsOpen, setPatternsOpen] = useState(false);

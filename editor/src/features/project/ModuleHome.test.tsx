@@ -103,16 +103,15 @@ describe("ModuleHome", () => {
     // The page opened before the module's kind arrived: no conversation yet.
     const before = { ...opened, documents: { ...docs, conversation: [] } } as Project;
     render(<ModuleHome project={before} />);
-    const list = screen.getByTestId("module-home-collection-conversation");
-    expect(within(list).getByText("2")).toBeInTheDocument();
+    // The kind's chip in the catalogue carries the store's count.
+    expect(screen.getByTestId("catalogue-kind-conversation")).toHaveTextContent("2");
   });
 
   it("shows one block per place, with counts, not one row per Document in a block", () => {
     render(<ModuleHome project={project()} />);
-    const list = screen.getByTestId("module-home-collection-conversation");
-    expect(within(list).getByText("2")).toBeInTheDocument();
-    // The blocks hold no row per Document: they are the catalogue's cards.
-    expect(within(list).queryByText("bruno")).toBeNull();
+    expect(screen.getByTestId("catalogue-kind-conversation")).toHaveTextContent("2");
+    // A collection is the catalogue's, not a second block under Content.
+    expect(screen.queryByTestId("module-home-collection-conversation")).toBeNull();
     expect(screen.getByTestId("module-home-settings")).toHaveTextContent("Speakers");
   });
 

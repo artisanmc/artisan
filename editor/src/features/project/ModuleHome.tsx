@@ -2,27 +2,34 @@ import { ModuleIcon, ModuleLogo, useModuleBrand } from "@/components/ArtisanWord
 import { ownerModuleOf } from "@/components/projectOwnership";
 import { IconTile } from "@/components/ui/icon-tile";
 import { projectNamespace } from "@/domain/docRef";
-import { docKey, documentsOf } from "@/domain/documents";
+import { docKey } from "@/domain/documents";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { moduleScreensOf } from "@/features/project/moduleScreens";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
-import { collectionLabel, projectCollections } from "@/lib/documentCollections";
-import { kindAppearance } from "@/lib/documentKindAppearance";
+import { projectCollections } from "@/lib/documentCollections";
+import { countMissingForLang } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
-import {
-  collectionDestination,
-  dataSourceDestination,
-  screenDestination,
-} from "@/lib/projectNavigation";
+import { dataSourceDestination, screenDestination } from "@/lib/projectNavigation";
+import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
-import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
+import { getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { Blocks, ChevronRight, Database, Package, Plus, Settings, Zap } from "lucide-react";
+import {
+  Blocks,
+  ChevronRight,
+  Database,
+  History,
+  Images,
+  Languages,
+  Package,
+  Settings,
+  Zap,
+} from "lucide-react";
 import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemList } from "./CapturedItemList";
@@ -30,6 +37,7 @@ import { ModuleCatalogue } from "./ModuleCatalogue";
 import { goToDocument } from "./goToDocument";
 import { type PreviewLine, screenPreview } from "./screenPreview";
 import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
+import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "./workspaceTabs";
 
 /**
  * A module's entry view (`?tab=` absent, at the module's root): what the module holds and
@@ -49,7 +57,6 @@ export function ModuleHome({ project: opened }: { project: Project }) {
   const { serverId } = useParams({ strict: false }) as { serverId?: string };
   // `?kind=` narrows the catalogue to one kind: a kind of the sidebar links to it.
   const { kind: shownKind } = useSearch({ strict: false }) as { kind?: string };
-  const uiLang = useUiStore((s) => s.editorLang);
   const screens = useServerScreensStore((s) => s.screens);
   const actions = useServerActionsStore((s) => s.actions);
   const [creating, setCreating] = useState<string | null>(null);
@@ -70,11 +77,14 @@ export function ModuleHome({ project: opened }: { project: Project }) {
   const goToTab = useGoToWorkspaceTab();
   const captured = project.capturedItems ?? [];
   // No block to show: no "Content" heading over nothing.
-  const hasContent =
-    collections.length > 0 ||
-    moduleScreens.length > 0 ||
-    dataSources.length > 0 ||
-    captured.length > 0;
+  const hasContent = moduleScreens.length > 0 || dataSources.length > 0 || captured.length > 0;
+
+  const activeLang = useUiStore((s) => s.activeLang);
+  const runtime = useProjectRuntime(project.id);
+  const missing = countMissingForLang(project, activeLang);
+  const toolTabs = WORKSPACE_VIEW_TABS.filter(
+    (tab): tab is ToolTab => tab in TOOL_ICON && (tab !== "history" || !!runtime?.serverId),
+  );
 
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
 
@@ -83,7 +93,7 @@ export function ModuleHome({ project: opened }: { project: Project }) {
       data-testid="module-home"
       className="absolute inset-0 z-30 overflow-auto bg-[var(--surface)]"
     >
-      <div className="mx-auto flex max-w-5xl flex-col gap-7 p-[var(--page-pad)]">
+      <div className="mx-auto flex max-w-7xl flex-col gap-7 p-[var(--page-pad)]">
         {/* The module's icon and its logo (or its name), side by side, centred on each other. */}
         <header className="flex flex-wrap items-center gap-3">
           {/* A module of the suite shows its own icon and logo; any other one, the tile. */}
@@ -107,6 +117,42 @@ export function ModuleHome({ project: opened }: { project: Project }) {
               <h1 className="truncate text-lg font-semibold">{project.name}</h1>
             )}
           </div>
+          {/* The module's tools, one chip each: what the sidebar's rows below the Documents open. */}
+          <nav
+            className="flex flex-wrap items-center gap-1.5"
+            aria-label={t("moduleHome.tools")}
+            data-testid="module-home-tools"
+          >
+            {toolTabs.map((tab) => {
+              const Icon = TOOL_ICON[tab];
+              const count =
+                tab === "items" ? captured.length : tab === "translations" ? missing : 0;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  data-testid={`module-home-tool-${tab}`}
+                  className="chip inline-flex items-center gap-1.5"
+                  onClick={() => goToTab(tab)}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {t(`project.tabs.${tab}`)}
+                  {count > 0 && (
+                    <span
+                      className={`badge tabular-nums ${tab === "translations" ? "badge-amber" : ""}`}
+                      title={
+                        tab === "translations"
+                          ? t("project.tabs.missingTranslations", { count })
+                          : undefined
+                      }
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </header>
 
         {OwnSection && (
@@ -128,6 +174,11 @@ export function ModuleHome({ project: opened }: { project: Project }) {
             })
           }
           onOpen={(ref) => goToDocument(navigate, { serverId, project, ref })}
+          collections={collections.map((c) => ({
+            kind: c.kind,
+            creatable: kindCreatableIn(c, project),
+          }))}
+          onCreate={setCreating}
         />
 
         {hasContent && (
@@ -136,16 +187,6 @@ export function ModuleHome({ project: opened }: { project: Project }) {
               {t("moduleHome.content")}
             </h2>
             <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {collections.map((c) => (
-                <CollectionPlace
-                  key={c.kind}
-                  project={project}
-                  contribution={c}
-                  label={collectionLabel(c, c.kind, uiLang)}
-                  serverId={serverId}
-                  onCreate={() => setCreating(c.kind)}
-                />
-              ))}
               {moduleScreens.length > 0 && (
                 <SettingsPlace project={project} screens={moduleScreens} serverId={serverId} />
               )}
@@ -247,6 +288,14 @@ export function ModuleHome({ project: opened }: { project: Project }) {
     </div>
   );
 }
+
+type ToolTab = Extract<WorkspaceViewTab, "items" | "translations" | "resources" | "history">;
+const TOOL_ICON: Record<ToolTab, typeof Package> = {
+  items: Package,
+  translations: Languages,
+  resources: Images,
+  history: History,
+};
 
 /** One place of the module: its name, how many things it holds, a line about them, its links. */
 function Place({
@@ -408,53 +457,6 @@ function ScreenValues({ project, screen }: { project: Project; screen: ServerEdi
 function valueText(line: PreviewLine, t: (key: string) => string): string {
   if (typeof line.value === "boolean") return line.value ? t("moduleHome.on") : t("moduleHome.off");
   return String(line.value);
-}
-
-/** A collection's block: its count, its page, and "New" where the kind may be created. */
-function CollectionPlace({
-  project,
-  contribution,
-  label,
-  serverId,
-  onCreate,
-}: {
-  project: Project;
-  contribution: DocumentKindContribution;
-  label: string;
-  serverId: string | undefined;
-  onCreate: () => void;
-}) {
-  const { t } = useTranslation();
-  const look = kindAppearance(contribution.kind);
-  const count = documentsOf(project, contribution.kind).length;
-  return (
-    <Place
-      testId={`module-home-collection-${contribution.kind}`}
-      icon={<IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />}
-      title={label}
-      count={count}
-      summary={count === 0 ? t("collections.empty", { collection: label }) : undefined}
-    >
-      {serverId && (
-        <Link
-          {...collectionDestination(project, serverId, contribution.kind)}
-          className="btn btn-outline btn-sm"
-        >
-          {t("moduleHome.openList")}
-        </Link>
-      )}
-      {kindCreatableIn(contribution, project) && (
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm inline-flex items-center gap-1"
-          onClick={onCreate}
-        >
-          <Plus className="size-3.5" aria-hidden />
-          {t("collections.create")}
-        </button>
-      )}
-    </Place>
-  );
 }
 
 /**
