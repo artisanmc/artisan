@@ -1,11 +1,12 @@
-# A module's folder holds its whole tree; what it ships is indexed beside it
+# A module's folder holds its whole tree; what it ships is indexed beside it; the base is a theme
 
 **Status:** proposed (2026-11-28), not built. Replaces the design `originaux-modules`
 (`originals/` in a module's folder, project files: `archive/architecture/design-originaux-modules.md`)
 for module folders, and the parts of `docs/architecture/project-files.md` § Originals that follow
 from it. Amends `module-templates` (consequences) and `module-config-screens` (shipped data).
-Keeps the three-way merge and `.artisan/bases/` of `SystemFiles`. **Does not change the base
-theme `artisan`**, which keeps `themes/artisan/originals/` (decision 9).
+Keeps the three-way merge and `.artisan/bases/` of `SystemFiles`. **The base becomes an ordinary
+theme** (decision 9): amends `common-images-and-themes` (decision 8, the base as originals) and
+`resources-one-screen` (decision 6, the word "base"; the lookup order of decision 1).
 
 ## Context
 
@@ -111,12 +112,31 @@ show the cost:
    the next module update. Both are said in the changelog. Step 1 tests this path: migrate, then
    run the older `SystemFiles.sync`, compare the loaded projects.
 
-9. **Scope: module folders only.** The base theme `artisan` keeps `themes/artisan/originals/`:
-   the pack decides margins and recoloured variants from "shipped or redrawn"
-   (`ResourcePackBuilder`, `Kit`), its template is not announced in Presence nor served by
-   `template_fetch`, and themes are layers on purpose (`resources-one-screen`). A copy into
-   another Project (`template_copy`) is unchanged. A theme sold apart or a marketplace package
-   (§8 of the former design) is out of scope here and gets its own decision when it exists.
+9. **The base is a theme like any other.** Artisan's images and components (today
+   `themes/artisan/originals/assets/textures/` and `originals/components/`) are a theme Project,
+   `themes/artisan/`, laid out like any theme (`assets/textures/<name>.png`, `components/`),
+   with its `artisan-shipped.yml`, and following decisions 1 to 4: an image the owner redrew in
+   place is modified and kept, an untouched one follows Artisan's updates.
+   - **Seeded once, deletable.** It is written the first start that knows it and recorded in
+     `.artisan-seeds.yaml` (`module-templates`, decision 4): deleted, it does not come back. The
+     editor offers to install it again (a plain `template_copy` of Artisan's template, which
+     Presence then announces and `template_fetch` serves, like a module's).
+   - **One stack.** It is the lowest theme of `resource-pack.themes` by default, and can be
+     moved or taken out like the others. The lookup of a name (`resources-one-screen`, decision
+     1) becomes: the module, then the server's themes in place. The editor no longer says
+     "base".
+   - **Without it, menus still draw.** The pack builders keep their own copy of the images the
+     code draws (`Kit.slots`, `kit.ts`): a common name no theme in place holds falls back to it,
+     as it does today on a server without the theme. A name only the theme held (not a slot) is
+     reported missing (`PackResult.missingImages`) in the Deploy review.
+   - **"Artisan's drawing" is read from the index.** The pack slices a slot image at the slot's
+     margins and derives its coloured variants (`Kit.image`'s `shipped`, `Kit.tinted`) only
+     when it is Artisan's drawing: now, a file of the theme `artisan` that its
+     `artisan-shipped.yml` says untouched, or the builder's own copy. A redraw is taken as drawn,
+     as today. Same rule in `Kit.kt` and `kit.ts`, one conformance case.
+   A copy into another Project (`template_copy`) is unchanged. A theme sold apart or a
+   marketplace package (§8 of the former design) installs like the theme `artisan`: a theme
+   Project with its index.
 
 ## Migration
 
@@ -135,7 +155,11 @@ because it also serves old Versions and drafts (below):
    `Assets.kt`) is not copied.
 5. Files of `originals/` without an origin (`ShippedLang`) are handled by the same rules, not
    skipped.
-6. `artisan-shipped.yml` is written from `.artisan/origins.yaml` and `originals/originals.yml`;
+6. The theme `artisan`: `originals/assets/textures/<name>.png` and `originals/components/` are
+   copied to `assets/textures/` and `components/` unless the owner's redraw of that name is
+   there (it wins today, it stays); recorded as seeded; added at the bottom of
+   `resource-pack.themes` when the server lists themes and it is not there.
+7. `artisan-shipped.yml` is written from `.artisan/origins.yaml` and `originals/originals.yml`;
    `originals/` is removed.
 
 **Check before committing.** The migration is applied to a temporary copy; both folders are
@@ -167,10 +191,11 @@ is removed later. No other add-on names `originals/` (checked 2026-11-28).
 
 - An owner editing by hand finds every file where it is loaded from, and edits it in place.
   The editor's YAML tab shows the file the canvas shows, by construction.
-- One resolution less for module folders in three languages: `DocumentLayout` loses
-  `original`/`excluded` for them, `ShippedView`/`shippedView.ts`/`shippedData.ts`/
-  `keptLangEntries` go. The base theme keeps its layer (decision 9). Conformance vectors with
-  module `originals/` cases are regenerated.
+- One resolution less in three languages: `DocumentLayout` loses `original`/`excluded`,
+  `ShippedView`/`shippedView.ts`/`shippedData.ts`/`keptLangEntries` go, and the pack no longer
+  knows a "base" beside the themes. Conformance vectors with `originals/` cases are regenerated.
+- An owner may delete the theme `artisan`; the slot images still draw from the builders' copy,
+  any other image it held is reported missing before Deploy. Words: "theme" and "module" only.
 - The folder is larger (every variant's files on disk) and a module update writes files in the
   owner's tree. Both are what owners expect from a Minecraft plugin.
 - A modified file no longer follows updates silently: it merges when it can and says so when it
@@ -193,7 +218,9 @@ is removed later. No other add-on names `originals/` (checked 2026-11-28).
   against the wrong origins, a lost `.artisan/` silently freezing files.
 - **Never touch a modified file at all** (the plain Bukkit rule). Silently loses a module's
   fixes in a menu the owner retouched once; the three-way merge already exists.
-- **Include the base theme `artisan`.** See decision 9.
+- **Keep the base theme with `originals/`** (the first revision of this ADR, after review): two
+  models for one kind of content, and a base that is neither deletable nor a theme. The pack's
+  only need, "is this Artisan's drawing", is answered by the index (decision 9).
 
 ## Steps
 
@@ -206,11 +233,14 @@ is removed later. No other add-on names `originals/` (checked 2026-11-28).
 3. **Editor**: states from the index, compare, restore, view as shipped from the cache; deletes
    write `originals.exclude`; renames carry the index entry; `projectToFiles` writes Documents
    like any others; the module originals layer removed.
-4. **Packs**: both builders read module folders as they are; the base theme unchanged; vectors
+4. **Packs**: both builders read module folders as they are; vectors
    regenerated (`npm run pack -- vectors --write`).
 5. **MCP**: `list_documents` gives each Document's state from the index; `read_document` reads a
    shipped file from the cache; `restore_document`.
-6. **Later release**: remove the `originals/` reader once every folder reports migrated, and
+6. **Theme `artisan`**: `ArtisanTheme` through the sync and the seed record; the lookup without
+   "base"; `Kit.image`/`kit.ts` read "Artisan's drawing" from the index; the Resources screen
+   (`resources-one-screen`) shows it as a theme, deletable and installable; vectors.
+7. **Later release**: remove the `originals/` reader once every folder reports migrated, and
    `CalendarFiles`' fallback. `flatten` and the reserved name stay.
 
 The editor's empty YAML tab can be fixed before all this in `DocumentYamlView` (read the shipped
