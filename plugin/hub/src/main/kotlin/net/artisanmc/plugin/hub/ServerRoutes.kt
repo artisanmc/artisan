@@ -10,7 +10,16 @@ import net.artisanmc.plugin.hub.Relay.Companion.readError
 import net.artisanmc.plugin.protocol.ProtocolVersion
 
 /** `/api/v1/servers/:server/…`: what the server declares, its configuration, its live data. */
-class ServerRoutes(private val servers: Servers, private val relay: Relay) {
+class ServerRoutes(
+    private val servers: Servers,
+    private val relay: Relay,
+    /**
+     * Where the shipped files of the modules' templates are kept by hash once fetched (ADR
+     * `editable-module-tree`, decision 7): the editor compares, views and restores them with the
+     * server offline. Null: fetched from the server each time.
+     */
+    private val contents: ContentStore? = null,
+) {
     private val bundles = BundleCache()
     /** A module's brand files, keyed `<brand hash>/<file>`: small SVGs, a few per module. */
     private val brands = BundleCache(maxEntries = 64, maxBytes = 2L * 1024 * 1024)
@@ -141,7 +150,14 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 "module_id" to call.params["module"].orEmpty(),
                 "template_id" to call.params["template"].orEmpty(),
             )
-            relay.send(call, server, message) { reply -> if (ok(reply)) call.json(body(reply)) else readError(call, reply) }
+            val module = call.params["module"].orEmpty()
+            val template = call.params["template"].orEmpty()
+            if (!server.online) return@on shippedOffline(call, server, module, template)
+            relay.send(call, server, message) { reply ->
+                if (!ok(reply)) return@send readError(call, reply)
+                keepShipped(reply)
+                call.json(body(reply))
+            }
         }
         on(router, "POST", "data-sources/preview", VIEW) { call, server ->
             val request = call.body()
@@ -159,6 +175,40 @@ class ServerRoutes(private val servers: Servers, private val relay: Relay) {
                 if (ok(reply)) call.json(body(reply)) else readError(call, reply)
             }
         }
+    }
+
+    /** Each file of a `template_fetch` reply kept by its SHA-256, checked against the bytes. */
+    private fun keepShipped(reply: Map<String, Any?>) {
+        val store = contents ?: return
+        (reply["files"] as? List<*>)?.forEach { f ->
+            val file = f as? Map<*, *> ?: return@forEach
+            val bytes = (file["content_base64"] as? String)?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() } ?: return@forEach
+            val hash = net.artisanmc.plugin.project.ContentHash.hashBytes(bytes)
+            runCatching { if (store.content(hash) == null) store.putContent(hash, bytes) }
+        }
+    }
+
+    /**
+     * The template as its server last announced it, its files from [contents]: what a fetch
+     * answered while the server was online. `server_offline` when one file was never fetched.
+     */
+    private fun shippedOffline(call: Call, server: EditorServer, module: String, template: String) {
+        val store = contents ?: return call.error(503, "server_offline")
+        val announced = server.announcement().modules
+            .firstOrNull { it["id"] == module }
+            ?.let { it[net.artisanmc.plugin.protocol.ServerAnnouncement.TEMPLATES] as? List<*> }
+            ?.mapNotNull { it as? Map<*, *> }
+            ?.firstOrNull { it["id"] == template }
+            ?: return call.error(404, "not_found")
+        val files = (announced["files"] as? List<*>).orEmpty().mapNotNull { f ->
+            val file = f as? Map<*, *> ?: return@mapNotNull null
+            val hash = file["hash"] as? String ?: return@mapNotNull null
+            val bytes = runCatching { store.content(hash) }.getOrNull()
+                ?.takeIf { net.artisanmc.plugin.project.ContentHash.hashBytes(it) == hash }
+                ?: return call.error(503, "server_offline")
+            mapOf("path" to file["path"], "content_base64" to java.util.Base64.getEncoder().encodeToString(bytes))
+        }
+        call.json(mapOf("module_id" to module, "template" to announced, "files" to files, "cached" to true))
     }
 
     /** `?v=<hash>` names this very script: the browser keeps it for good. Any other URL revalidates. */

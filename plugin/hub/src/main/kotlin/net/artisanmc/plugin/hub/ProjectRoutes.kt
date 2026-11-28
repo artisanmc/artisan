@@ -80,18 +80,38 @@ class ProjectRoutes(
         }
         onProject(router, "GET", "/api/v1/projects/:project/versions/:version/binary", VIEW) { call, project ->
             val path = call.query("path") ?: return@onProject call.error(422, "invalid_input")
-            history?.versionBinary(project.server.id, project.folder, call.params.getValue("version"), path)
+            val version = call.params.getValue("version")
+            // A Version made before its folder held the whole tree serves its binaries at today's paths too.
+            (history?.versionBinary(project.server.id, project.folder, version, path)
+                ?: history?.versionBinary(project.server.id, project.folder, version, "${net.artisanmc.plugin.model.Originals.DIR}/$path"))
                 ?.let { call.send(200, contentType(path), it, "private, max-age=31536000, immutable") }
                 ?: call.error(404, "not_found")
         }
         onProject(router, "GET", "/api/v1/projects/:project/versions/:version", VIEW) { call, project ->
-            history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let(call::json)
+            history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let { call.json(flattenVersion(it)) }
                 ?: call.error(404, "not_found")
         }
 
         drafts(router)
         lifecycle(router)
         templates(router)
+    }
+
+    /**
+     * A Version made before its folder held the module's whole tree (ADR `editable-module-tree`),
+     * in today's layout: restoring it as kept would delete every file the migration wrote.
+     */
+    private fun flattenVersion(version: Map<String, Any?>): Map<String, Any?> {
+        val files = (version["files"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
+        val binaries = (version["binaries"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
+        val texts = files.mapNotNull { f -> (f["path"] as? String)?.let { it to (f["content"] as? String).orEmpty() } }.toMap()
+        val bins = binaries.mapNotNull { b -> (b["path"] as? String)?.let { it to b } }.toMap()
+        if (!net.artisanmc.plugin.tree.FlattenSnapshot.needed(texts.keys + bins.keys)) return version
+        val (t, b) = net.artisanmc.plugin.tree.FlattenSnapshot.of(texts, bins)
+        return version + mapOf(
+            "files" to t.map { (path, content) -> mapOf("path" to path, "content" to content) },
+            "binaries" to b.map { (path, row) -> row.entries.associate { it.key.toString() to it.value } + ("path" to path) },
+        )
     }
 
     /** Module templates in a Project (ADR `module-templates`): copy one in, read where copies came from. */
@@ -418,12 +438,26 @@ class ProjectRoutes(
     private fun draftResponse(call: Call, project: ProjectRef, reply: Map<String, Any?>, created: Boolean = false) {
         val projectId = project.id
         @Suppress("UNCHECKED_CAST")
-        fun attach(draft: Any?) = (draft as? Map<String, Any?>)?.plus("projectId" to projectId) ?: draft
+        fun attach(draft: Any?) = (draft as? Map<String, Any?>)?.let(::flattenDraft)?.plus("projectId" to projectId) ?: draft
         val body = (reply - setOf("type", "request_id")).toMutableMap()
         if (reply["draft"] != null) body["draft"] = attach(reply["draft"])
         (reply["drafts"] as? List<*>)?.let { drafts -> body["drafts"] = drafts.map(::attach) }
         if (ok(reply)) return call.json(body, if (created) 201 else 200)
         call.json(body, ErrorStatus.of(errorCode(reply)))
+    }
+
+    /**
+     * A draft saved before its folder held the module's whole tree (ADR `editable-module-tree`),
+     * read in today's layout: the editor edits and publishes it like any other.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun flattenDraft(draft: Map<String, Any?>): Map<String, Any?> {
+        val snapshot = draft["snapshot"] as? Map<String, Any?> ?: return draft
+        val paths = listOf("baseline", "tree", "binaryBaseline", "binaryTree").flatMap { (snapshot[it] as? Map<String, Any?>)?.keys.orEmpty() }
+        if (!net.artisanmc.plugin.tree.FlattenSnapshot.needed(paths)) return draft
+        val message = Call.mapper.valueToTree<JsonNode>(mapOf("draft" to mapOf("snapshot" to snapshot)))
+        val flat = net.artisanmc.plugin.tree.FlattenSnapshot.draftMessage(message).path("draft").path("snapshot")
+        return draft + ("snapshot" to Call.mapper.convertValue(flat, Map::class.java))
     }
 
     private fun operationId(request: JsonNode): String? {
