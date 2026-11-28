@@ -1,6 +1,6 @@
 # A module's folder holds its whole tree; what it ships is indexed beside it; the base is a theme
 
-**Status:** proposed (2026-11-28), not built. Replaces the design `originaux-modules`
+**Status:** accepted (2026-11-28), being built. Replaces the design `originaux-modules`
 (`originals/` in a module's folder, project files: `archive/architecture/design-originaux-modules.md`)
 for module folders, and the parts of `docs/architecture/project-files.md` § Originals that follow
 from it. Amends `module-templates` (consequences) and `module-config-screens` (shipped data).
