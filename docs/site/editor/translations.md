@@ -19,7 +19,7 @@ The chips under the search box keep one type of text: menus, commands, dialogs, 
 
 ### A module's own messages
 
-An add-on's chat messages (a reminder at join, "reward claimed", its errors) are listed under **Module's messages**, with the text the module ships. Change one and only that message is saved, in the module's `lang/<code>.yml`; the others keep following the module's updates. A changed message is marked **changed**: click it to go back to the module's text. The module's texts themselves live in `originals/lang/<code>.yml`, which the server rewrites at each update: do not edit that file.
+An add-on's chat messages (a reminder at join, "reward claimed", its errors) are listed under **Module's messages**, with the text the module ships. Change one and only that message is saved, in the module's `lang/<code>.yml`; the others keep following the module's updates. A changed message is marked **changed**: click it to go back to the module's text. The module's texts are in that same file: at each update, Artisan adds the module's new keys and updates the ones it changed, unless you changed them (a module folder from an earlier version keeps them in `originals/lang/<code>.yml` until it is moved, see *What a module ships*).
 
 A module's originals (the menus and commands it ships) appear once, at their readable key, like your own menus: the shipped copy the editor keeps for **Compare** and **Revert** is not listed.
 

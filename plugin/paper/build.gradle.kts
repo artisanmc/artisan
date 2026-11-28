@@ -9,6 +9,8 @@ dependencies {
     implementation(project(":artisan-stats"))
     implementation(project(":artisan-hub"))
     implementation(project(":artisan-runtime"))
+    // The migration check of a module folder reads its assets as the pack does (`MigrationAssets`).
+    implementation(project(":artisan-pack"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     // Spigot's dialog API (SpigotDialogRenderer): Spigot ships it, paper-api does not.

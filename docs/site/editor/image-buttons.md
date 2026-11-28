@@ -139,8 +139,9 @@ is marked **Other size**, with its size and the piece's, on its card, in the Res
 and in the common images' own Resources. A menu laid out for the piece may look off.
 A piece the server drew its own version of shows **Artisan's original** beside it, wherever
 the image is selected. In the common images' own Resources, **Restore the original** deletes
-the server's version: it gives the piece back to Artisan: the base Artisan ships stays beside it, in
-`themes/artisan/originals/`, rewritten when an update of Artisan changes it. Like any change, a
+the server's version: it gives the piece back to Artisan. The base Artisan ships is in the theme
+`artisan` (`themes/artisan/assets/textures/`, or `originals/` on a server not migrated yet): a
+piece left as shipped follows Artisan's updates, a redrawn one is kept. Like any change, a
 redrawn piece reaches players when the draft is deployed and the pack rebuilt.
 
 When an update of Artisan changes an original the server drew its own version of, the image
@@ -528,9 +529,9 @@ name them without writing a file:
   component: { name: confirm, text: { en: Sell all, fr: Tout vendre } }
 ```
 
-They are written in `themes/artisan/originals/components/` and rewritten when an update of
-Artisan changes them. To change one for the whole server, write a component of the same name
-in the theme `artisan`'s `components/` folder: it is read first. Since the base buttons keep
+They are written in the theme `artisan`'s `components/` folder (`originals/components/` on a
+server not migrated yet) and follow Artisan's updates while left as shipped. To change one for
+the whole server, edit it there: your version is kept. Since the base buttons keep
 their edges at any width, a component placed on four or five slots stays sharp.
 
 A module's **Resources** have a **Components** view: the list of its components, then the

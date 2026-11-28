@@ -4,6 +4,7 @@ import net.artisanmc.plugin.project.ModuleTemplates
 import net.artisanmc.plugin.project.ProjectOrigins
 import net.artisanmc.plugin.project.SystemFiles
 import net.artisanmc.plugin.project.TemplateCopies
+import net.artisanmc.plugin.project.TreeSync
 import java.util.Base64
 
 /**
@@ -17,6 +18,7 @@ class TemplateRequests(
     private val templates: () -> ModuleTemplates?,
 ) {
     private val roots get() = workspace.roots
+    private val lookup = TreeSync.Templates { module, template -> templates()?.find(module, template) }
 
     fun fetch(request: EditorRequest.TemplateFetch) {
         val reply = replies.to(request, "template_fetch_result")
@@ -63,7 +65,9 @@ class TemplateRequests(
         replies.offThread("project_origins_fetch", workspace.io) {
             val projectDir = roots.dirFor(request.projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
-            reply.ok("origins" to ProjectOrigins.read(projectDir).mapValues { it.value.toWire() })
+            // In the tree layout, the version the module ships now of each file whose index stays on another.
+            val pending = if (SystemFiles.inTree(projectDir)) TreeSync.pending(projectDir, lookup) else emptyMap()
+            reply.ok("origins" to (ProjectOrigins.read(projectDir) + pending).mapValues { it.value.toWire() })
         }
     }
 
@@ -77,7 +81,7 @@ class TemplateRequests(
             val projectDir = roots.dirFor(request.projectId)
             if (!projectDir.isDirectory) return@offThread reply.error("unknown_project")
             try {
-                if (SystemFiles.keep(projectDir, request.path)) reply.ok() else reply.error("not_found")
+                if (SystemFiles.keep(projectDir, request.path, lookup)) reply.ok() else reply.error("not_found")
             } catch (e: Throwable) {
                 reply.failure("write_error", "project_origin_keep '${request.projectId}'", e)
             }

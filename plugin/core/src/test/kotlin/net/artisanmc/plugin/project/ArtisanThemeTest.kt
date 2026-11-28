@@ -19,7 +19,7 @@ class ArtisanThemeTest {
         val roots = roots()
         File(roots.coreRoot, "guilds").mkdirs()
         val dir = ArtisanTheme.register(roots)
-        assertEquals(File(data, "themes/artisan").absoluteFile, dir.absoluteFile)
+        assertEquals(File(data, "themes/artisan").absoluteFile, dir!!.absoluteFile)
         assertEquals(setOf("artisan", "guilds"), roots.all().keys)
         assertTrue(roots.isTheme("artisan"))
         assertEquals("theme", roots.descriptor("artisan")["role"])
@@ -27,45 +27,65 @@ class ArtisanThemeTest {
     }
 
     @Test
-    fun `the base is written as originals, once, and the server's redraw stays`() {
-        val dir = ArtisanTheme.register(roots())
+    fun `the base is written at its own paths, once, follows Artisan where untouched, and the server's redraw stays`() {
+        val dir = ArtisanTheme.register(roots())!!
         val written = ArtisanTheme.sync(dir, base)
-        assertTrue("originals/assets/textures/button.3x1.png" in written, written.toString())
-        assertContentEquals(byteArrayOf(4, 5), File(dir, "originals/assets/textures/close.1x1.png").readBytes())
+        assertTrue("assets/textures/button.3x1.png" in written, written.toString())
+        assertContentEquals(byteArrayOf(4, 5), File(dir, "assets/textures/close.1x1.png").readBytes())
+        assertFalse(File(dir, "originals").exists())
+        assertEquals("artisan", ShippedIndex.read(dir).getValue("assets/textures/close.1x1.png").module)
         assertEquals(emptyList(), ArtisanTheme.sync(dir, base), "nothing on a start where the base did not change")
 
-        // The server redraws one: its file, same name, outside originals/.
-        File(dir, "assets/textures").mkdirs()
+        // The server redraws one in place.
         File(dir, "assets/textures/button.3x1.png").writeBytes(byteArrayOf(9, 9, 9))
         ArtisanTheme.sync(dir, base)
         assertContentEquals(byteArrayOf(9, 9, 9), File(dir, "assets/textures/button.3x1.png").readBytes())
 
-        // A new version of Artisan changes the base and drops an image: the originals follow, the redraw stays.
+        // A new version of Artisan changes the base and drops an image: the untouched one goes, the redraw stays.
         ArtisanTheme.sync(dir, mapOf("button.3x1" to byteArrayOf(7)))
-        assertContentEquals(byteArrayOf(7), File(dir, "originals/assets/textures/button.3x1.png").readBytes())
-        assertFalse(File(dir, "originals/assets/textures/close.1x1.png").exists())
+        assertFalse(File(dir, "assets/textures/close.1x1.png").exists())
         assertContentEquals(byteArrayOf(9, 9, 9), File(dir, "assets/textures/button.3x1.png").readBytes())
     }
 
     @Test
-    fun `the base's components are written as originals, and the server's own of a name stays`() {
-        val dir = ArtisanTheme.register(roots())
+    fun `a theme not migrated yet keeps its base under originals`() {
+        val dir = ArtisanTheme.register(roots())!!
+        File(dir, "originals").mkdirs()
+        val written = ArtisanTheme.sync(dir, base)
+        assertTrue("originals/assets/textures/button.3x1.png" in written, written.toString())
+        assertFalse(File(dir, "assets/textures/button.3x1.png").exists())
+    }
+
+    @Test
+    fun `the base's components are written at their path, and the server's own of a name stays`() {
+        val dir = ArtisanTheme.register(roots())!!
         val confirm = "parts:\n  - image: button.3x1\n"
         val written = ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm))
-        assertTrue("originals/components/confirm.yml" in written, written.toString())
-        assertEquals(confirm, File(dir, "originals/components/confirm.yml").readText())
+        assertTrue("components/confirm.yml" in written, written.toString())
+        assertEquals(confirm, File(dir, "components/confirm.yml").readText())
         assertEquals(emptyList(), ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm)))
 
-        // The server writes its own confirm: read before the original, never touched.
-        File(dir, "components").mkdirs()
+        // The server writes its own confirm: never replaced.
         File(dir, "components/confirm.yml").writeText("parts:\n  - image: mine\n")
         ArtisanTheme.sync(dir, base, mapOf("confirm" to confirm))
         assertEquals("parts:\n  - image: mine\n", File(dir, "components/confirm.yml").readText())
 
-        // A version that ships none drops the original.
+        // A version that ships none leaves the server's.
         ArtisanTheme.sync(dir, base)
-        assertFalse(File(dir, "originals/components/confirm.yml").exists())
         assertTrue(File(dir, "components/confirm.yml").exists())
+    }
+
+    @Test
+    fun `the former ui-kit module moves into a theme that holds only what Artisan wrote`() {
+        val roots = roots()
+        File(data, "themes/artisan").mkdirs()
+        ArtisanTheme.sync(File(data, "themes/artisan"), base)
+        val legacy = File(roots.coreRoot, "ui-kit")
+        File(legacy, "assets/textures").mkdirs()
+        File(legacy, "assets/textures/mine.png").writeBytes(byteArrayOf(8))
+        val dir = ArtisanTheme.register(roots)
+        assertFalse(legacy.exists())
+        assertContentEquals(byteArrayOf(8), File(dir, "assets/textures/mine.png").readBytes())
     }
 
     @Test
@@ -99,5 +119,33 @@ class ArtisanThemeTest {
         ArtisanTheme.register(roots)
         assertEquals(setOf("artisan", "ui-kit"), roots.all().keys)
         assertTrue(File(roots.coreRoot, "ui-kit/assets/textures/a.png").isFile)
+    }
+
+    @Test
+    fun `a deleted theme is not seeded again, and comes back with its base when installed`() {
+        val roots = roots()
+        val seeds = TemplateSeeds(roots)
+        assertTrue(ArtisanTheme.register(roots, seeds = seeds) != null)
+        assertTrue(ArtisanTheme.SEED in seeds.seeded())
+        assertEquals(null, ServerThemes.delete(roots, ArtisanTheme.NAME))
+        assertFalse(File(data, "themes/artisan").exists())
+        assertTrue(File(data, "themes/.artisan-trash").list()!!.single().startsWith("artisan-"))
+
+        // The next start: no theme, no Project.
+        val restarted = roots()
+        assertEquals(null, ArtisanTheme.register(restarted, seeds = TemplateSeeds(restarted)))
+        assertFalse(File(data, "themes/artisan").exists())
+        assertFalse(restarted.isRegistered(ArtisanTheme.NAME))
+
+        // Installed again from the editor: registered, its base written at once.
+        ArtisanTheme.base = { base to emptyMap() }
+        try {
+            assertEquals(null, ServerThemes.create(restarted, ArtisanTheme.NAME))
+            assertTrue(restarted.isTheme(ArtisanTheme.NAME))
+            assertContentEquals(byteArrayOf(1, 2, 3), File(data, "themes/artisan/assets/textures/button.3x1.png").readBytes())
+            assertEquals("project_exists", ServerThemes.create(restarted, ArtisanTheme.NAME))
+        } finally {
+            ArtisanTheme.base = null
+        }
     }
 }

@@ -23,7 +23,13 @@ import java.util.Base64
  * from [commit]: no such Project recorded. [commit] throws when the operation's receipt is
  * already there (a concurrent replay won); the caller answers with that receipt.
  */
-interface DraftStorage {
+/** Contents by their SHA-256, in the suite database: written once, read by hash. */
+interface ContentStore {
+    fun content(hash: String): ByteArray?
+    fun putContent(hash: String, bytes: ByteArray)
+}
+
+interface DraftStorage : ContentStore {
     fun knownProject(server: String, folder: String): Boolean
     /**
      * The active drafts of [owner], whole, for the list; the other actions read one draft. A row
@@ -34,8 +40,6 @@ interface DraftStorage {
     /** The receipt of an operation already applied. */
     fun receipt(operationId: String): DraftReceipt?
     fun commit(server: String, folder: String, commit: DraftCommit): Boolean
-    fun content(hash: String): ByteArray?
-    fun putContent(hash: String, bytes: ByteArray)
 }
 
 /**

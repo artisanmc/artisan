@@ -160,6 +160,11 @@ class TemplateSeeds(
         java.nio.file.Files.move(tmp.toPath(), File(dir, ModuleFile.NAME).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     }
 
+    /** Records [key] as seeded, when it is not yet. */
+    fun markSeeded(key: String) {
+        if (key !in seeded()) record(key)
+    }
+
     private fun record(key: String) {
         val keys = (seeded() + key).sorted()
         roots.coreRoot.mkdirs()

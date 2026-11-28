@@ -120,6 +120,7 @@ object ServerThemes {
      * Returns a protocol error code, or null when it is there.
      */
     fun create(roots: ProjectRoots, name: String): String? {
+        if (name == ArtisanTheme.NAME) return ArtisanTheme.install(roots)
         if (!isName(name)) return "invalid_name"
         // A module's name, a theme's, or a folder that differs by its case alone.
         val taken = roots.isRegistered(name) ||
@@ -131,12 +132,14 @@ object ServerThemes {
 
     /**
      * Takes the theme [name] off the server: its folder moves to `themes/.artisan-trash/`, never
-     * erased, and it is a Project no more. The theme `artisan` holds the common images and
-     * stays. A name left in `resource-pack.themes` then changes nothing. Returns a protocol
+     * erased, and it is a Project no more. The theme `artisan` too: it is not seeded again, and
+     * menus draw the pack builders' own copy of the images the code names. A name left in `resource-pack.themes` then changes nothing. Returns a protocol
      * error code, or null when it happened.
      */
     fun delete(roots: ProjectRoots, name: String, now: () -> Instant = Instant::now): String? {
-        val dir = movable(roots, name) ?: return refusal(roots, name)
+        // The theme `artisan` too (ADR `editable-module-tree`, decision 9): menus then draw the builders' own copy.
+        val dir = (if (name == ArtisanTheme.NAME && roots.isTheme(name)) File(roots.themesRoot, name).takeIf { it.isDirectory && !Files.isSymbolicLink(it.toPath()) } else movable(roots, name))
+            ?: return refusal(roots, name)
         val trash = File(roots.themesRoot, ProjectFolders.TRASH).apply { mkdirs() }
         val stamp = STAMP.format(now())
         var target = File(trash, "$name-$stamp")

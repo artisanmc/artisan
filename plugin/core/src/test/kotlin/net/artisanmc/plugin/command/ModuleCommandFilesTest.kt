@@ -209,11 +209,11 @@ class ModuleCommandFilesTest {
         val folder = kotlin.io.path.createTempDirectory("commands").toFile()
         try {
             val v1 = assertNotNull(ModuleCommandFiles.template(listOf(shop(), guild())))
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1)
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1, legacy = true)
             File(folder, "commands/g.yml").apply { parentFile.mkdirs() }
                 .writeText(File(folder, "originals/commands/g.yml").readText() + "enabled: false\n")
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1)
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))))
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", v1, legacy = true)
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "boutique", assertNotNull(ModuleCommandFiles.template(listOf(auctionHouse()))), legacy = true)
             assertTrue(!File(folder, "originals/commands/boutique.yml").exists())
             assertTrue(!File(folder, "originals/commands/g.yml").exists())
             assertTrue(File(folder, "commands/g.yml").isFile, "edited: the owner's")
@@ -232,13 +232,13 @@ class ModuleCommandFilesTest {
         val folder = kotlin.io.path.createTempDirectory("commands").toFile()
         try {
             val v1 = assertNotNull(ModuleCommandFiles.template(listOf(guild("bank"))))
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1, legacy = true)
             val file = File(folder, "commands/g.yml").apply { parentFile.mkdirs() }
             file.writeText(File(folder, "originals/commands/g.yml").readText().replace("permission: guilds.use", "permission: vip"))
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1)
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", v1, legacy = true)
 
             val v2 = guild("bank", "war")
-            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", assertNotNull(ModuleCommandFiles.template(listOf(v2))))
+            net.artisanmc.plugin.project.SystemFiles.sync(folder, "guilds", assertNotNull(ModuleCommandFiles.template(listOf(v2))), legacy = true)
             // In the editor's own form: a Deploy writes it back as is.
             assertEquals(ModuleCommandFiles.yaml(v2).replace("permission: guilds.use", "permission: vip"), file.readText())
         } finally {

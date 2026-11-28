@@ -58,6 +58,17 @@ export function isOriginalPath(path: string): boolean {
   return path.startsWith(`${ORIGINALS_DIR}/`);
 }
 
+/**
+ * What a module shipped into a folder that holds its whole tree (ADR `editable-module-tree`),
+ * at the module root: one entry per path, written by the server only.
+ */
+export const SHIPPED_INDEX = "artisan-shipped.yml";
+
+/** Whether `path` is the server's to write: an original, or the index of what a module shipped. */
+export function isServerWrittenPath(path: string): boolean {
+  return isOriginalPath(path) || path === SHIPPED_INDEX;
+}
+
 const FOLDER_RE = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**

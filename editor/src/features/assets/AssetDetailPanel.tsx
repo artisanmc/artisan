@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { assetPreviewUrl } from "@/domain/asset";
 import { assetMenuReferences } from "@/domain/assetUsage";
 import type { ProjectId } from "@/domain/types";
-import { deleteAsset, patchAsset } from "@/lib/api/userAssets";
+import { deleteAsset, patchAsset, uploadAsset } from "@/lib/api/userAssets";
 import { IMAGE_FUNCTIONS, type ImageFunction } from "@/lib/pack/imageFunction";
 import { kitNameOf, kitSlot } from "@/lib/pack/kit";
 import { useProjectPrincipalId } from "@/lib/projectPrincipal";
@@ -75,7 +75,7 @@ export function AssetDetailPanel({
   // What the module ships (`originals/`): alone, the image is the module's as shipped and the
   // owner holds nothing to rename or delete; beside the owner's file, deleting theirs restores it.
   const original = standing.original;
-  const asShipped = !!original && !standing.own;
+  const asShipped = (!!original && !standing.own) || !!standing.asShipped;
   const restores = piece ? !asShipped : !!original && !!standing.own;
 
   const onSave = async () => {
@@ -124,6 +124,22 @@ export function AssetDetailPanel({
     )
       return;
     try {
+      // In the tree layout (ADR `editable-module-tree`) the module's version is written back.
+      if (restores && original?.shipped && asset.type !== "font") {
+        const res = await fetch(originalImageUrl(projectId, original), { credentials: "include" });
+        if (!res.ok) throw new Error(t("resources.original.restoreFailed"));
+        const file = new File([await res.blob()], `${asset.id}.png`, { type: "image/png" });
+        upsertAsset(
+          await uploadAsset(projectId, {
+            file,
+            type: asset.type,
+            name: asset.id,
+            replace: true,
+            retouch: true,
+          }),
+        );
+        return;
+      }
       await deleteAsset(projectId, asset.id);
       removeAsset(asset.id);
     } catch (e) {

@@ -111,11 +111,11 @@ class TemplateRequestsTest {
         fun origins() = net.artisanmc.plugin.project.ProjectOrigins.read(dir)
         val keep = """{"type":"project_origin_keep","request_id":"k","project_id":"shop","path":"assets/textures/logo.png"}"""
 
-        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"))
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"), legacy = true)
         assertEquals("not_found", dispatch(keep)["error"], "the owner has no version of it")
         File(dir, "assets/textures/logo.png").apply { parentFile.mkdirs(); writeText("mine") }
-        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"))
-        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(2, "v2"))
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(1, "v1"), legacy = true)
+        net.artisanmc.plugin.project.SystemFiles.sync(dir, "quests", shipped(2, "v2"), legacy = true)
         assertTrue(origins()["assets/textures/logo.png"] != origins()["originals/assets/textures/logo.png"])
 
         val reply = dispatch(keep)

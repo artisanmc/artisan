@@ -61,7 +61,10 @@ export function projectToFiles(shown: Project): Record<string, string> {
   // by name.
   // Originals (`domain/originals.ts`): a Document equal to what the module ships is not
   // written, the server's `originals/` serves it.
+  // In a folder that holds the module's whole tree (ADR `editable-module-tree`), every
+  // Document is the owner's file: written whole.
   const asShipped = (kind: string, doc: Document, variant: string) => {
+    if (project.originals?.inTree) return false;
     const twin = shippedTwin(project, kind, doc.id, variant);
     return !!twin && sameAsShipped(project, kind, doc, twin);
   };
@@ -106,6 +109,7 @@ export function projectToFiles(shown: Project): Record<string, string> {
       ...Object.keys(project.originals?.documents ?? {}),
     ]);
     if (
+      project.originals?.inTree ||
       !shippedShow ||
       JSON.stringify(stepsToWire(shippedShow)) !== JSON.stringify(stepsToWire(v.show)) ||
       v.names.some((n) => !kept.has(n))
@@ -253,6 +257,9 @@ function originalsBlock(project: Project): Record<string, unknown> {
   const o = project.originals;
   if (!o) return {};
   const required = new Set(o.required.map(sameFile));
+  // In the tree layout (ADR `editable-module-tree`), only a file the server wrote here can be
+  // left out: one the module ships since its last sync is not the folder's yet.
+  const indexed = o.inTree ? new Set(Object.keys(o.index ?? {}).map(sameFile)) : null;
   const shipped = new Set<string>();
   const exclude: string[] = [];
   for (const [variant, byKind] of Object.entries(o.documents)) {
@@ -265,6 +272,7 @@ function originalsBlock(project: Project): Record<string, unknown> {
       for (const doc of docs) {
         const path = shippedPath(kind, doc, variant);
         shipped.add(sameFile(path));
+        if (indexed && !indexed.has(sameFile(path))) continue;
         if (!present.has(doc.id) && !required.has(sameFile(path))) exclude.push(path);
       }
     }

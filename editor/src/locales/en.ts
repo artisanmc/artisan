@@ -33,6 +33,7 @@ export default {
       alt: "{{name}} as its module ships it",
       confirmRestore:
         "Delete your version of {{name}}? Menus show the module's original again once deployed.",
+      restoreFailed: "The module's version could not be read: is its server online?",
       asShipped:
         "Shipped by the module, as it is. Editing it in the atelier makes your version, shown in its place.",
       asShippedCommon:
@@ -489,7 +490,7 @@ export default {
         "This theme is a folder of the server, themes/{{name}}/: assets/ holds its images; one named like a common image replaces it, at that image's size. It is read here once deployed.",
       palette: {
         title: "Its colours",
-        hint: "The colour each name has in this theme. The base's coloured buttons, and any image tinted with a name, follow it. A name left alone keeps the colour of the library.",
+        hint: "The colour each name has in this theme. Artisan's coloured buttons, and any image tinted with a name, follow it. A name left alone keeps the colour of the library.",
         colourOf: "Colour of {{name}}",
         reset: "Back to the colour without this theme",
         newName: "New colour name",
@@ -499,7 +500,7 @@ export default {
         failed: "The colours could not be saved to your draft: {{detail}}",
         libraryTitle: "The server's colours",
         libraryHint:
-          "The colour each name has on this server, in every module. The base's coloured buttons, and any image tinted with a name, follow it. An enabled theme may give a name another colour.",
+          "The colour each name has on this server, in every module. Artisan's coloured buttons, and any image tinted with a name, follow it. An enabled theme may give a name another colour.",
         libraryReset: "Back to the default colour",
         libraryDrafted: "These colours are in your draft: deploy it to see them in game.",
       },
@@ -508,9 +509,10 @@ export default {
         filter: "Filter by name",
         empty: "No image of that name.",
         none: "none",
-        all: "Every image of the base ({{count}})",
+        all: "Every image of the theme artisan ({{count}})",
         redrawnOnly: "Redrawn images only",
-        nothing: "This theme redraws no image: the base shows as it is, with its colours.",
+        nothing:
+          "This theme redraws no image: the ones below show as they are, with their colours.",
       },
       putHint:
         "Enabling a theme sets it above the ones already enabled and rebuilds the server's pack: players receive it at their next connection. Disabling it is done from here too.",
@@ -622,11 +624,16 @@ export default {
     label: "Places of the resources",
     themes: "Server themes",
     themesHint:
-      "The first enabled theme that redraws an image wins, from top to bottom; the base comes last. A module that has its own image keeps it.",
-    server: "Base",
-    serverHint: "Artisan's and this server's images. Always enabled, under the themes.",
+      "The first enabled theme that redraws an image wins, from top to bottom; the theme artisan comes last. A module that has its own image keeps it.",
+    server: "artisan",
+    serverHint:
+      "Artisan's images, and the ones this server redrew in place. Under the other themes. Its page deletes it; without it, menus draw Artisan's built-in images.",
+    notInstalled: "Not installed: menus draw Artisan's built-in images.",
+    install: "Install",
+    installHint:
+      "Writes Artisan's images and components into the theme artisan, which this server can then redraw.",
     pick: "Pick a place on the left.",
-    opening: "Opening the base…",
+    opening: "Opening the theme artisan…",
     putAway: "Disable the theme {{name}}",
     putInPlace: "Enable the theme {{name}}",
     move: "Drag to change the theme's place",
@@ -646,7 +653,7 @@ export default {
     searchItems: "Search items…",
     label: "Images of:",
     here: "this module",
-    hereBase: "the base",
+    hereBase: "the theme artisan",
     hereTheme: "this theme",
     others: "Other modules on the server",
     loading: "Loading the server's modules…",
@@ -745,9 +752,9 @@ export default {
         "{{count}} common image of the server it comes from stays in the module: {{names}}. In the atelier, Save as puts it in the server's theme to make it common here.",
       kept_other:
         "{{count}} common images of the server it comes from stay in the module: {{names}}. In the atelier, Save as puts each in the server's theme to make it common here.",
-      base: "Images of Artisan's base this server does not have: {{names}}. Update Artisan.",
+      base: "Images of Artisan this server does not have: {{names}}. Update Artisan.",
       baseSince:
-        "Images of Artisan's base this server does not have: {{names}}. The module comes from Artisan {{version}}: update Artisan.",
+        "Images of Artisan this server does not have: {{names}}. The module comes from Artisan {{version}}: update Artisan.",
       common: "Common images the module names and this server does not have: {{names}}.",
       moduleAbsent: "The module {{folder}} is not on this server. Images named: {{names}}.",
       moduleLacks: "The module {{folder}} does not have these images: {{names}}.",
@@ -1891,6 +1898,12 @@ export default {
     revert: "Back to the original",
     revertHint: "Drops your changes: the module's version serves again, and follows its updates.",
     revertConfirm: "Drop your changes and go back to the module's version?",
+    update: "Update available",
+    updateHint:
+      "The module changed this file where you changed it too: your values are kept. Compare, then keep yours or go back to the module's.",
+    keep: "Keep mine",
+    keepHint:
+      "Keeps your version: the next module update compares it with the version shipped now.",
   },
   variants: {
     originalBanner: "Module original: {{name}}",

@@ -35,6 +35,7 @@ const fr: typeof en = {
       alt: "{{name}} telle que son module la livre",
       confirmRestore:
         "Supprimer ta version de {{name}} ? Les menus montrent de nouveau l'original du module une fois déployé.",
+      restoreFailed: "Impossible de lire la version du module : son serveur est-il en ligne ?",
       asShipped:
         "Livrée par le module, telle quelle. La modifier dans l'atelier en fait ta version, montrée à sa place.",
       asShippedCommon:
@@ -496,7 +497,7 @@ const fr: typeof en = {
         "Ce thème est un dossier du serveur, themes/{{name}}/ : assets/ contient ses images ; celle qui porte le nom d'une image commune la remplace, à la taille de cette image. Il se lit ici une fois déployé.",
       palette: {
         title: "Ses couleurs",
-        hint: "La couleur de chaque nom dans ce thème. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un nom laissé tel quel garde la couleur de la bibliothèque.",
+        hint: "La couleur de chaque nom dans ce thème. Les boutons colorés d'Artisan, et toute image teintée avec un nom, la suivent. Un nom laissé tel quel garde la couleur de la bibliothèque.",
         colourOf: "Couleur de {{name}}",
         reset: "Revenir à la couleur sans ce thème",
         newName: "Nom d'une nouvelle couleur",
@@ -506,7 +507,7 @@ const fr: typeof en = {
         failed: "Les couleurs n'ont pas pu être enregistrées dans votre brouillon : {{detail}}",
         libraryTitle: "Les couleurs du serveur",
         libraryHint:
-          "La couleur de chaque nom sur ce serveur, dans tous les modules. Les boutons colorés de la base, et toute image teintée avec un nom, la suivent. Un thème actif peut donner une autre couleur à un nom.",
+          "La couleur de chaque nom sur ce serveur, dans tous les modules. Les boutons colorés d'Artisan, et toute image teintée avec un nom, la suivent. Un thème actif peut donner une autre couleur à un nom.",
         libraryReset: "Revenir à la couleur par défaut",
         libraryDrafted:
           "Ces couleurs sont dans votre brouillon : déployez-le pour les voir en jeu.",
@@ -516,10 +517,10 @@ const fr: typeof en = {
         filter: "Filtrer par nom",
         empty: "Aucune image de ce nom.",
         none: "absente",
-        all: "Toutes les images de la base ({{count}})",
+        all: "Toutes les images du thème artisan ({{count}})",
         redrawnOnly: "Seulement les images redessinées",
         nothing:
-          "Ce thème ne redessine aucune image : la base s'affiche telle quelle, avec ses couleurs.",
+          "Ce thème ne redessine aucune image : celles du dessous s'affichent telles quelles, avec leurs couleurs.",
       },
       putHint:
         "Activer un thème le pose au-dessus de ceux qui sont déjà actifs et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le désactiver se fait d'ici aussi.",
@@ -631,11 +632,16 @@ const fr: typeof en = {
     label: "Emplacements des ressources",
     themes: "Thèmes du serveur",
     themesHint:
-      "Le premier thème actif qui redessine une image l'emporte, de haut en bas ; la base passe en dernier. Un module qui a sa propre image la garde.",
-    server: "Base",
-    serverHint: "Les images d'Artisan et de ce serveur. Toujours active, sous les thèmes.",
+      "Le premier thème actif qui redessine une image l'emporte, de haut en bas ; le thème artisan passe en dernier. Un module qui a sa propre image la garde.",
+    server: "artisan",
+    serverHint:
+      "Les images d'Artisan, et celles que ce serveur a redessinées sur place. Sous les autres thèmes. Sa page le supprime ; sans lui, les menus dessinent les images intégrées d'Artisan.",
+    notInstalled: "Non installé : les menus dessinent les images intégrées d'Artisan.",
+    install: "Installer",
+    installHint:
+      "Écrit les images et composants d'Artisan dans le thème artisan, que ce serveur peut ensuite redessiner.",
     pick: "Choisis un endroit à gauche.",
-    opening: "Ouverture de la base…",
+    opening: "Ouverture du thème artisan…",
     putAway: "Désactiver le thème {{name}}",
     putInPlace: "Activer le thème {{name}}",
     move: "Faire glisser pour changer la place du thème",
@@ -655,7 +661,7 @@ const fr: typeof en = {
     searchItems: "Rechercher un item…",
     label: "Images de :",
     here: "ce module",
-    hereBase: "la base",
+    hereBase: "le thème artisan",
     hereTheme: "ce thème",
     others: "Autres modules du serveur",
     loading: "Chargement des modules du serveur…",
@@ -756,9 +762,9 @@ const fr: typeof en = {
         "{{count}} image commune du serveur d'origine reste dans le module : {{names}}. Dans l'atelier, « Enregistrer sous » la met dans le thème du serveur pour la rendre commune ici.",
       kept_other:
         "{{count}} images communes du serveur d'origine restent dans le module : {{names}}. Dans l'atelier, « Enregistrer sous » met chacune dans le thème du serveur pour la rendre commune ici.",
-      base: "Images de base d'Artisan absentes de ce serveur : {{names}}. Mets Artisan à jour.",
+      base: "Images d'Artisan absentes de ce serveur : {{names}}. Mets Artisan à jour.",
       baseSince:
-        "Images de base d'Artisan absentes de ce serveur : {{names}}. Le module vient d'Artisan {{version}} : mets Artisan à jour.",
+        "Images d'Artisan absentes de ce serveur : {{names}}. Le module vient d'Artisan {{version}} : mets Artisan à jour.",
       common: "Images communes nommées par le module et absentes de ce serveur : {{names}}.",
       moduleAbsent: "Le module {{folder}} n'est pas sur ce serveur. Images nommées : {{names}}.",
       moduleLacks: "Le module {{folder}} n'a pas ces images : {{names}}.",
@@ -1925,6 +1931,12 @@ const fr: typeof en = {
     revertHint:
       "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
     revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+    update: "Mise à jour disponible",
+    updateHint:
+      "Le module a changé ce fichier là où tu l'as changé aussi : tes valeurs sont gardées. Compare, puis garde ta version ou reviens à celle du module.",
+    keep: "Garder la mienne",
+    keepHint:
+      "Garde ta version : la prochaine mise à jour du module la compare à la version livrée maintenant.",
   },
   variants: {
     originalBanner: "Original du module : {{name}}",

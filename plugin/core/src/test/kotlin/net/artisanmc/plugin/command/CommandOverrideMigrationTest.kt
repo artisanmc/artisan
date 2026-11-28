@@ -110,7 +110,7 @@ class CommandOverrideMigrationTest {
         migration(balance()).migrate()
         val migrated = File(guilds, "commands/g.yml").readText()
         val template = assertNotNull(ModuleCommandFiles.template(listOf(balance())))
-        SystemFiles.sync(guilds, "guilds", template)
+        SystemFiles.sync(guilds, "guilds", template, legacy = true)
         assertEquals(migrated, File(guilds, "commands/g.yml").readText())
         assertTrue(migrated.contains("permission: other"))
     }

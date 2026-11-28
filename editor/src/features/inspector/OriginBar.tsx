@@ -6,10 +6,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { listDocumentKinds } from "@/domain/documentKinds";
+import { documentPath, sameFile } from "@/domain/documentLayout";
 import { parseDocKey } from "@/domain/documents";
 import { isRequired, originStatus, shownTwin } from "@/domain/originals";
 import type { Document, Project, ProjectId } from "@/domain/types";
+import { useProjectOrigins } from "@/features/assets/useProjectOrigins";
 import { documentCodec } from "@/schema/documentCodecs";
+import { originalChanged, useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { GitCompare, Undo2 } from "lucide-react";
 import { useState } from "react";
@@ -24,6 +28,16 @@ function fileText(project: Project, kind: string, doc: Document): string {
     ...body
   } = documentCodec(kind).serialize(doc, project) as Record<string, unknown>;
   return stringify(body, { lineWidth: 0 });
+}
+
+/** The file of (kind, id) as `artisan-shipped.yml` names it; undefined when it is not indexed. */
+function indexedPath(project: Project, kind: string, id: string): string | undefined {
+  const doc = project.documents[kind]?.find((d) => d.id === id);
+  const index = project.originals?.index;
+  if (!doc || !index) return undefined;
+  const dir = listDocumentKinds().find((d) => d.kind === kind)?.dir ?? kind;
+  const path = documentPath(dir, doc.id, doc.folder);
+  return Object.keys(index).find((p) => sameFile(p) === sameFile(path));
 }
 
 /**
@@ -42,7 +56,13 @@ export function OriginBar({
 }) {
   const { t } = useTranslation();
   const [comparing, setComparing] = useState(false);
+  const [keeping, setKeeping] = useState(false);
   const ref = parseDocKey(docKey);
+  // The tree layout (ADR `editable-module-tree`): a module update the owner's file did not take.
+  const inTree = !!project.originals?.inTree;
+  const { entry, target } = useProjectOrigins(projectId, inTree);
+  const path = ref && inTree ? indexedPath(project, ref.kind, ref.id) : undefined;
+  const updateAvailable = !!path && !!entry && originalChanged(entry.origins, path);
   if (!ref || !project.originals) return null;
   // The original view says so on the canvas (`OriginalBanner`); everything there is shipped.
   if (project.originalView) return null;
@@ -58,6 +78,27 @@ export function OriginBar({
       <span className={`${badge} mr-1`} title={required ? t("originals.required") : undefined}>
         {t(`originals.${status}`)}
       </span>
+      {updateAvailable && (
+        <>
+          <span className="badge badge-amber mr-1" title={t("originals.updateHint")}>
+            {t("originals.update")}
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={keeping || !target}
+            title={t("originals.keepHint")}
+            onClick={async () => {
+              if (!target || !path) return;
+              setKeeping(true);
+              await useProjectTemplatesStore.getState().keep(projectId, target, path);
+              setKeeping(false);
+            }}
+          >
+            {t("originals.keep")}
+          </Button>
+        </>
+      )}
       {status === "modified" && twin && doc && (
         <>
           <Button

@@ -31,7 +31,8 @@ class McpTest {
     private val modules = java.util.concurrent.ConcurrentHashMap<String, McpFixtures.Module>()
     private val config = java.util.concurrent.ConcurrentHashMap<String, Any?>()
     private var protocol = net.artisanmc.plugin.protocol.ProtocolVersion.CURRENT
-    private val server = McpFixtures.server(sent, history, modules, config) { protocol }
+    private val templates = java.util.concurrent.ConcurrentHashMap<String, Map<String, String>>()
+    private val server = McpFixtures.server(sent, history, modules, config, { protocol }, templates)
 
     /** The image model generate_image calls: it records what it was asked and answers one picture, or fails. */
     private class ScriptedImages : ImageModel {
@@ -171,7 +172,7 @@ class McpTest {
         val notification = http("POST", McpRoutes.PATH, """{"jsonrpc":"2.0","method":"notifications/initialized"}""", mapOf("Authorization" to "Bearer $access"))
         assertEquals(202, notification.status)
         val names = rpc(access, "tools/list").body!!["result"]["tools"].map { it["name"].asText() }
-        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "list_versions"), names)
+        assertEquals(listOf("artisan_overview", "list_documents", "read_document", "get_kind_guide", "read_docs", "start_draft", "write_document", "restore_document", "read_image", "write_image", "measure_image", "render_menu", "survey_ui", "list_versions"), names)
         assertTrue(names.none { "publish" in it || "deploy" in it || "rollback" in it })
         // The kind guide is prose for the model to read, the schema outlined rather than dumped.
         val guide = tool(access, "get_kind_guide", "kind" to "menu", "project" to "u-local.shop")
@@ -233,6 +234,46 @@ class McpTest {
         assertEquals("shop", check["project_id"])
         assertEquals("active", mapper.readTree(drafts.rows.getValue(draftId))["status"].asText())
         assertTrue(sent.none { it["type"] == "project_write" || it["type"] == "project_draft_publish" })
+    }
+
+    @Test
+    fun `a module that holds its whole tree gives each Document's origin from its index, reads and restores what it shipped`() {
+        val shippedRanks = "schema: menu/v1\ntitle: Ranks\n"
+        val shippedMain = "schema: menu/v1\ntitle: Main\n"
+        val hash = { t: String -> net.artisanmc.plugin.project.ContentHash.hashBytes(t.toByteArray()) }
+        templates["guilds/system"] = mapOf("menus/main.yml" to shippedMain, "menus/ranks.yml" to shippedRanks, "menus/gone.yml" to "schema: menu/v1\n")
+        modules["guilds"] = McpFixtures.Module(files = mapOf(
+            "artisan-module.yml" to "schema: module/v1\n",
+            "artisan-shipped.yml" to "files:\n" +
+                "  menus/main.yml: { module: guilds, template: system, version: 1, hash: ${hash(shippedMain)}, required: true }\n" +
+                "  menus/ranks.yml: { module: guilds, template: system, version: 1, hash: ${hash(shippedRanks)} }\n" +
+                "  menus/gone.yml: { module: guilds, template: system, version: 1, hash: ${hash("schema: menu/v1\n")} }\n",
+            "menus/main.yml" to shippedMain,
+            "menus/ranks.yml" to "schema: menu/v1\ntitle: My ranks\n",
+            "menus/mine.yml" to "schema: menu/v1\n",
+        ))
+        val (access, _) = tokens()
+        val docs = tool(access, "list_documents", "project" to "u-local.guilds")["structuredContent"]
+        assertEquals(
+            mapOf("menus/main.yml" to "original", "menus/mine.yml" to "added", "menus/ranks.yml" to "modified"),
+            docs["documents"].associate { it["path"].asText() to it["origin"].asText() },
+        )
+        assertEquals("tree", docs["originals"]["layout"].asText())
+        assertEquals(listOf("menus/main.yml"), docs["originals"]["required"].map { it.asText() })
+        assertEquals(listOf("menus/gone.yml"), docs["originals"]["deleted"].map { it.asText() })
+        assertFalse("artisan-shipped.yml" in docs["other_files"].map { it.asText() })
+
+        val shipped = tool(access, "read_document", "project" to "u-local.guilds", "path" to "menus/ranks.yml", "shipped" to true)
+        assertEquals(shippedRanks, shipped["structuredContent"]["content"].asText())
+        val draftId = tool(access, "start_draft", "project" to "u-local.guilds", "name" to "AI: back")["structuredContent"]["draft_id"].asText()
+        val index = tool(access, "write_document", "project" to "u-local.guilds", "draft_id" to draftId, "path" to "artisan-shipped.yml", "content" to "files: {}\n")
+        assertTrue(index["isError"].asBoolean())
+        assertFalse(tool(access, "restore_document", "project" to "u-local.guilds", "draft_id" to draftId, "path" to "menus/ranks.yml").has("isError"))
+        assertFalse(tool(access, "restore_document", "project" to "u-local.guilds", "draft_id" to draftId, "path" to "menus/gone.yml").has("isError"))
+        val tree = mapper.readTree(drafts.rows.getValue(draftId))["snapshot"]["tree"]
+        assertEquals(shippedRanks, tree["menus/ranks.yml"].asText())
+        assertEquals("schema: menu/v1\n", tree["menus/gone.yml"].asText())
+        assertTrue(tool(access, "restore_document", "project" to "u-local.guilds", "draft_id" to draftId, "path" to "menus/mine.yml")["isError"].asBoolean())
     }
 
     @Test

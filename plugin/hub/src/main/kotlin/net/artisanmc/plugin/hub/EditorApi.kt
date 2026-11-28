@@ -38,7 +38,7 @@ object EditorApi {
         val relay = Relay(logger)
         AccountRoutes(servers, sessions, prefs).register(router)
         SessionRoutes(servers, sessions, online).register(router)
-        ServerRoutes(servers, relay).register(router)
+        ServerRoutes(servers, relay, drafts).register(router)
         ProjectRoutes(servers, relay, history, loaded, drafts, logger).register(router)
         ItemRoutes(servers, relay, vanilla).register(router)
         packs?.let { store ->

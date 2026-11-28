@@ -34,7 +34,7 @@ object ArtisanTheme {
      * so a menu that names one finds it. While both hold files, or when the move fails, the
      * module stays a module and the log says what to do.
      */
-    fun register(roots: ProjectRoots, logger: Logger? = null): File {
+    fun register(roots: ProjectRoots, logger: Logger? = null, seeds: TemplateSeeds? = null): File? {
         val target = File(roots.themesRoot, NAME)
         val legacy = File(roots.coreRoot, LEGACY_MODULE).takeIf { it.isDirectory && holdsContent(it) }
         if (legacy != null) {
@@ -57,12 +57,48 @@ object ArtisanTheme {
                 }
             }
         }
+        // Seeded once (ADR `editable-module-tree`, decision 9): a server that deleted it does not get it back.
+        if (!target.isDirectory && seeds != null && SEED in seeds.seeded()) {
+            logger?.info("[Artisan] The theme '$NAME' was deleted on this server: menus draw Artisan's built-in images. Install it again from the editor's Resources.")
+            return null
+        }
+        seeds?.markSeeded(SEED)
         return roots.theme(NAME)
     }
 
-    /** A file of the server's: anything but Artisan's own metadata and the originals it writes. */
-    private fun holdsContent(dir: File): Boolean =
-        dir.list().orEmpty().any { !it.startsWith(".artisan") && it != net.artisanmc.plugin.model.Originals.DIR }
+    /** The key of the theme in `.artisan-seeds.yaml`: written the first start that knows it. */
+    const val SEED = "$SHIPPER/$TEMPLATE"
+
+    /** Artisan's base, its images and components by name: set at startup by the plugin, read by [install]. */
+    @Volatile var base: (() -> Pair<Map<String, ByteArray>, Map<String, String>>)? = null
+
+    /**
+     * Installs the theme again after it was deleted (`project_create` of `artisan` as a theme):
+     * registered, its base written at once. Returns a protocol error code, or null.
+     */
+    fun install(roots: ProjectRoots): String? {
+        if (roots.isTheme(NAME)) return "project_exists"
+        val dir = roots.theme(NAME)
+        val (images, components) = base?.invoke() ?: return null
+        sync(dir, images, components)
+        return null
+    }
+
+    /**
+     * A file of the server's: anything but Artisan's own metadata and what it writes, under
+     * `originals/` or at its own path as shipped (`artisan-shipped.yml`, ADR `editable-module-tree`).
+     */
+    private fun holdsContent(dir: File): Boolean {
+        val index = ShippedIndex.read(dir)
+        return dir.walkTopDown()
+            .onEnter { it == dir || (!it.name.startsWith(".artisan") && !(it.parentFile == dir && it.name == net.artisanmc.plugin.model.Originals.DIR)) }
+            .filter { it.isFile }
+            .map { it.relativeTo(dir).invariantSeparatorsPath to it }
+            .any { (path, file) ->
+                !path.startsWith(".artisan") && path != ShippedIndex.PATH &&
+                    index[path]?.hash != ContentHash.hashBytes(file.readBytes())
+            }
+    }
 
     /** Where a base component is kept, before `originals/`. */
     fun componentPath(name: String) = "components/$name.yml"
@@ -78,7 +114,12 @@ object ArtisanTheme {
         return builder.build()
     }
 
-    /** Writes the base under [dir]'s `originals/`; the paths written, empty when nothing changed. */
+    /**
+     * Writes the base into [dir]: at their own paths, indexed in `artisan-shipped.yml` (ADR
+     * `editable-module-tree`, decision 9: an image the server redrew in place is kept, an
+     * untouched one follows Artisan), or under `originals/` while the folder still has one. The
+     * paths written, empty when nothing changed.
+     */
     fun sync(dir: File, images: Map<String, ByteArray>, components: Map<String, String> = emptyMap()): List<String> =
         if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components))
 }

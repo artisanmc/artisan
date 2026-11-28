@@ -35,7 +35,10 @@ internal object ArtisanApiFactory {
             moveToYml = true,
         )
         // The theme `artisan`: the server's common images, among the Projects from the first read.
-        net.artisanmc.plugin.project.ArtisanTheme.register(plugin.projectRoots, plugin.logger)
+        net.artisanmc.plugin.project.ArtisanTheme.base = { net.artisanmc.plugin.hub.UiBase.images() to net.artisanmc.plugin.hub.UiBase.components() }
+        net.artisanmc.plugin.project.ArtisanTheme.register(
+            plugin.projectRoots, plugin.logger, net.artisanmc.plugin.project.TemplateSeeds(plugin.projectRoots),
+        )
         // The server's other themes, each folder of `themes/` a Project of its name.
         net.artisanmc.plugin.project.ServerThemes.register(plugin.projectRoots, plugin.logger)
         plugin.database = net.artisanmc.plugin.database.PooledDatabase(plugin::databaseSettings, plugin.logger) { ticks, task ->

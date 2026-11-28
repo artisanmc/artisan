@@ -331,7 +331,7 @@ class EditorApiTest {
     }
 
     @Test
-    fun `a theme can be renamed and deleted, the common images' cannot`() {
+    fun `a theme can be renamed and deleted, the common images' deleted only`() {
         answer = {
             mapOf("ok" to true, "project_roots" to listOf(
                 mapOf("project_id" to "noel", "identity" to "addon", "role" to "theme"),
@@ -343,7 +343,7 @@ class EditorApiTest {
         assertEquals(true, noel["canDelete"].asBoolean())
         val kit = call("GET", "/api/v1/user/projects/u-local.artisan").second!!["capabilities"]
         assertEquals(false, kit["canRename"].asBoolean())
-        assertEquals(false, kit["canDelete"].asBoolean())
+        assertEquals(true, kit["canDelete"].asBoolean())
     }
 
     @Test

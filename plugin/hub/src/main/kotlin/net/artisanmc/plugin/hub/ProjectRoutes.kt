@@ -32,6 +32,7 @@ class ProjectRoutes(
     private val logger: java.util.logging.Logger? = null,
 ) {
     private val drafts = draftStorage?.let(::ProjectDrafts)
+    private val contents: ContentStore? = draftStorage
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "unknown_project")
@@ -51,14 +52,13 @@ class ProjectRoutes(
             listed(call, server) { reply ->
                 if (!ok(reply)) return@listed readError(call, reply)
                 val root = ProjectListing.from(reply).root(project.folder) ?: return@listed call.error(404, "not_found")
-                val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
                     "serverKeyId" to server.id,
                     // Capture relays `player-inventory` to this server; `connection.available` turns it off when offline.
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to true, "preview" to true,
-                        "canRename" to movable, "canDelete" to movable,
+                        "canRename" to movable(server, root), "canDelete" to movable(server, root, delete = true),
                     ),
                     "minecraftVersion" to server.minecraftVersion,
                     // Offline: the Project opens from the database, without live data or capture.
@@ -74,24 +74,45 @@ class ProjectRoutes(
             onProject(router, "GET", "$base/history", VIEW, ::history)
         }
         onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
+        onProject(router, "GET", "/api/v1/projects/:project/shipped", VIEW, ::shipped)
         onProject(router, "GET", "$SERVER/projects/:project/asset", VIEW, ::asset)
         onProject(router, "GET", "/api/v1/projects/:project/versions", VIEW) { call, project ->
             call.json(mapOf("versions" to (history?.versions(project.server.id, project.folder) ?: emptyList<Any>())))
         }
         onProject(router, "GET", "/api/v1/projects/:project/versions/:version/binary", VIEW) { call, project ->
             val path = call.query("path") ?: return@onProject call.error(422, "invalid_input")
-            history?.versionBinary(project.server.id, project.folder, call.params.getValue("version"), path)
+            val version = call.params.getValue("version")
+            // A Version made before its folder held the whole tree serves its binaries at today's paths too.
+            (history?.versionBinary(project.server.id, project.folder, version, path)
+                ?: history?.versionBinary(project.server.id, project.folder, version, "${net.artisanmc.plugin.model.Originals.DIR}/$path"))
                 ?.let { call.send(200, contentType(path), it, "private, max-age=31536000, immutable") }
                 ?: call.error(404, "not_found")
         }
         onProject(router, "GET", "/api/v1/projects/:project/versions/:version", VIEW) { call, project ->
-            history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let(call::json)
+            history?.version(project.server.id, project.folder, call.params.getValue("version"))?.let { call.json(flattenVersion(it)) }
                 ?: call.error(404, "not_found")
         }
 
         drafts(router)
         lifecycle(router)
         templates(router)
+    }
+
+    /**
+     * A Version made before its folder held the module's whole tree (ADR `editable-module-tree`),
+     * in today's layout: restoring it as kept would delete every file the migration wrote.
+     */
+    private fun flattenVersion(version: Map<String, Any?>): Map<String, Any?> {
+        val files = (version["files"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
+        val binaries = (version["binaries"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }
+        val texts = files.mapNotNull { f -> (f["path"] as? String)?.let { it to (f["content"] as? String).orEmpty() } }.toMap()
+        val bins = binaries.mapNotNull { b -> (b["path"] as? String)?.let { it to b } }.toMap()
+        if (!net.artisanmc.plugin.tree.FlattenSnapshot.needed(texts.keys + bins.keys)) return version
+        val (t, b) = net.artisanmc.plugin.tree.FlattenSnapshot.of(texts, bins)
+        return version + mapOf(
+            "files" to t.map { (path, content) -> mapOf("path" to path, "content" to content) },
+            "binaries" to b.map { (path, row) -> row.entries.associate { it.key.toString() to it.value } + ("path" to path) },
+        )
     }
 
     /** Module templates in a Project (ADR `module-templates`): copy one in, read where copies came from. */
@@ -196,11 +217,16 @@ class ProjectRoutes(
 
     private fun folderError(call: Call, reply: Map<String, Any?>) = readError(call, reply)
 
-    /** Whether the server renames and trashes this folder: a module's own, or a theme's other than the common images'. */
-    private fun movable(server: EditorServer, root: ProjectRootInfo): Boolean {
+    /**
+     * Whether the server renames (or, with [delete], trashes) this folder: a module's own, or a
+     * theme's. The theme `artisan` is trashed from protocol [ProtocolVersion.ARTISAN_THEME] on,
+     * never renamed: its name is the one menus look in.
+     */
+    private fun movable(server: EditorServer, root: ProjectRootInfo, delete: Boolean = false): Boolean {
         val minor = ProtocolVersion.minor(server.protocolVersion)
-        return if (root.role == ServerThemes.ROLE) root.projectId != ArtisanTheme.NAME && minor >= ProtocolVersion.THEME_MOVES
-        else root.identity == "folder" && minor >= ProtocolVersion.PROJECT_FOLDERS
+        if (root.role != ServerThemes.ROLE) return root.identity == "folder" && minor >= ProtocolVersion.PROJECT_FOLDERS
+        if (root.projectId == ArtisanTheme.NAME) return delete && minor >= ProtocolVersion.ARTISAN_THEME
+        return minor >= ProtocolVersion.THEME_MOVES
     }
 
     /** A URL naming its content's hash never changes content: the browser keeps it for good. */
@@ -315,6 +341,35 @@ class ProjectRoutes(
         }
     }
 
+    /**
+     * What a module shipped at `path` of a folder that holds its whole tree (ADR
+     * `editable-module-tree`): `h`, the hash its index names, from the hub's `contents`; else the
+     * module's `template` read from the server (kept by hash), its file of that hash or at that path.
+     */
+    private fun shipped(call: Call, project: ProjectRef) {
+        val path = call.query("path") ?: return call.error(422, "invalid_input")
+        val hash = call.query("h")?.takeIf { SHA256.matches(it) } ?: return call.error(422, "invalid_input")
+        val module = call.query("module") ?: return call.error(422, "invalid_input")
+        val template = call.query("template") ?: return call.error(422, "invalid_input")
+        val known = { h: String -> runCatching { contents?.content(h) }.getOrNull()?.takeIf { net.artisanmc.plugin.project.ContentHash.hashBytes(it) == h } }
+        known(hash)?.let { return call.send(200, contentType(path), it, cacheFor(it, hash)) }
+        if (!project.server.online) return call.error(503, "server_offline")
+        relay.send(call, project.server, mapOf("type" to "template_fetch", "module_id" to module, "template_id" to template)) { reply ->
+            if (!ok(reply)) return@send readError(call, reply)
+            var atPath: ByteArray? = null
+            (reply["files"] as? List<*>)?.forEach { f ->
+                val file = f as? Map<*, *> ?: return@forEach
+                val bytes = (file["content_base64"] as? String)?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() } ?: return@forEach
+                val h = net.artisanmc.plugin.project.ContentHash.hashBytes(bytes)
+                runCatching { if (contents?.content(h) == null) contents?.putContent(h, bytes) }
+                val at = file["path"] as? String
+                if (at != null && net.artisanmc.plugin.model.DocumentLayout.sameFile(at) == net.artisanmc.plugin.model.DocumentLayout.sameFile(path)) atPath = bytes
+            }
+            val bytes = known(hash) ?: atPath ?: return@send call.error(404, "not_found")
+            call.send(200, contentType(path), bytes, if (net.artisanmc.plugin.project.ContentHash.hashBytes(bytes) == hash) cacheFor(bytes, hash) else "no-cache")
+        }
+    }
+
     /** Private drafts, one set per player: in the suite database ([ProjectDrafts]), else relayed to the server. */
     private fun drafts(router: Router) {
         val base = "/api/v1/user/projects/:project/drafts"
@@ -418,12 +473,26 @@ class ProjectRoutes(
     private fun draftResponse(call: Call, project: ProjectRef, reply: Map<String, Any?>, created: Boolean = false) {
         val projectId = project.id
         @Suppress("UNCHECKED_CAST")
-        fun attach(draft: Any?) = (draft as? Map<String, Any?>)?.plus("projectId" to projectId) ?: draft
+        fun attach(draft: Any?) = (draft as? Map<String, Any?>)?.let(::flattenDraft)?.plus("projectId" to projectId) ?: draft
         val body = (reply - setOf("type", "request_id")).toMutableMap()
         if (reply["draft"] != null) body["draft"] = attach(reply["draft"])
         (reply["drafts"] as? List<*>)?.let { drafts -> body["drafts"] = drafts.map(::attach) }
         if (ok(reply)) return call.json(body, if (created) 201 else 200)
         call.json(body, ErrorStatus.of(errorCode(reply)))
+    }
+
+    /**
+     * A draft saved before its folder held the module's whole tree (ADR `editable-module-tree`),
+     * read in today's layout: the editor edits and publishes it like any other.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun flattenDraft(draft: Map<String, Any?>): Map<String, Any?> {
+        val snapshot = draft["snapshot"] as? Map<String, Any?> ?: return draft
+        val paths = listOf("baseline", "tree", "binaryBaseline", "binaryTree").flatMap { (snapshot[it] as? Map<String, Any?>)?.keys.orEmpty() }
+        if (!net.artisanmc.plugin.tree.FlattenSnapshot.needed(paths)) return draft
+        val message = Call.mapper.valueToTree<JsonNode>(mapOf("draft" to mapOf("snapshot" to snapshot)))
+        val flat = net.artisanmc.plugin.tree.FlattenSnapshot.draftMessage(message).path("draft").path("snapshot")
+        return draft + ("snapshot" to Call.mapper.convertValue(flat, Map::class.java))
     }
 
     private fun operationId(request: JsonNode): String? {
@@ -439,7 +508,7 @@ class ProjectRoutes(
             "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root.identity, "ownerModule" to root.moduleId, "projectKey" to root.projectKey,
             "role" to root.role,
-            "capabilities" to mapOf("canRename" to movable(server, root)),
+            "capabilities" to mapOf("canRename" to movable(server, root), "canDelete" to movable(server, root, delete = true)),
         )
     }
 

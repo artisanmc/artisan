@@ -6,7 +6,7 @@ package net.artisanmc.plugin.protocol
  * talk to the server. The minor only adds fields, which the other side ignores.
  */
 object ProtocolVersion {
-    const val CURRENT = "1.12"
+    const val CURRENT = "1.13"
 
     /** Minor that adds `project_create`, `project_delete` and `project_rename`. */
     const val PROJECT_FOLDERS = 1
@@ -46,6 +46,13 @@ object ProtocolVersion {
 
     /** Minor from which `project_delete` and `project_rename` reach a theme's folder; an older server answers `addon_immutable`. */
     const val THEME_MOVES = 12
+
+    /**
+     * Minor from which the theme `artisan` is a theme like the others (ADR `editable-module-tree`,
+     * decision 9): `project_delete` trashes it, and `project_create` with `role: "theme"` and
+     * that name installs it again, Artisan's base written at once.
+     */
+    const val ARTISAN_THEME = 13
 
     fun major(version: String): Int? = version.substringBefore('.').toIntOrNull()
 

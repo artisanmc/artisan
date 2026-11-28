@@ -227,7 +227,11 @@ class ProjectWrites(
             when {
                 !EditorPaths.isSafeProjectId(projectId) -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "invalid_path"))
                 !root.isDirectory -> mapper.valueToTree<JsonNode>(mapOf("ok" to false, "error" to "unknown_project"))
-                else -> draftRefused(projectId, root, request.message) ?: DraftPublication(root).publish(request.message)
+                else -> draftRefused(projectId, root, request.message) ?: DraftPublication(root).publish(
+                    // A draft made before the folder held its whole tree, published into one that does.
+                    if (java.io.File(root, net.artisanmc.plugin.model.Originals.DIR).isDirectory) request.message
+                    else net.artisanmc.plugin.tree.FlattenSnapshot.draftMessage(request.message),
+                )
             }
         } catch (error: Exception) {
             logger?.log(Level.WARNING, "[Artisan] Draft publication failed", error)

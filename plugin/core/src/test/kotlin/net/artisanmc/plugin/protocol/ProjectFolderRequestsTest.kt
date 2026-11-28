@@ -124,10 +124,13 @@ class ProjectFolderRequestsTest {
         // The trash is no theme at the next start.
         assertFalse(".artisan-trash" in ServerThemes.register(ProjectRoots(coreRoot)))
 
-        // The common images stay.
-        assertEquals("addon_immutable", dispatch("""{"type":"project_delete","request_id":"r7","project_id":"artisan"}""")["error"])
+        // The common images keep their name: menus look in it.
         assertEquals("addon_immutable", dispatch("""{"type":"project_rename","request_id":"r8","project_id":"artisan","target_project_id":"base"}""")["error"])
         assertTrue(File(themes, "artisan").isDirectory && workspace.roots.isTheme("artisan"))
+        // Deleted like any theme (ADR `editable-module-tree`, decision 9).
+        assertEquals(true, dispatch("""{"type":"project_delete","request_id":"r7","project_id":"artisan"}""")["ok"])
+        assertFalse(File(themes, "artisan").exists())
+        assertFalse(workspace.roots.isRegistered("artisan"))
     }
 
     @Test fun `a publication names its author before the reload`() {

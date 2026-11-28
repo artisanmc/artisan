@@ -57,7 +57,10 @@ holds no Document: the server loads no menu, command or Trigger from it
 The theme's page renames it (`project_rename`, `ServerThemes.rename`: the folder moves within
 `themes/`, to a name no module, theme or folder there has) and deletes it (`project_delete`,
 `ServerThemes.delete`: the folder moves to `themes/.artisan-trash/<name>-<UTC timestamp>/`,
-never erased). The theme `artisan` is neither renamed nor deleted. `resource-pack.themes` is
+never erased). The theme `artisan` is never renamed; from protocol `1.13` it is deleted like
+the others, recorded as seeded in `.artisan-seeds.yaml` so it is not written again, and
+`project_create` of `artisan` as a theme installs it again with Artisan's base
+(`ArtisanTheme.install`). Without it, menus draw the pack builders' own copy of the slots. `resource-pack.themes` is
 not the server's to follow: the editor writes it after the move.
 A theme the common images' folder kept (`themes/artisan/themes/<name>/`, `theme.yml` and
 `assets/`) moves to its own folder at start (`ServerThemes.migrate`): `theme.yml` becomes
@@ -253,9 +256,73 @@ Paths whose **first segment** starts with `.artisan` are outside the hash and
 invisible to the disk scan — see `invariants.md` § Universal `.artisan*` exclusion. Same for
 `.artisan-trash/`, at the top of `projectsDir` and at the top of `themes/` (a deleted theme).
 
-## Originals (`originals/`)
+## What a module ships, in its whole tree (`artisan-shipped.yml`)
 
-Design `originaux-modules`. What a module ships into its own folder lives under `originals/`,
+ADR `editable-module-tree`. A module's folder holds every file it ships at its own path, like
+the owner's files; `artisan-shipped.yml` at the folder's root says what each was written from.
+A folder with `originals/` is the former layout (next section), migrated at the next start.
+
+```
+guilds/
+  artisan-module.yml          originals: { exclude: [menus/top.yml] }   (deleted optional files)
+  artisan-shipped.yml         the server's: path → { module, template, version, hash, required }
+  menus/main.yml              as shipped (untouched): follows the module's updates
+  menus/ranks.yml             the owner's edit (modified): merged at each update
+  menus/my_menu.yml           the owner's own (added): not in the index
+  lang/en.yml                 one file, merged key by key at each update
+```
+
+- State of a file, from the index: **untouched** (same bytes as `hash`, or for YAML the same
+  value with no comment the shipped file lacks, `TreeSync.untouched`), **modified**, **deleted**
+  (indexed, absent, no Document of the same identity elsewhere), **added** (not indexed).
+- Writing: `SystemFiles.sync` dispatches to `TreeSync.sync` when the folder has no `originals/`
+  (`legacy = true` forces the former one). Untouched → the new shipped content; modified → a
+  three-way merge (`SystemFiles.merge`, base in `.artisan/bases/<hash>`), written only when it
+  changes a value; with conflicts the owner's values stay and the index stays on the old version.
+  Deleted optional → not written again and added to `originals.exclude`; deleted required →
+  written again (`onRestored`, a warning in the log). No longer shipped → removed when untouched.
+  New → written, unless a file is there: then indexed against the shipped version. The index and
+  `.artisan/origins.yaml` (its mirror, for an older Artisan) go in the same journaled commit.
+- Messages (`ShippedLang`, `TEMPLATE = "messages"`): in this layout the add-on's bundled
+  languages are `lang/<code>.yml` themselves, through the same sync with `required = false`.
+- Nobody else writes the index: `Originals.isServerWritten` (`EditorPaths.isWritable`,
+  `DocumentCheck`, `DraftPublication`, MCP `write_document`). It is content: in the hash, the
+  Versions and the drafts. `DraftPublication` drops a change the disk already holds (same bytes
+  or same YAML value) instead of calling it a conflict.
+- Migration (`tree/FolderMigration`, at start, `SyncedMenuProvider.migrateFolders`): the pure
+  `FlattenOriginals.flatten` builds the tree (owner's file by identity, else the original;
+  `lang` merged; per-row `data/<id>/` owned whole; a shipped PNG masked by an owner's `compose:`
+  descriptor left out), `indexFor` writes the index from the origins, and `verify` loads both
+  layouts in a scratch folder: `ReaderCheck` (`ProjectReader` field by field) and
+  `MigrationAssets.compare` (the pack's assets). A difference refuses the migration: the folder
+  keeps `originals/` and is tried again at the next start. The theme `artisan` is checked by
+  `MigrationAssets.compareKit` (a redraw at other measures than Artisan's keeps the former layout).
+- Old Versions and drafts in the former layout: the hub flattens them when read
+  (`FlattenSnapshot`, `ProjectRoutes.flattenVersion` / `flattenDraft`), and `ProjectWrites`
+  flattens a draft published into a migrated folder.
+- Shipped content off the disk: the hub keeps each file a `template_fetch` returns in the
+  database's `contents` table by SHA-256 (`ServerRoutes.keepShipped`); with the server off, the
+  template route answers from it (`cached: true`), else `server_offline`. Filled on fetch, kept.
+- Editor: `projectFromFiles` reads the index into `Project.originals` (`inTree`, `index`,
+  `required`, `excluded`) and claims it; `saveProjectToDisk` carries it from disk. Every Document
+  is written whole (`projectToFiles`, no twin skipped; `variants.yml` always). The shipped
+  Documents arrive after the load from the module's templates (`features/project/shippedTwins.ts`,
+  texts under keys of their own) and fill `originals.documents`: `OriginBar`, Compare, Revert,
+  "View as" and `isRequired` work as in the former layout. `originalsBlock` excludes a shipped
+  Document absent from the Project only when the index names it.
+- MCP: `list_documents` gives each Document's `origin` from the index by hash and an
+  `originals` section (`layout: tree`, `modules`, `required`, `deleted`, `excluded`);
+  `read_document` with `shipped: true` reads the shipped content (`McpProjects.shipped`: the
+  indexed hash from `contents`, else a `template_fetch`); `restore_document` writes it in a draft.
+- The theme `artisan`: its base images and components at `assets/textures/` and `components/`,
+  indexed (module `artisan`, template `base`). Both pack builders read an untouched indexed
+  file of it as the base, exactly as from `originals/` (`KitLayout.kt`, `kitLayout.ts`, case
+  "common images in the tree layout" of `resource-pack-conformance.json`).
+
+## Originals (`originals/`) — the former layout
+
+Design `originaux-modules`; replaced by the section above, still read for a folder not
+migrated yet (step 7 of ADR `editable-module-tree` removes it). What a module ships into its own folder lives under `originals/`,
 written by the server only; the owner's folder holds only what they changed or added.
 
 ```

@@ -21,7 +21,7 @@ export interface Artifact {
 }
 
 /** The tools that write a file into a draft: a Document or a text file, an image. */
-const WRITES = new Set(["write_document", "write_image"]);
+const WRITES = new Set(["write_document", "restore_document", "write_image"]);
 
 /** Whether a file of a draft is an image: its card shows the picture, not a diff. */
 export function isImagePath(path: string): boolean {

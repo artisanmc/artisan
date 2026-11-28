@@ -1,4 +1,4 @@
-import { isOriginalPath } from "@/domain/documentLayout";
+import { isServerWrittenPath } from "@/domain/documentLayout";
 import { rekeyProject } from "@/domain/i18nSites";
 import { dropShippedData } from "@/domain/shippedData";
 import type { Project } from "@/domain/types";
@@ -35,9 +35,10 @@ export function projectTree(project: Project): Record<string, string> {
     ),
     disk,
   );
-  // The module's originals are the server's: carried as they are on disk, never written.
+  // The module's originals and the index of what it shipped are the server's: carried as they
+  // are on disk, never written.
   for (const [path, text] of Object.entries(disk ?? {}))
-    if (isOriginalPath(path)) tree[path] = text;
+    if (isServerWrittenPath(path)) tree[path] = text;
   return tree;
 }
 

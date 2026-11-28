@@ -89,6 +89,12 @@ mappings:
       - "testdata/document-layout-conformance.json"
     reason: "Where a module's Documents live (themed folders) — mirror of documentLayout.ts, locked by shared vector"
 
+  - touches: "{plugin/core/src/main/kotlin/**/project/{TreeSync,ShippedIndex,SystemFiles}.kt,plugin/core/src/main/kotlin/**/tree/*.kt,plugin/pack/src/main/kotlin/**/{KitLayout,MigrationAssets}.kt,editor/src/lib/pack/kitLayout.ts,editor/src/features/project/shippedTwins.ts}"
+    updates:
+      - "docs/architecture/project-files.md"
+      - "docs/decisions/editable-module-tree.md"
+    reason: "A module's whole tree and artisan-shipped.yml: the sync, the migration, the theme artisan's base read from the index"
+
   - touches: "editor/src/domain/documentLayout.ts"
     updates:
       - "docs/architecture/project-files.md"

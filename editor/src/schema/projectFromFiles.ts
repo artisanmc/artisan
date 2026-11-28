@@ -5,6 +5,7 @@ import {
   type LayoutEntry,
   ORIGINALS_DIR,
   ORIGINALS_INDEX,
+  SHIPPED_INDEX,
   VARIANTS_FILE,
   classifyDocumentLayout,
   isOriginalPath,
@@ -29,6 +30,7 @@ import {
 } from "@/domain/i18nSites";
 import { itemTextFields } from "@/domain/itemTextFields";
 import { withShippedData } from "@/domain/shippedData";
+import { readShippedIndex } from "@/domain/shippedIndex";
 // Full-project files → domain importer — the exact inverse of
 // `projectToFiles.ts` (ADR files-first-source-of-truth: the file
 // tree is the canonical, lossless Project representation; the editor parses it
@@ -588,9 +590,16 @@ export function projectFromFiles(
   const originalsIndex = tryParse<{ module?: unknown; required?: unknown }>(
     getFile(files, projectId, ORIGINALS_INDEX),
   );
+  // A folder that holds the module's whole tree (ADR `editable-module-tree`): the index says
+  // what each file was written from, and which ones the module's code needs.
+  const shippedIndex = readShippedIndex(getFile(files, projectId, SHIPPED_INDEX));
   const required = Array.isArray(originalsIndex?.required)
     ? originalsIndex.required.filter((p): p is string => typeof p === "string")
-    : [];
+    : shippedIndex
+      ? Object.entries(shippedIndex)
+          .filter(([, e]) => e.required)
+          .map(([p]) => p)
+      : [];
   const excludedRaw = Array.isArray(manifest.originals?.exclude)
     ? (manifest.originals.exclude as unknown[]).filter((p): p is string => typeof p === "string")
     : [];
@@ -742,6 +751,16 @@ export function projectFromFiles(
       excluded: excludedRaw,
       ...(Object.keys(pending).length > 0 ? { pending } : {}),
     };
+  } else if (shippedIndex) {
+    const modules = [...new Set(Object.values(shippedIndex).map((e) => e.module))];
+    originals = {
+      documents: {},
+      ...(modules.length === 1 ? { module: modules[0] } : {}),
+      required,
+      excluded: excludedRaw,
+      inTree: true,
+      index: shippedIndex,
+    };
   }
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
@@ -749,6 +768,7 @@ export function projectFromFiles(
     ...variantPaths,
     // The server's to write: never kept as the owner's files.
     ...originalPaths,
+    ...(shippedIndex ? [SHIPPED_INDEX] : []),
   ]);
   const menus = menusOf({ documents });
 

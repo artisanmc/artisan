@@ -202,6 +202,8 @@ class ProjectReader(
         val index = Originals.parseIndex(File(projectDir, Originals.INDEX_PATH).takeIf { it.isFile }?.readText())
         val exclusions = Originals.exclusions(manifest, index)
         for (path in exclusions.refused) skip(projectId, ModuleFile.find(projectDir)?.name ?: "manifest.yaml", "originals_required: $path")
+        // A required file written again after its deletion (ADR `editable-module-tree`), said until the next start.
+        for (path in net.artisanmc.plugin.project.TreeSync.restoredOf(projectDir)) skip(projectId, ModuleFile.find(projectDir)?.name ?: "manifest.yaml", "required_restored: $path")
         val layout = DocumentLayout.classify(paths, DocumentKinds.all().map { it.dir }.toSet(), exclusions.excluded)
         for (e in layout.errors) {
             logger?.warning("[Artisan] skipping ${projectDir.name}/${e.path}: ${e.reason}")

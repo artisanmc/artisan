@@ -64,7 +64,7 @@ class Translations(
                 try {
                     ShippedLang.write(folder, declaration.bundledLangs.associateWith { lang ->
                         owner.getResource("lang/$lang.yml")?.use { it.readBytes() }
-                    }, logger)
+                    }, logger, declaration.namespace)
                 } catch (e: Exception) {
                     logger.log(Level.WARNING, "[Artisan] The messages of '${declaration.namespace}' not written to ${folder.path}/originals/lang", e)
                 }
@@ -184,7 +184,19 @@ object FileMessageSource {
  * the module's journal, like the other originals.
  */
 object ShippedLang {
-    fun write(folder: File, bundled: Map<String, ByteArray?>, logger: Logger): List<String> {
+    /** The template the messages are indexed under in a folder that holds its whole tree. */
+    const val TEMPLATE = "messages"
+
+    fun write(folder: File, bundled: Map<String, ByteArray?>, logger: Logger, module: String = folder.name): List<String> {
+        // A folder that holds its whole tree (ADR `editable-module-tree`): `lang/<code>.yml` is the
+        // owner's, merged key by key at each update like any shipped file.
+        if (!File(folder, Originals.DIR).isDirectory) {
+            val files = bundled.filterValues { it != null }
+            if (files.isEmpty()) return emptyList()
+            val builder = net.artisanmc.modules.api.template.TemplateDeclaration.builder(TEMPLATE, 1)
+            for ((lang, bytes) in files.toSortedMap()) builder.file("lang/$lang.yml", bytes!!)
+            return net.artisanmc.plugin.project.SystemFiles.sync(folder, module, builder.build(), required = false)
+        }
         val origins = ProjectOrigins.read(folder)
         val changes = linkedMapOf<String, ByteArray?>()
         for ((lang, bytes) in bundled) {
