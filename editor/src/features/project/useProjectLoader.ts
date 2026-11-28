@@ -30,6 +30,7 @@ import {
   initialProjectLoadState,
   projectLoadReducer,
 } from "./projectLoadState";
+import { fetchShippedTwins } from "./shippedTwins";
 
 export interface ProjectLoadResult {
   project: Project | null;
@@ -138,6 +139,7 @@ function mirrorIntoStore(loaded: Project): void {
   // the server's declared actions; the module's view arrives meanwhile): `__root` only
   // adopts on the modules' transition to ready, which this Project missed.
   adoptLateDocuments(loaded);
+  loadShippedTwins(loaded);
   // PRESERVING the existing order — overwriting it moved the visited project to
   // the top of the sidebar.
   const current = useProjectsStore.getState().openProjects;
@@ -151,6 +153,17 @@ function mirrorIntoStore(loaded: Project): void {
     projectOrder: current.projectOrder.includes(loadedId)
       ? current.projectOrder
       : [...current.projectOrder, loadedId],
+  });
+}
+
+/**
+ * A folder in the tree layout (ADR `editable-module-tree`): its shipped Documents read from the
+ * module's templates once it is on screen, for the comparison and the way back.
+ */
+function loadShippedTwins(loaded: Project): void {
+  if (!loaded.originals?.inTree) return;
+  void fetchShippedTwins(loaded).then((twins) => {
+    if (twins) useProjectsStore.getState().adoptShippedTwins({ projectId: loaded.id, twins });
   });
 }
 

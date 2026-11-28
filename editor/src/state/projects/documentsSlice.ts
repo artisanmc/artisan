@@ -10,6 +10,7 @@ import {
 } from "@/domain/documents";
 import { mintLTexts, rekeyDocument } from "@/domain/i18nSites";
 import type { I18nKey, Project, ProjectId, Step } from "@/domain/types";
+import { type ShippedTwins, adoptShippedTwins } from "@/features/project/shippedTwins";
 import { setLText } from "@/lib/i18n";
 import { createDocumentOfKind } from "@/lib/moduleDocumentKinds";
 import { adoptLateDocuments } from "@/schema/projectFromFiles";
@@ -62,6 +63,8 @@ export interface DocumentsSlice {
    * nothing on disk, so the Project is not marked edited.
    */
   adoptLateDocuments: (input: { projectId: ProjectId }) => void;
+  /** The shipped Documents of a folder in the tree layout arrived (`shippedTwins.ts`). */
+  adoptShippedTwins: (input: { projectId: ProjectId; twins: ShippedTwins }) => void;
   /** Renames a Document: its texts, its board position, its edges, its groups and every reference to it follow. */
   setDocumentId: (input: {
     projectId: ProjectId;
@@ -114,6 +117,14 @@ export const createDocumentsSlice = ({
       pId,
       (p) => {
         adoptLateDocuments(p);
+      },
+      { touch: false },
+    ),
+  adoptShippedTwins: ({ projectId: pId, twins }) =>
+    mutateProject(
+      pId,
+      (p) => {
+        adoptShippedTwins(p as Project, twins);
       },
       { touch: false },
     ),

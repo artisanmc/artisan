@@ -282,6 +282,23 @@ export interface ProjectOriginals {
    * the Project was read: a module's kind arriving later reads them (`adoptLateDocuments`).
    */
   pending?: Record<string, string>;
+  /**
+   * The folder holds the module's whole tree (ADR `editable-module-tree`): every Document is
+   * the owner's file, written whole; [documents] are the shipped versions read from the
+   * module's templates (`shippedTwins.ts`), empty until they arrive.
+   */
+  inTree?: boolean;
+  /** `artisan-shipped.yml`, by path: what each file was written from. Tree layout only. */
+  index?: Record<string, ShippedEntry>;
+}
+
+/** One entry of `artisan-shipped.yml` (ADR `editable-module-tree`). */
+export interface ShippedEntry {
+  module: string;
+  template: string;
+  version: number;
+  hash: string;
+  required?: boolean;
 }
 
 /** One editable unit of a Project, whatever its kind. A module's kind adds its own member. */

@@ -72,6 +72,9 @@ export function sameAsShipped(
 /** Where the Document shown for (kind, id) comes from; undefined when the module ships nothing. */
 export function originStatus(project: Project, kind: string, id: string): OriginStatus | undefined {
   if (!project.originals) return undefined;
+  // The tree layout's shipped Documents are read from the server: nothing to say before.
+  if (project.originals.inTree && Object.keys(project.originals.documents).length === 0)
+    return undefined;
   const doc = project.documents[kind]?.find((d) => d.id === id);
   if (!doc) return undefined;
   const twin = shippedTwin(project, kind, id, variantOf(project, kind, id));

@@ -5,6 +5,7 @@ import {
   type LayoutEntry,
   ORIGINALS_DIR,
   ORIGINALS_INDEX,
+  SHIPPED_INDEX,
   VARIANTS_FILE,
   classifyDocumentLayout,
   isOriginalPath,
@@ -53,6 +54,7 @@ import type {
   ProjectId,
   ProjectOriginals,
   ProjectVariants,
+  ShippedEntry,
 } from "@/domain/types";
 import { VARIANT_KINDS, showFromYaml, variantNamesFromYaml } from "@/domain/variants";
 import { newI18nKey } from "@/lib/i18n";
@@ -588,9 +590,16 @@ export function projectFromFiles(
   const originalsIndex = tryParse<{ module?: unknown; required?: unknown }>(
     getFile(files, projectId, ORIGINALS_INDEX),
   );
+  // A folder that holds the module's whole tree (ADR `editable-module-tree`): the index says
+  // what each file was written from, and which ones the module's code needs.
+  const shippedIndex = readShippedIndex(getFile(files, projectId, SHIPPED_INDEX));
   const required = Array.isArray(originalsIndex?.required)
     ? originalsIndex.required.filter((p): p is string => typeof p === "string")
-    : [];
+    : shippedIndex
+      ? Object.entries(shippedIndex)
+          .filter(([, e]) => e.required)
+          .map(([p]) => p)
+      : [];
   const excludedRaw = Array.isArray(manifest.originals?.exclude)
     ? (manifest.originals.exclude as unknown[]).filter((p): p is string => typeof p === "string")
     : [];
@@ -742,6 +751,16 @@ export function projectFromFiles(
       excluded: excludedRaw,
       ...(Object.keys(pending).length > 0 ? { pending } : {}),
     };
+  } else if (shippedIndex) {
+    const modules = [...new Set(Object.values(shippedIndex).map((e) => e.module))];
+    originals = {
+      documents: {},
+      ...(modules.length === 1 ? { module: modules[0] } : {}),
+      required,
+      excluded: excludedRaw,
+      inTree: true,
+      index: shippedIndex,
+    };
   }
   const claimedPaths = new Set([
     ...layout.documents.map((e) => e.path),
@@ -749,6 +768,7 @@ export function projectFromFiles(
     ...variantPaths,
     // The server's to write: never kept as the owner's files.
     ...originalPaths,
+    ...(shippedIndex ? [SHIPPED_INDEX] : []),
   ]);
   const menus = menusOf({ documents });
 
@@ -1267,4 +1287,36 @@ function adoptLateOriginals(project: Project): number {
   }
   if (Object.keys(pending).length === 0) originals.pending = undefined;
   return adopted;
+}
+
+/** `artisan-shipped.yml` (ADR `editable-module-tree`), by path; undefined when absent or unreadable. */
+export function readShippedIndex(text: string | null): Record<string, ShippedEntry> | undefined {
+  if (text === null) return undefined;
+  const y = tryParse<{ files?: unknown }>(text);
+  const filesNode = y?.files;
+  if (!filesNode || typeof filesNode !== "object" || Array.isArray(filesNode)) return undefined;
+  const out: Record<string, ShippedEntry> = {};
+  for (const [path, raw] of Object.entries(filesNode as Record<string, unknown>)) {
+    if (!raw || typeof raw !== "object") continue;
+    const e = raw as Record<string, unknown>;
+    const version = typeof e.version === "number" ? e.version : Number(e.version);
+    if (
+      typeof e.module !== "string" ||
+      !e.module ||
+      typeof e.template !== "string" ||
+      !e.template ||
+      typeof e.hash !== "string" ||
+      !e.hash ||
+      !(version > 0)
+    )
+      continue;
+    out[path] = {
+      module: e.module,
+      template: e.template,
+      version,
+      hash: e.hash,
+      ...(e.required === true ? { required: true } : {}),
+    };
+  }
+  return out;
 }
