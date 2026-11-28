@@ -60,9 +60,21 @@ object ArtisanTheme {
         return roots.theme(NAME)
     }
 
-    /** A file of the server's: anything but Artisan's own metadata and the originals it writes. */
-    private fun holdsContent(dir: File): Boolean =
-        dir.list().orEmpty().any { !it.startsWith(".artisan") && it != net.artisanmc.plugin.model.Originals.DIR }
+    /**
+     * A file of the server's: anything but Artisan's own metadata and what it writes, under
+     * `originals/` or at its own path as shipped (`artisan-shipped.yml`, ADR `editable-module-tree`).
+     */
+    private fun holdsContent(dir: File): Boolean {
+        val index = ShippedIndex.read(dir)
+        return dir.walkTopDown()
+            .onEnter { it == dir || (!it.name.startsWith(".artisan") && !(it.parentFile == dir && it.name == net.artisanmc.plugin.model.Originals.DIR)) }
+            .filter { it.isFile }
+            .map { it.relativeTo(dir).invariantSeparatorsPath to it }
+            .any { (path, file) ->
+                !path.startsWith(".artisan") && path != ShippedIndex.PATH &&
+                    index[path]?.hash != ContentHash.hashBytes(file.readBytes())
+            }
+    }
 
     /** Where a base component is kept, before `originals/`. */
     fun componentPath(name: String) = "components/$name.yml"
@@ -78,7 +90,12 @@ object ArtisanTheme {
         return builder.build()
     }
 
-    /** Writes the base under [dir]'s `originals/`; the paths written, empty when nothing changed. */
+    /**
+     * Writes the base into [dir]: at their own paths, indexed in `artisan-shipped.yml` (ADR
+     * `editable-module-tree`, decision 9: an image the server redrew in place is kept, an
+     * untouched one follows Artisan), or under `originals/` while the folder still has one. The
+     * paths written, empty when nothing changed.
+     */
     fun sync(dir: File, images: Map<String, ByteArray>, components: Map<String, String> = emptyMap()): List<String> =
-        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components), legacy = true)
+        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components))
 }

@@ -38,7 +38,10 @@ class PackInput(
     val bedrockServerId: String? = null,
     /** `resource-pack.themes` of `config.yml`: the themes `kit:` images are shown in, the lowest first ([ThemeStack]); one the kit module does not hold is left out. */
     val themes: List<String> = emptyList(),
-)
+) {
+    fun withProjects(projects: List<PackProject>) =
+        PackInput(projects, containerTextures, transparentContainers, hideInventoryLabel, bedrockServerId, themes)
+}
 
 /**
  * The Java pack, and the Bedrock one when [PackInput.bedrockServerId] asked for it.
@@ -88,9 +91,11 @@ object ResourcePackBuilder {
         ResourcePackBuilder::class.java.getResourceAsStream("minecraft/$path")?.use { it.readBytes() }
             ?: error("vanilla texture $path missing from the jar")
 
-    fun build(input: PackInput): PackResult {
+    fun build(given: PackInput): PackResult {
         // The common images ([Kit]): the server's by name, and the base as the server holds it.
-        val kitFolder = Kit.folderAmong(input.projects.map { it.folder })
+        val kitFolder = Kit.folderAmong(given.projects.map { it.folder })
+        // The theme `artisan` in the tree layout reads as the former one ([KitLayout]).
+        val input = given.withProjects(given.projects.map { if (it.folder == kitFolder) KitLayout.asRead(it) else it })
         // The server's themes, each a Project of its name: read when in place, never as a module.
         val themeProjects = input.projects.filter { it.theme && it.folder != kitFolder }.associateBy { it.folder }
         val projects = input.projects.filterNot { it.theme && it.folder != kitFolder }.sortedWith { a, b -> a.id.compareTo(b.id) }

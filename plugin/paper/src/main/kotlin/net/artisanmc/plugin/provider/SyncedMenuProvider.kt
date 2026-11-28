@@ -692,10 +692,15 @@ class SyncedMenuProvider(
             net.artisanmc.plugin.tree.FolderMigration.ReaderCheck.compare(before, after)
                 ?: net.artisanmc.plugin.pack.MigrationAssets.compare(before, after, before.name)
         }
+        // The theme `artisan` (ADR `editable-module-tree`, decision 9): its base reads through the pack's view of it.
+        val kitCheck = net.artisanmc.plugin.tree.FolderMigration.Check { before, after ->
+            net.artisanmc.plugin.pack.MigrationAssets.compareKit(before, after, before.name)
+        }
         for ((name, dir) in roots.all()) {
-            if (roots.isTheme(name) || !java.io.File(dir, net.artisanmc.plugin.model.Originals.DIR).isDirectory) continue
+            val kit = name == net.artisanmc.plugin.project.ArtisanTheme.NAME
+            if ((roots.isTheme(name) && !kit) || !java.io.File(dir, net.artisanmc.plugin.model.Originals.DIR).isDirectory) continue
             runCatching {
-                when (val r = net.artisanmc.plugin.tree.FolderMigration.run(dir, check)) {
+                when (val r = net.artisanmc.plugin.tree.FolderMigration.run(dir, if (kit) kitCheck else check)) {
                     is net.artisanmc.plugin.tree.FolderMigration.Result.Migrated -> {
                         moved = true
                         logger?.info("[Artisan] '$name' now holds every file its module ships, at its own path: edit them in place (originals/ is gone).")

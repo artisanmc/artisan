@@ -10,12 +10,12 @@ import { type ImageButtonPlacement, imageButtonsFromMenus } from "./imageButtons
 import { pixelSize } from "./imageFunction";
 import { ImageNames, namedImageRow, themeImagePath } from "./imageNames";
 import {
-  type KitImage,
   KIT_ASCENT,
   KIT_FILES,
   KIT_FOLDER,
   KIT_PREFIX,
   KIT_SLOTS,
+  type KitImage,
   kitFolderAmong,
   kitImage,
   kitNameOf,
@@ -23,6 +23,7 @@ import {
   kitShippedPath,
   kitSlot,
 } from "./kit";
+import { kitAsRead } from "./kitLayout";
 import {
   type GlyphPlacement,
   glyphPlacementsFromMenus,
@@ -102,10 +103,17 @@ export interface ServerPacks extends BuildResult {
 /** The ascent of an image of `assets/textures/` a title is drawn with: its top at Y 17. */
 const TITLED_ASCENT = -4;
 
-export async function assembleServerPack(input: PackInput): Promise<ServerPacks> {
+export async function assembleServerPack(given: PackInput): Promise<ServerPacks> {
   const folderOf = (project: PackProject) => project.folder ?? project.id;
   // The common images (`kit.ts`): the server's by name, and the base as the server holds it.
-  const kitFolder = kitFolderAmong(input.projects.map(folderOf));
+  const kitFolder = kitFolderAmong(given.projects.map(folderOf));
+  // The theme `artisan` in the tree layout reads as the former one (`kitLayout.ts`).
+  const input: PackInput = {
+    ...given,
+    projects: await Promise.all(
+      given.projects.map((p) => (folderOf(p) === kitFolder ? kitAsRead(p) : p)),
+    ),
+  };
   const inKit = (project: PackProject) => folderOf(project) === kitFolder;
   // The server's themes, each a Project of its name: read when in place, never as a module.
   const isTheme = (project: PackProject) => project.role === "theme" && !inKit(project);

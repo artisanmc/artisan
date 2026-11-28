@@ -22,6 +22,38 @@ object MigrationAssets {
         ).joinToString("; ")
     }
 
+    /**
+     * The same check for the theme `artisan`: the builder reads [after] through [KitLayout] and must
+     * find what it found in [before] — each file of `originals/` the owner had not redrawn as the
+     * base, the rest as the server's. A redraw of a base image at other measures (the builder took
+     * the base for it) keeps the former layout.
+     */
+    fun compareKit(before: File, after: File, projectId: String): String? {
+        val b = tree(before)
+        val project = tree(after).let { a ->
+            PackProject(projectId, a.filter { YamlPaths.isYaml(it.key) }.map { PackFile(it.key, String(it.value, Charsets.UTF_8)) },
+                a.keys.filter { !YamlPaths.isYaml(it) }, { a[it] }, folder = Kit.FOLDER, theme = true)
+        }
+        val read = KitLayout.asRead(project).let { v ->
+            v.files.associate { it.path to sha(it.content.toByteArray(Charsets.UTF_8)) } + v.binaries.associateWith { sha(v.binary(it) ?: ByteArray(0)) }
+        }
+        val prefix = "originals/"
+        val otherSize = b.keys.filter { it.startsWith(prefix) && it.endsWith(".png") && it.removePrefix(prefix) in b }
+            .filter { ImageFunctions.pixelSize(b[it]) != ImageFunctions.pixelSize(b[it.removePrefix(prefix)]) }
+        if (otherSize.isNotEmpty()) return "redrawn at other measures than Artisan's: ${otherSize.sorted().take(5).joinToString()}"
+        val expected = b.filterKeys { it != "originals/originals.yml" && !(it.startsWith(prefix) && it.removePrefix(prefix) in b) }
+            .mapValues { sha(it.value) }
+        if (expected == read) return null
+        val differ = (expected.keys + read.keys).filter { expected[it] != read[it] }
+        return "assets read otherwise: ${differ.sorted().take(5).joinToString()}"
+    }
+
+    /** The folder's files but Artisan's metadata, by path. */
+    private fun tree(dir: File): Map<String, ByteArray> = dir.walkTopDown()
+        .onEnter { it == dir || !it.name.startsWith(".artisan") }
+        .filter { it.isFile && !it.name.startsWith(".artisan") }
+        .associate { it.relativeTo(dir).invariantSeparatorsPath to it.readBytes() }
+
     /** Each asset the pack reads, by its row, to the hash of what it draws from. */
     private fun read(dir: File, projectId: String, originals: Boolean): Map<String, String> {
         val all = dir.walkTopDown().filter { it.isFile }.map { it.relativeTo(dir).invariantSeparatorsPath to it }.toList()
