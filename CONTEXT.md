@@ -1010,16 +1010,16 @@ Non-examples:
 ## Theme
 
 A folder of images under `themes/<name>/`, in the format of a module, that changes how images
-look and never what a menu does: its drawings of the common images
-and its own images (`<theme>:<name>`). It holds no Document. The theme `artisan` is Artisan's
-base: it alone fixes the names and measures of the **Common images**, is always in place and
-below the others. The other themes in place are a stack the server orders
-(`resource-pack.themes`). A module draws what it owns; a theme redraws the common images, by holding an image of the
-same name, and never a module's own (ADR `resources-one-screen`, 2026-11-26: no colour table,
-no scope, no redraw aimed at a module). Decided
-2026-11-25 (ADR `common-images-and-themes`), being built: the theme `artisan` exists
-(`plugins/Artisan/themes/artisan/`); until step 4 another theme is a folder `themes/<name>/` of
-that theme, one in place per server (`resource-pack.theme`, ADR `mcp-server`, decision 16).
+look and never what a menu does: its drawings of the common images, its `palette.yml`, its own
+images (`<theme>:<name>`) and its replacements of a module's image (`overrides/<module>/`, ADR
+`themes-reach-modules`). It holds no Document. The theme `artisan` is the library: Artisan's
+base and the images the server added; it fixes the names of the **Common images** and is
+always below the others, never in the list. The other themes in place are a stack the server
+orders, the lowest first (`resource-pack.themes`): for each name, the highest theme in place
+that holds it wins, then the library. One theme in place at a time was weighed on 2026-11-28
+and not kept: a look installed as a theme plus a seasonal one needs two at once. Decided
+2026-11-25 (ADR `common-images-and-themes`), amended by `resources-one-screen`,
+`themes-reach-modules`, `component-colours` and `editable-module-tree` (decision 9).
 
 Non-examples:
 - A **Variant** is not a theme: it replaces Documents for some players.
