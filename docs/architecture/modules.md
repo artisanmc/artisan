@@ -152,6 +152,11 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > name)` (a hook) gives a Project's image asset as `{url, width, height}` for an `<img>`, undefined
 > until it is loaded. The conversations add-on uses all of it for its live HUD preview.
 
+> **Variables in a module's text (since 2026-11-28, SDK 1.25)** — `MiniMessageInput` takes
+> `variables: {path, sample?, type?}[]`: typing `{` and the field's library offer them as Artisan's own
+> fields offer theirs (lore, titles), inserted as `{path}`, shown by name with the sample. The module
+> resolves `{path}` itself on the server.
+
 > **HUD layers (since 2026-10-28, SDK 1.13)** — a kind declares the images
 > its files draw at a height: `pack: { images: (src) => [{ asset, rise }] }`, `src` the parsed YAML of
 > each `<dir>/*.yaml` (`id` included), in every project. When the pack is built (`buildServerPack`,

@@ -58,6 +58,7 @@ export {
   type ItemSpecWire,
   type ItemComparisonWire,
   type MiniMessageInputProps,
+  type MiniMessageVariable,
   type OptionChoice,
   type ServerDocument,
   type SortableListProps,
