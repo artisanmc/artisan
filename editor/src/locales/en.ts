@@ -484,6 +484,7 @@ export default {
         "None. An image added to this theme's files (assets/) is its own: a menu names it {{name}}:<its name>.",
       files:
         "A theme is a folder of the server's common images (themes/artisan/): themes/{{name}}/assets/textures/<piece>.png is a piece redrawn at the piece's size. It is read here once deployed.",
+      filesTitle: "Its files",
       filesOwn:
         "This theme is a folder of the server, themes/{{name}}/: assets/ holds its images; one named like a common image replaces it, at that image's size. It is read here once deployed.",
       palette: {
@@ -621,24 +622,22 @@ export default {
     label: "Places of the resources",
     themes: "Server themes",
     themesHint:
-      "Looked up from top to bottom: the first that has the image wins, the base last. A module that has its own image keeps it.",
+      "The first enabled theme that redraws an image wins, from top to bottom; the base comes last. A module that has its own image keeps it.",
     server: "Base",
-    serverHint: "Artisan's and this server's: always enabled, under the themes",
+    serverHint: "Artisan's and this server's images. Always enabled, under the themes.",
     pick: "Pick a place on the left.",
     opening: "Opening the base…",
-    away: "disabled",
-    putAway: "Disable",
-    putInPlace: "Enable",
+    putAway: "Disable the theme {{name}}",
+    putInPlace: "Enable the theme {{name}}",
     move: "Drag to change the theme's place",
     images_one: "{{count}} image",
     images_other: "{{count}} images",
     emptyTheme: "empty for now",
-    missing: "not found on the server: put it away, or create it",
+    missing: "This theme is enabled but not found on the server: disable it, or create it.",
     missingBadge: "Not found",
     modules: "Modules",
-    modulesHint: "Their own images, seen in their menus only.",
+    modulesHint: "Each module has its own images, seen in its menus only.",
     noModules: "No module on this server.",
-    themeAway: "disabled",
   },
   projectSource: {
     common: "Common images",

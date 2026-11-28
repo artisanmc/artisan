@@ -114,9 +114,9 @@ you stay on the server's page, with **Deploy** for what you changed in that plac
 opens as the module it is. The places, in the order an image's name is looked up:
 
 - **Server themes**: the themes in place, the highest first (drag one by its handle to change
-  its place, **Disable** to take it off), then **Base**, Artisan's images and the server's own
-  in one place, always in place below the others, then the themes put away (**Enable** sets one above
-  the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
+  its place, its switch to take it off), then **Base**, Artisan's images and the server's own
+  in one place, always in place below the others, then the themes put away (turning a switch on
+  sets that theme above the others). **New theme** and **Import a theme** are under the list. Each change rebuilds
   the server's pack.
 - **Modules**: each module's own images. A module that holds an image of a name keeps it in
   its menus; a theme changes it only by an image filed under that module.
@@ -157,10 +157,10 @@ keep working.
 
 **Themes.** A theme opens on what it changes (the pieces it redraws)
 and on a sheet of every image of the base, without the theme and with it, the ones it redraws
-first; a field filters the sheet by name. **Enable the theme** sets the theme
+first; a field filters the sheet by name. The switch beside the theme's name enables it: it sets the theme
 above the ones already in place and rebuilds the server's pack: players receive it at their
 next connection. Several themes stack: each changes what the ones below show, so the highest
-that redraws an image wins. **Disable the theme** takes that theme alone off; the list of
+that redraws an image wins. Turning the switch off takes that theme alone off; the list of
 places on the left reorders the themes in place. A theme's
 files are written with the common images (see [AI](../../configuration/ai/), "Themes") and read
 here once deployed. **New theme** creates one, empty, as a folder of its own on the server

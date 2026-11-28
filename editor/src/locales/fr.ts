@@ -491,6 +491,7 @@ const fr: typeof en = {
         "Aucune. Une image ajoutée aux fichiers de ce thème (assets/) est la sienne : un menu la nomme {{name}}:<son nom>.",
       files:
         "Un thème est un dossier des images communes du serveur (themes/artisan/) : themes/{{name}}/assets/textures/<pièce>.png est une pièce redessinée à la taille de la pièce. Il se lit ici une fois déployé.",
+      filesTitle: "Ses fichiers",
       filesOwn:
         "Ce thème est un dossier du serveur, themes/{{name}}/ : assets/ contient ses images ; celle qui porte le nom d'une image commune la remplace, à la taille de cette image. Il se lit ici une fois déployé.",
       palette: {
@@ -630,24 +631,22 @@ const fr: typeof en = {
     label: "Emplacements des ressources",
     themes: "Thèmes du serveur",
     themesHint:
-      "Cherchés de haut en bas : le premier qui a l'image gagne, la base en dernier. Un module qui a sa propre image la garde.",
+      "Le premier thème actif qui redessine une image l'emporte, de haut en bas ; la base passe en dernier. Un module qui a sa propre image la garde.",
     server: "Base",
-    serverHint: "Artisan et ce serveur : toujours actif, sous les thèmes",
+    serverHint: "Les images d'Artisan et de ce serveur. Toujours active, sous les thèmes.",
     pick: "Choisis un endroit à gauche.",
     opening: "Ouverture de la base…",
-    away: "désactivé",
-    putAway: "Désactiver",
-    putInPlace: "Activer",
+    putAway: "Désactiver le thème {{name}}",
+    putInPlace: "Activer le thème {{name}}",
     move: "Faire glisser pour changer la place du thème",
     images_one: "{{count}} image",
     images_other: "{{count}} images",
     emptyTheme: "vide pour l'instant",
-    missing: "introuvable sur le serveur : rangez-le, ou créez-le",
+    missing: "Ce thème est actif mais introuvable sur le serveur : désactive-le, ou crée-le.",
     missingBadge: "Introuvable",
     modules: "Modules",
-    modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
+    modulesHint: "Chaque module a ses propres images, vues dans ses menus seulement.",
     noModules: "Aucun module sur ce serveur.",
-    themeAway: "désactivé",
   },
   projectSource: {
     common: "Images communes",

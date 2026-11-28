@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/ui/info-tip";
+import { Switch } from "@/components/ui/switch";
 import { KIT_PREFIX } from "@/lib/pack/kit";
 import { PALETTE_FILE, paletteOf } from "@/lib/pack/palette";
 import { themeUnread } from "@/lib/pack/theme";
@@ -116,25 +118,27 @@ export function KitThemePage({
   return (
     <div className="flex flex-col gap-4" data-testid="kit-theme-page">
       <header className="flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <h2 className="text-lg font-semibold">{t("kit.theme.title", { name })}</h2>
-          <p className="text-[13px] text-[var(--text-mut)]">{t("kit.theme.intro")}</p>
+          <InfoTip content={t("kit.theme.intro")} />
         </div>
-        {theme ? (
-          <>
-            <Badge variant={inPlace ? "sage" : "amber"}>
+        {theme && onPutInPlace ? (
+          <div className="flex items-center gap-2 text-[13px]">
+            <Switch
+              checked={inPlace}
+              disabled={busy}
+              aria-label={t(inPlace ? "kit.theme.takeOff" : "kit.theme.putInPlace")}
+              onCheckedChange={(next) => void put(next)}
+            />
+            <span className={inPlace ? "text-[var(--text)]" : "text-[var(--text-mut)]"}>
               {t(inPlace ? "kit.theme.inPlace" : "kit.theme.notInPlace")}
-            </Badge>
-            {onPutInPlace ? (
-              <Button
-                variant={inPlace ? "outline" : "default"}
-                disabled={busy}
-                onClick={() => void put(!inPlace)}
-              >
-                {t(inPlace ? "kit.theme.takeOff" : "kit.theme.putInPlace")}
-              </Button>
-            ) : null}
-          </>
+            </span>
+            <InfoTip content={t("kit.theme.putHint")} />
+          </div>
+        ) : theme ? (
+          <Badge variant={inPlace ? "sage" : "amber"}>
+            {t(inPlace ? "kit.theme.inPlace" : "kit.theme.notInPlace")}
+          </Badge>
         ) : null}
       </header>
       {error ? (
@@ -187,8 +191,10 @@ export function KitThemePage({
             {mine ? <ThemePalette state={palette} below={below} /> : null}
             {unread.length > 0 ? (
               <section className="card flex flex-col gap-2 p-4" data-testid="kit-theme-unread">
-                <h3 className="eyebrow">{t("kit.theme.unread")}</h3>
-                <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.unreadHint")}</p>
+                <div className="flex items-center gap-1">
+                  <h3 className="eyebrow">{t("kit.theme.unread")}</h3>
+                  <InfoTip content={t("kit.theme.unreadHint")} />
+                </div>
                 <ul className="flex flex-col gap-1">
                   {unread.map((path) => (
                     <li
@@ -203,12 +209,15 @@ export function KitThemePage({
             ) : null}
             {name in own ? (
               <section className="card flex flex-col gap-2 p-4">
-                <h3 className="eyebrow">{t("kit.theme.ownImages")}</h3>
-                <p className="text-xs text-[var(--text-mut)]">
-                  {t(ownImages.length > 0 ? "kit.theme.ownImagesHint" : "kit.theme.noOwnImages", {
-                    name,
-                  })}
-                </p>
+                <div className="flex items-center gap-1">
+                  <h3 className="eyebrow">{t("kit.theme.ownImages")}</h3>
+                  <InfoTip content={t("kit.theme.ownImagesHint")} />
+                </div>
+                {ownImages.length === 0 ? (
+                  <p className="text-xs text-[var(--text-mut)]">
+                    {t("kit.theme.noOwnImages", { name })}
+                  </p>
+                ) : null}
                 {ownImages.length > 0 ? (
                   <ul className="flex flex-col gap-1.5" data-testid="kit-theme-own-images">
                     {ownImages.map((image) => (
@@ -230,9 +239,12 @@ export function KitThemePage({
               </section>
             ) : null}
             <section className="flex flex-col gap-2">
-              <p className="text-[12px] text-[var(--text-mut)]">
-                {t(name in own ? "kit.theme.filesOwn" : "kit.theme.files", { name })}
-              </p>
+              <div className="flex items-center gap-1">
+                <h3 className="eyebrow">{t("kit.theme.filesTitle")}</h3>
+                <InfoTip
+                  content={t(name in own ? "kit.theme.filesOwn" : "kit.theme.files", { name })}
+                />
+              </div>
               {onOpenKit && !(name in own) ? (
                 <div>
                   <Button variant="outline" size="sm" onClick={onOpenKit}>
@@ -273,7 +285,6 @@ export function KitThemePage({
           <section className="card flex min-w-0 flex-1 flex-col gap-3 p-4">
             <h3 className="eyebrow">{t("kit.theme.compare")}</h3>
             <ThemeSheet name={name} plain={plain} themed={themed} redrawn={redrawn} />
-            <p className="text-[12px] text-[var(--text-mut)]">{t("kit.theme.putHint")}</p>
           </section>
         </div>
       )}

@@ -54,6 +54,7 @@ import { Funnel } from "@/components/ui/funnel";
 import { GuidedTour } from "@/components/ui/guided-tour";
 import { HBar } from "@/components/ui/h-bar";
 import { IconTile } from "@/components/ui/icon-tile";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Input } from "@/components/ui/input";
 import { LocalizedField } from "@/components/ui/localized-field";
 import { Markdown } from "@/components/ui/markdown";
@@ -450,6 +451,10 @@ export function DesignSystemPage() {
               {t("drafts.savedShort")}
             </button>
           </Tooltip>
+          <span className="flex items-center gap-1">
+            <span className="eyebrow">{t("places.themes")}</span>
+            <InfoTip content={t("places.themesHint")} />
+          </span>
         </div>
       </Section>
       <Section id="change-list" title={t("drafts.changes")}>

@@ -65,7 +65,14 @@ describe("ResourcePlaces", () => {
       within(screen.getByTestId("place-theme-noel")).getByText("2 images"),
     ).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("place-theme-ete")).getByText("désactivé"),
+      within(screen.getByTestId("place-theme-ete")).getByRole("switch", {
+        name: "Activer le thème ete",
+      }),
+    ).toHaveAttribute("aria-checked", "false");
+    // The explanations are tooltips beside the titles, not paragraphs under them.
+    expect(screen.queryByText(/de haut en bas/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /premier thème actif qui redessine/ }),
     ).toBeInTheDocument();
     // A theme and the server's own theme are no module.
     const modules = within(screen.getByTestId("places-modules"));
@@ -128,8 +135,8 @@ describe("ResourcePlaces", () => {
     api.patchServerConfig.mockImplementation(async (_key: string, patch: object) => patch);
     render(<ResourcePlaces serverId="s" serverKeyId="key" selected={null} />);
     fireEvent.click(
-      within(screen.getByTestId("place-theme-ete")).getByRole("button", {
-        name: "Activer",
+      within(screen.getByTestId("place-theme-ete")).getByRole("switch", {
+        name: "Activer le thème ete",
       }),
     );
     await waitFor(() =>
@@ -141,7 +148,9 @@ describe("ResourcePlaces", () => {
       expect(useKitStore.getState().themes).toEqual(["halloween", "noel", "ete"]),
     );
     fireEvent.click(
-      within(screen.getByTestId("place-theme-noel")).getByRole("button", { name: "Désactiver" }),
+      within(screen.getByTestId("place-theme-noel")).getByRole("switch", {
+        name: "Désactiver le thème noel",
+      }),
     );
     await waitFor(() =>
       expect(api.patchServerConfig).toHaveBeenLastCalledWith("key", {
@@ -156,7 +165,7 @@ describe("ResourcePlaces", () => {
     render(<ResourcePlaces serverId="s" serverKeyId="key" selected={null} />);
     const gone = within(screen.getByTestId("place-theme-gone"));
     expect(gone.getByText("Introuvable")).toBeInTheDocument();
-    fireEvent.click(gone.getByRole("button", { name: "Désactiver" }));
+    fireEvent.click(gone.getByRole("switch", { name: "Désactiver le thème gone" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("server_offline");
   });
 });

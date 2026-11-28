@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/info-tip";
 import { SortableList } from "@/components/ui/sortable-list";
+import { Switch } from "@/components/ui/switch";
 import type { Project } from "@/domain/types";
 import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { publishedKitTheme } from "@/features/assets/kitAssets";
@@ -38,8 +40,6 @@ export type ThemeImporter = (props: {
 }) => ReactNode;
 
 const ROW = "flex min-h-9 items-center gap-1.5 rounded-[var(--r-md)] px-2 py-1 text-[13px]";
-const ACTION =
-  "shrink-0 rounded-[var(--r-sm)] px-1.5 py-0.5 text-[11px] text-[var(--text-mut)] hover:bg-[var(--surface-inset)] hover:text-[var(--text)] disabled:opacity-50";
 
 /**
  * The places of the server's resources, always visible beside the place that is open (ADR
@@ -151,6 +151,8 @@ export function ResourcePlaces({
     detail: string | null,
     extra?: ReactNode,
     handle?: ReactNode,
+    /** A theme put away: its name is greyed, the switch beside it says why. */
+    off = false,
   ) => (
     <div
       className={cx(ROW, is(place) && "bg-[var(--brand-soft)]")}
@@ -163,7 +165,13 @@ export function ResourcePlaces({
         className="flex min-w-0 flex-1 flex-col text-left"
         onClick={() => open(place)}
       >
-        <span className={cx("truncate font-medium", is(place) && "text-[var(--brand)]")}>
+        <span
+          className={cx(
+            "truncate font-medium",
+            off && "text-[var(--text-faint)]",
+            is(place) && "text-[var(--brand)]",
+          )}
+        >
           {name}
         </span>
         {detail ? (
@@ -181,17 +189,30 @@ export function ResourcePlaces({
       ? t("places.images", { count: theme.drawings.length })
       : t("places.emptyTheme");
   };
+  /** Whether a theme counts, as a switch on its row: on, it is in the stack; off, put away. */
+  const toggle = (name: string, on: boolean) => (
+    <Switch
+      checked={on}
+      disabled={busy}
+      aria-label={t(on ? "places.putAway" : "places.putInPlace", { name })}
+      title={t(on ? "places.putAway" : "places.putInPlace", { name })}
+      onCheckedChange={(next) => put(name, next)}
+    />
+  );
   const themeInPlace = (name: string, handle?: ReactNode) => {
     const what = summary(name);
     return entry(
       { kind: "theme", name },
       name,
-      what ?? t("places.missing"),
+      what,
       <>
-        {what === null ? <Badge variant="amber">{t("places.missingBadge")}</Badge> : null}
-        <button type="button" className={ACTION} disabled={busy} onClick={() => put(name, false)}>
-          {t("places.putAway")}
-        </button>
+        {what === null ? (
+          <>
+            <Badge variant="amber">{t("places.missingBadge")}</Badge>
+            <InfoTip content={t("places.missing")} />
+          </>
+        ) : null}
+        {toggle(name, true)}
       </>,
       handle,
     );
@@ -204,8 +225,10 @@ export function ResourcePlaces({
       data-testid="resource-places"
     >
       <section className="flex flex-col gap-1" data-testid="places-themes">
-        <h3 className="eyebrow">{t("places.themes")}</h3>
-        <p className="text-[11px] text-[var(--text-mut)]">{t("places.themesHint")}</p>
+        <div className="flex items-center gap-1">
+          <h3 className="eyebrow">{t("places.themes")}</h3>
+          <InfoTip content={t("places.themesHint")} />
+        </div>
         {error ? (
           <p role="alert" className="text-[11px] text-[var(--danger)]">
             {t("kit.theme.failed", { detail: error })}
@@ -229,24 +252,23 @@ export function ResourcePlaces({
         ) : (
           stack.map((name) => <div key={name}>{themeInPlace(name)}</div>)
         )}
-        {read ? entry({ kind: "server" }, t("places.server"), t("places.serverHint")) : null}
+        {read
+          ? entry(
+              { kind: "server" },
+              t("places.server"),
+              null,
+              <InfoTip content={t("places.serverHint")} />,
+            )
+          : null}
         {away.map((name) => (
           <div key={name}>
             {entry(
               { kind: "theme", name },
               name,
               summary(name),
-              <>
-                <Badge variant="amber">{t("places.away")}</Badge>
-                <button
-                  type="button"
-                  className={ACTION}
-                  disabled={busy}
-                  onClick={() => put(name, true)}
-                >
-                  {t("places.putInPlace")}
-                </button>
-              </>,
+              toggle(name, false),
+              undefined,
+              true,
             )}
           </div>
         ))}
@@ -259,8 +281,10 @@ export function ResourcePlaces({
       </section>
 
       <section className="flex flex-col gap-1" data-testid="places-modules">
-        <h3 className="eyebrow">{t("places.modules")}</h3>
-        <p className="text-[11px] text-[var(--text-mut)]">{t("places.modulesHint")}</p>
+        <div className="flex items-center gap-1">
+          <h3 className="eyebrow">{t("places.modules")}</h3>
+          <InfoTip content={t("places.modulesHint")} />
+        </div>
         {modules.length === 0 ? (
           <p className="text-[12px] text-[var(--text-faint)]">{t("places.noModules")}</p>
         ) : (
