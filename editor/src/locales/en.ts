@@ -73,7 +73,7 @@ export default {
       followHint:
         "A common image is redrawn in the server's common images: every menu that names it follows.",
     },
-    view: { files: "Images and fonts", components: "Components" },
+    view: { theme: "Overview", files: "Images and fonts", components: "Components" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
@@ -324,7 +324,6 @@ export default {
     place: "Where",
     save: "Save",
     theme: "Theme “{{name}}”",
-    themeAway: "Theme “{{name}}” (disabled)",
     newTheme: "New theme…",
     replacesModuleImage:
       "Replaces “{{name}}” of the module “{{module}}” while this theme is enabled. The other modules do not change.",
@@ -632,10 +631,7 @@ export default {
     modules: "Modules",
     modulesHint: "Their own images, seen in their menus only.",
     noModules: "No module on this server.",
-    themeSettings: "Preview and settings of the theme",
     themeAway: "disabled",
-    themeInPlace: "enabled",
-    themeBar: "Theme “{{name}}”",
   },
   projectSource: {
     common: "Common images",

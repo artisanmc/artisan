@@ -75,7 +75,7 @@ const fr: typeof en = {
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },
-    view: { files: "Images et polices", components: "Composants" },
+    view: { theme: "Aperçu", files: "Images et polices", components: "Composants" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -329,7 +329,6 @@ const fr: typeof en = {
     place: "Où",
     save: "Enregistrer",
     theme: "Thème « {{name}} »",
-    themeAway: "Thème « {{name}} » (désactivé)",
     newTheme: "Nouveau thème…",
     replacesModuleImage:
       "Remplace « {{name}} » du module « {{module}} » quand ce thème est actif. Les autres modules ne changent pas.",
@@ -640,10 +639,7 @@ const fr: typeof en = {
     modules: "Modules",
     modulesHint: "Leurs propres images, vues dans leurs menus seulement.",
     noModules: "Aucun module sur ce serveur.",
-    themeSettings: "Aperçu et réglages du thème",
     themeAway: "désactivé",
-    themeInPlace: "actif",
-    themeBar: "Thème « {{name}} »",
   },
   projectSource: {
     common: "Images communes",

@@ -250,6 +250,27 @@ describe("AssetsTab", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "not-found" } });
     expect(screen.getByRole("status")).toHaveTextContent(/Aucune ressource ne correspond/);
   });
+  it("opens a theme on its overview, its first view, which nothing else has", () => {
+    useResourcesView.getState().setView("theme");
+    const { rerender } = render(
+      <AssetsTab
+        projectId={"p1" as never}
+        components={<div />}
+        overview={<div data-testid="theme-overview" />}
+      />,
+    );
+    expect(screen.getByTestId("theme-overview")).toBeTruthy();
+    expect(screen.getAllByRole("tab")[0]).toHaveTextContent("Aperçu");
+    // A module asked for the overview shows its files.
+    rerender(<AssetsTab projectId={"p1" as never} components={<div />} />);
+    expect(screen.queryByTestId("theme-overview")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Images et polices" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    useResourcesView.getState().setView("files");
+  });
+
   it("shows what goes in the players' pack only: no captured items among its views", () => {
     render(<AssetsTab projectId={"p1" as never} components={<div data-testid="components" />} />);
     const views = screen.getByTestId("resources-views");

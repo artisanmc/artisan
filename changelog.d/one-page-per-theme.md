@@ -1,0 +1,1 @@
+- **Changed**: a theme has one page, its Resources, which opens on its overview (colours, sheet of the base without it and with it, put in place, rename, export); its files and components are the two views beside it.

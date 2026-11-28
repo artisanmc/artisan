@@ -153,6 +153,7 @@ export function AssetsTab({
   projectId,
   compact = false,
   components,
+  overview,
   onOpenCommon,
   onOpenMenu,
   server,
@@ -167,12 +168,16 @@ export function AssetsTab({
   onOpenMenu?: (projectId: string, menuId: string) => void;
   /** The components view's content, given by the page (it is drawn by the canvas and the inspector). */
   components?: ReactNode;
+  /** A theme's overview (`ThemeOverview`), its first view; absent outside a theme. */
+  overview?: ReactNode;
 }) {
   const { t } = useTranslation();
   const [sourceId, setSourceId] = useState<ProjectSourceId>(null);
   // An image uploaded here went to the server's library: the list turns to it, selected.
   const [addedCommon, setAddedCommon] = useState<string | null>(null);
-  const view = useResourcesView((s) => s.view);
+  const asked = useResourcesView((s) => s.view);
+  // The overview is a theme's: elsewhere, the files.
+  const view = asked === "theme" && !overview ? "files" : asked;
   const setView = useResourcesView((s) => s.setView);
   const studio = useResourcesView((s) => s.studio);
   const openStudio = useResourcesView((s) => s.openStudio);
@@ -192,7 +197,7 @@ export function AssetsTab({
   useSaveAsAsked(projectId);
   // The components view is the page's: a picker gives none. What goes in the players' pack
   // only: the captured items are Documents of the module, in its tree.
-  const views: ResourcesView[] = ["files", "components"];
+  const views: ResourcesView[] = [...(overview ? (["theme"] as const) : []), "files", "components"];
   const tabs = !components ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {views.map((entry) => (
@@ -218,6 +223,16 @@ export function AssetsTab({
         server={server}
       />
     );
+  if (view === "theme" && overview) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {tabs}
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="mx-auto max-w-7xl px-3 py-4">{overview}</div>
+        </div>
+      </div>
+    );
+  }
   if (view === "components" && components) {
     return (
       <div className="flex h-full min-h-0 flex-col">

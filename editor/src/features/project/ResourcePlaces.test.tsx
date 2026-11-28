@@ -1,9 +1,10 @@
 import type { Project } from "@/domain/types";
+import { useResourcesView } from "@/features/assets/resourcesView";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useKitStore } from "@/state/kitStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ResourcePlaces, ThemeBar } from "./ResourcePlaces";
+import { ResourcePlaces } from "./ResourcePlaces";
 
 const api = vi.hoisted(() => ({ patchServerConfig: vi.fn(), navigate: vi.fn() }));
 vi.mock("@/lib/api/serverConfig", async (importOriginal) => ({
@@ -94,7 +95,10 @@ describe("ResourcePlaces", () => {
       params: { serverId: "s", projectId: "srv.noel" },
       search: { tab: "resources" },
     });
+    // One page per theme: its Resources, open on its overview.
+    expect(useResourcesView.getState().view).toBe("theme");
     fireEvent.click(within(screen.getByTestId("place-module-srv.guilds")).getByText("Guildes"));
+    expect(useResourcesView.getState().view).toBe("files");
     expect(api.navigate).toHaveBeenLastCalledWith({
       to: "/servers/$serverId/projects/$projectId",
       params: { serverId: "s", projectId: "srv.guilds" },
@@ -154,16 +158,5 @@ describe("ResourcePlaces", () => {
     expect(gone.getByText("Introuvable")).toBeInTheDocument();
     fireEvent.click(gone.getByRole("button", { name: "Désactiver" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("server_offline");
-  });
-
-  it("says above a theme's Resources whether it is in place, and leads to its page", () => {
-    const onSettings = vi.fn();
-    const { rerender } = render(<ThemeBar name="noel" onSettings={onSettings} />);
-    expect(screen.getByTestId("theme-bar")).toHaveTextContent("Thème « noel »");
-    expect(screen.getByText("actif")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Aperçu et réglages du thème" }));
-    expect(onSettings).toHaveBeenCalledWith("noel");
-    rerender(<ThemeBar name="ete" onSettings={onSettings} />);
-    expect(screen.getByText("désactivé")).toBeInTheDocument();
   });
 });

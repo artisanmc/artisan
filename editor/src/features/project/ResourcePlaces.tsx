@@ -3,6 +3,7 @@ import { SortableList } from "@/components/ui/sortable-list";
 import { NewThemeDialog } from "@/features/assets/NewThemeDialog";
 import { publishedKitTheme } from "@/features/assets/kitAssets";
 import { serverThemeNames } from "@/features/assets/kitTheme";
+import { useResourcesView } from "@/features/assets/resourcesView";
 import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { patchServerConfig } from "@/lib/api/serverConfig";
@@ -87,6 +88,8 @@ export function ResourcePlaces({
     const projectId =
       place.kind === "theme" ? mine : place.kind === "server" ? read?.projectId : place.id;
     if (!projectId) return;
+    // A theme opens on its overview, the base and a module on their files.
+    useResourcesView.getState().setView(place.kind === "theme" ? "theme" : "files");
     void navigate({
       to: "/servers/$serverId/projects/$projectId",
       params: { serverId, projectId },
@@ -256,35 +259,5 @@ export function ResourcePlaces({
         )}
       </section>
     </nav>
-  );
-}
-
-/**
- * Above the Resources of a theme's Project: which theme this is, whether it is in place, and
- * the way to its page (what it looks like in a menu, put in place, rename, delete, export).
- */
-export function ThemeBar({
-  name,
-  onSettings,
-}: { name: string; onSettings: (name: string) => void }) {
-  const { t } = useTranslation();
-  const inPlace = useKitStore((s) => s.themes.includes(name));
-  return (
-    <div
-      className="flex shrink-0 flex-wrap items-center gap-2 border-[var(--border)] border-b px-3 py-2 text-[13px]"
-      data-testid="theme-bar"
-    >
-      <span className="font-medium">{t("places.themeBar", { name })}</span>
-      <Badge variant={inPlace ? "sage" : "amber"}>
-        {t(inPlace ? "places.themeInPlace" : "places.themeAway")}
-      </Badge>
-      <button
-        type="button"
-        className="ml-auto text-[12px] text-[var(--brand)] hover:underline"
-        onClick={() => onSettings(name)}
-      >
-        {t("places.themeSettings")}
-      </button>
-    </div>
   );
 }

@@ -25,9 +25,9 @@ import { ProjectWorkspacePanels } from "@/features/project/ProjectWorkspacePanel
 import {
   type ResourcePlace,
   ResourcePlaces,
-  ThemeBar,
   type ThemeImporter,
 } from "@/features/project/ResourcePlaces";
+import { ThemeOverview } from "@/features/project/ThemeOverview";
 import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useProjectLoader } from "@/features/project/useProjectLoader";
 import { useWorkspaceTabShortcuts } from "@/features/project/useWorkspaceTabShortcuts";
@@ -252,21 +252,18 @@ export function ProjectCanvasPage({
               />
             ) : null}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              {serverId && placeOf(pId).kind === "theme" ? (
-                <ThemeBar
-                  name={(placeOf(pId) as { name: string }).name}
-                  onSettings={(name) =>
-                    void navigate({
-                      to: "/servers/$serverId/resources",
-                      params: { serverId },
-                      search: { theme: name },
-                    })
-                  }
-                />
-              ) : null}
               <div className="min-h-0 flex-1">
                 <AssetsTab
                   projectId={pId}
+                  overview={
+                    serverId && runtime?.serverId && placeOf(pId).kind === "theme" ? (
+                      <ThemeOverview
+                        name={(placeOf(pId) as { name: string }).name}
+                        serverId={serverId}
+                        serverKeyId={runtime.serverId}
+                      />
+                    ) : undefined
+                  }
                   components={
                     <ComponentsView
                       projectId={pId}
