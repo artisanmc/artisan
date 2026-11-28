@@ -112,6 +112,7 @@ export function ModuleHome({ project: opened }: { project: Project }) {
 
         <ModuleCatalogue
           project={project}
+          serverId={serverId}
           kind={shownKind}
           onKind={(kind) =>
             navigate({

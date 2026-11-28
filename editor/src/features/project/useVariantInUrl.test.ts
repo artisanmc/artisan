@@ -1,4 +1,5 @@
 import type { Project } from "@/domain/types";
+import { useViewAsStore } from "@/state/viewAsStore";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateProjectSearch } from "./ProjectCanvasPage";
@@ -45,6 +46,19 @@ describe("useVariantInUrl", () => {
   beforeEach(() => {
     navigate.mockClear();
     showVariant.mockClear();
+    useViewAsStore.setState({ variant: undefined });
+  });
+
+  it("shows the variant picked in the last module, the URL saying nothing", () => {
+    useViewAsStore.setState({ variant: "bedrock" });
+    renderHook(() => useVariantInUrl(project(), undefined));
+    expect(showVariant).toHaveBeenCalledWith("guilds", "bedrock");
+  });
+
+  it("leaves a module without the picked variant on its own Documents", () => {
+    useViewAsStore.setState({ variant: "other" });
+    renderHook(() => useVariantInUrl(project(), undefined));
+    expect(showVariant).not.toHaveBeenCalled();
   });
 
   it("shows the URL's variant once the module is loaded, without touching the URL", () => {

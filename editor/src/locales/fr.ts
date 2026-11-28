@@ -2891,6 +2891,9 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleCatalogue: {
+    layout: "Affichage",
+    list: "Liste",
+    grid: "Grille",
     title: "Documents",
     search: "Chercher un document",
     kinds: "Filtrer par type",

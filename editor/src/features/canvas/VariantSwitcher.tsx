@@ -24,6 +24,7 @@ import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
 import { loadServerVariantNames } from "@/lib/variants/serverVariants";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useServersStore } from "@/state/serversStore";
+import { useViewAsStore } from "@/state/viewAsStore";
 import { ChevronDown, Layers, ListOrdered, Lock, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,8 +32,9 @@ import { useTranslation } from "react-i18next";
 const MODULE = "__module__";
 
 /**
- * "View as" (design `variantes-modules` §9): which variant the canvas shows, a new variant,
- * the display rules. Sits on the canvas toolbar.
+ * "View as" (design `variantes-modules` §9): which variant the module shows, a new variant,
+ * the display rules. A select of the module's header: the pick is the server's, it follows the
+ * editor from module to module (`useViewAsStore`).
  */
 export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const { t } = useTranslation();
@@ -53,6 +55,8 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const pick = (variant: string | undefined) => {
     if (original) store.showOriginal(projectId, false);
     store.showVariant(projectId, variant);
+    // The pick follows the editor to the next module (`useVariantInUrl`).
+    useViewAsStore.getState().set(variant);
   };
   return (
     <>
@@ -61,10 +65,11 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
           <button
             type="button"
             title={t("variants.viewAs")}
-            className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2.5 text-[12px] transition-colors ${
+            data-testid="variant-select"
+            className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-sm)] border px-2.5 text-[12px] transition-colors ${
               viewed || original
-                ? "bg-[var(--brand-soft)] text-[var(--brand)]"
-                : "text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                ? "border-[var(--brand-line)] bg-[var(--brand-soft)] text-[var(--brand)]"
+                : "border-[var(--border)] text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
             }`}
           >
             {original ? (
@@ -80,7 +85,7 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
             <ChevronDown className="size-3.5 shrink-0 opacity-60" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" side="top" className="w-64">
+        <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel>{t("variants.viewAs")}</DropdownMenuLabel>
           <DropdownMenuRadioGroup value={viewed ?? MODULE}>
             <DropdownMenuRadioItem
@@ -151,7 +156,7 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
         onOpenChange={setCreating}
         taken={names}
         onCreate={(name) => {
-          if (store.addVariant(projectId, name)) store.showVariant(projectId, name);
+          if (store.addVariant(projectId, name)) pick(name);
         }}
       />
       <VariantRulesDialog projectId={projectId} open={rulesOpen} onOpenChange={setRulesOpen} />

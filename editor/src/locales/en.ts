@@ -2843,6 +2843,9 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleCatalogue: {
+    layout: "Layout",
+    list: "List",
+    grid: "Grid",
     title: "Documents",
     search: "Search a Document",
     kinds: "Filter by kind",

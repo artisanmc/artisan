@@ -1,16 +1,22 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { variantNames, viewedVariant } from "@/domain/variants";
 import { useProjectsStore } from "@/state/projectsStore";
+import { useViewAsStore } from "@/state/viewAsStore";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 /**
  * Keeps "View as" in the URL (`?variant=`): a reload, or a shared link, shows the same
- * variant. Once per Project, the URL's variant is shown if the module has it; from then on
- * the URL follows the view, and a variant the module does not have is dropped from it.
+ * variant. Once per Project, the URL's variant is shown if the module has it, else the one
+ * picked in the last module viewed (variants are the server's: the pick follows the editor);
+ * from then on the URL follows the view, and a variant the module does not have is dropped
+ * from it.
  */
-export function useVariantInUrl(project: Project | null, urlVariant: string | undefined): void {
+export function useVariantInUrl(project: Project | null, linked: string | undefined): void {
   const navigate = useNavigate();
+  const picked = useViewAsStore((s) => s.variant);
+  /** The URL's variant, else the editor's last pick. */
+  const urlVariant = linked ?? picked;
   /** The Project whose URL variant was applied: done once, at its load. */
   const applied = useRef<string | null>(null);
   const viewed = project ? (viewedVariant(project) ?? project.originalView?.variant) : undefined;

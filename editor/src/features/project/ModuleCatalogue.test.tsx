@@ -54,6 +54,19 @@ describe("ModuleCatalogue", () => {
     expect(screen.getByTestId("catalogue-doc-menu/ranks")).toHaveTextContent("guild");
   });
 
+  it("switches to a grid of pictures and keeps the choice", () => {
+    render(
+      <ModuleCatalogue project={project()} kind={undefined} onKind={vi.fn()} onOpen={vi.fn()} />,
+    );
+    expect(screen.queryAllByTestId("catalogue-preview")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: /^(Grid|Grille)$/ }));
+    // One picture per Document: 2 menus and 1 command.
+    expect(screen.getAllByTestId("catalogue-preview")).toHaveLength(3);
+    expect(localStorage.getItem("artisan.catalogue.layout")).toBe("grid");
+    fireEvent.click(screen.getByRole("button", { name: /^(List|Liste)$/ }));
+    expect(screen.queryAllByTestId("catalogue-preview")).toHaveLength(0);
+  });
+
   it("opens the Document of a card by its key", () => {
     const onOpen = vi.fn();
     render(

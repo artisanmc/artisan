@@ -6,7 +6,6 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import Konva from "konva";
 import { useCallback, useRef, useState } from "react";
-import { VariantSwitcher } from "./VariantSwitcher";
 
 // Only the primary (left) button drags Konva nodes / the stage. This frees the
 // middle button for panning (handled manually via useMiddleClickPan) without it
@@ -254,7 +253,6 @@ function StageCanvas({ projectId, focus }: StageProps) {
         />
       )}
       <CanvasToolbar
-        variants={<VariantSwitcher projectId={projectId} />}
         onRearrange={
           focusMode
             ? undefined
