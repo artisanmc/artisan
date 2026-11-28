@@ -171,6 +171,7 @@ open class ArtisanPlugin : JavaPlugin() {
             CommandsModule(),
             net.artisanmc.modules.triggers.TriggersModule(),
             net.artisanmc.modules.variables.VariablesModule(),
+            net.artisanmc.modules.huds.HudsModule(),
         )
 
         fun buildApi(plugin: ArtisanPlugin): ArtisanAPI = ArtisanApiFactory.build(plugin)

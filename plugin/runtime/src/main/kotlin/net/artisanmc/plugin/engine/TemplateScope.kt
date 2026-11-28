@@ -78,13 +78,15 @@ fun ExecutionContext.exprScope(
 /**
  * Render a Template against this context — the one entry point for every
  * player-facing string (item name, lore, title, material, dialog text, action
- * text). [i18nLookup] resolves `{i18n:key}` against the viewer's language.
+ * text). [i18nLookup] resolves `{i18n:key}` against the viewer's language; [escape] is applied to
+ * each `{…}` value (a HUD escapes them as MiniMessage text).
  */
 fun ExecutionContext.render(
     template: String,
     papi: PapiProvider? = null,
+    escape: (String) -> String = { it },
     i18nLookup: (String) -> String? = { null },
-): String = renderTemplate(template, exprScope(papi, i18nLookup), i18nLookup)
+): String = renderTemplate(template, exprScope(papi, i18nLookup), escape, i18nLookup)
 
 /**
  * Raw value of an expression — used where the context must stay **typed** rather

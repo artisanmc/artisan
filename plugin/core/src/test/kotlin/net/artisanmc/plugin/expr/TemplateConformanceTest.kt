@@ -64,7 +64,7 @@ class TemplateConformanceTest {
                         { fx.now ?: 0L },
                         { key -> lang[key] },
                     ),
-                    { key -> lang[key] },
+                    i18nLookup = { key -> lang[key] },
                 )
                 if (fx.expectedPrefix != null) {
                     assertTrue(

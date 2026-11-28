@@ -37,6 +37,11 @@ class TemplateScopeTest {
         assertEquals("DIAMOND x100", ctx(args).render("{shop.material} x{shop.price}"))
     }
 
+    @Test fun `escape applies to each value, never to the template's own text`() {
+        val escape: (String) -> String = { it.replace("<", "\\<") }
+        assertEquals("<b>\\<red>Steve</b>", ctx(mapOf("name" to "<red>Steve")).render("<b>{name}</b>", null, escape))
+    }
+
     @Test fun `numbers render without a trailing decimal`() {
         assertEquals("price 42", ctx(mapOf("n" to 42)).render("price {n}"))
     }

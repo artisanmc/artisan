@@ -144,10 +144,15 @@ object ExprCache {
     fun clear() = asts.clear()
 }
 
-/** Render [template] to its final string. */
+/**
+ * Render [template] to its final string. [escape] is applied to the value of each `{…}`
+ * expression, never to the template's own text: a HUD passes MiniMessage's tag escaping, so that
+ * a value (a player's name, a Variable) is drawn as text and never read as markup.
+ */
 fun renderTemplate(
     template: String,
     scope: ExprScope,
+    escape: (String) -> String = { it },
     i18nLookup: (String) -> String? = { null },
 ): String {
     val sb = StringBuilder()
@@ -156,7 +161,7 @@ fun renderTemplate(
             is Segment.Literal -> sb.append(seg.text)
             // A key that survived tokenizing was not resolvable — keep it visible.
             is Segment.I18n -> sb.append("{i18n:${seg.key}}")
-            is Segment.Expression -> sb.append(evalSegment(seg.text, scope))
+            is Segment.Expression -> sb.append(escape(evalSegment(seg.text, scope)))
         }
     }
 
