@@ -123,10 +123,11 @@ opens as the module it is. The places, in the order an image's name is looked up
 
 A click opens the place on the right: a theme, a module or the base on its own
 Resources, where its images and fonts are changed. A theme holds its images like a module: in
-its Resources an image named like one of a place below wears the word **Override**; an image
-the theme adds wears nothing. The bar above a theme's Resources says whether it is in place and leads to its
-page (**Preview and settings of the theme**: every image of the base without it and with it,
-enable, rename, delete, export).
+its Resources an image named like one of a place below wears the word **Redrawn**; an image
+the theme adds wears nothing. A theme opens on its **Overview**, the first of its views beside
+**Images and fonts** and **Components**: whether it is enabled, its colours, the images it
+redraws without it and with it (every image of the base on demand), enable, rename, delete,
+export.
 
 **Base** opens like any other place, on the same Resources screen: **Added or changed on this
 server** lists the images the server added and its versions of Artisan's, **Shipped with
