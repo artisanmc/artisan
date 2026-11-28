@@ -2890,6 +2890,7 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleCatalogue: {
+    settings: "Réglages",
     size: "Taille des cartes",
     sizes: { s: "S", m: "M", l: "L" },
     sizeHint: { s: "Petites cartes", m: "Cartes moyennes", l: "Grandes cartes" },

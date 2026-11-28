@@ -2842,6 +2842,7 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleCatalogue: {
+    settings: "Settings",
     size: "Card size",
     sizes: { s: "S", m: "M", l: "L" },
     sizeHint: { s: "Small cards", m: "Medium cards", l: "Large cards" },

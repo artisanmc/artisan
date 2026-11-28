@@ -112,51 +112,15 @@ describe("ModuleHome", () => {
     expect(screen.getByTestId("catalogue-kind-conversation")).toHaveTextContent("2");
     // A collection is the catalogue's, not a second block under Content.
     expect(screen.queryByTestId("module-home-collection-conversation")).toBeNull();
-    expect(screen.getByTestId("module-home-settings")).toHaveTextContent("Speakers");
+    expect(screen.getByTestId("catalogue-kind-settings")).toHaveTextContent("1");
   });
 
-  it('names a lone settings screen after itself, not "Settings" twice', () => {
+  it("lists the settings screens in the catalogue, not under Content", () => {
     render(<ModuleHome project={project()} />);
-    const settings = screen.getByTestId("module-home-settings");
-    expect(within(settings).getByRole("heading")).toHaveTextContent("Speakers");
-    expect(within(settings).getByRole("link")).toHaveTextContent(/^Open$|^Ouvrir$/);
-  });
-
-  it("shows each of several settings screens as a row with its first values", () => {
-    const withData = projectFromFiles(PID, {
-      [`${base}/manifest.yaml`]: "schema: manifest/v1\ndefault_lang: fr\nlanguages: [fr, en]\n",
-      [`${base}/data/settings.yaml`]: 'reset_time: "06:00"\njoin_reminder: false\n',
-      [`${base}/data/rewards.yaml`]: "days:\n  7: { icon: { material: BREAD } }\n",
-    });
-    useProjectsStore.setState({
-      openProjects: { projects: [withData], projectOrder: [PID] },
-    } as never);
-    useServerScreensStore.setState({
-      screens: [
-        {
-          id: "c:settings",
-          moduleId: "conversations",
-          label: "Settings",
-          table: "data/settings",
-          projectId: "conversations",
-        },
-        {
-          id: "c:rewards",
-          moduleId: "conversations",
-          label: "Rewards",
-          table: "data/rewards",
-          projectId: "conversations",
-        },
-      ],
-    } as never);
-    render(<ModuleHome project={withData} />);
-    const settings = screen.getByTestId("module-home-settings");
-    expect(within(settings).getByRole("heading")).toHaveTextContent(/^Settings$|^Réglages$/);
-    const rows = within(settings).getAllByRole("link");
-    expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringMatching(/^SettingsReset time06:00Join reminder(No|Non)$/),
-      "RewardsDays1",
-    ]);
+    expect(screen.queryByTestId("module-home-settings")).toBeNull();
+    expect(screen.getByTestId("catalogue-screen-conversations:speakers")).toHaveTextContent(
+      "Speakers",
+    );
   });
 
   it("lists what the module exposes: its own actions only, no command", () => {
@@ -199,7 +163,7 @@ describe("ModuleHome", () => {
     const own = screen.getByTestId("module-home-own");
     expect(own).toHaveTextContent("Own section of conversations");
     expect(
-      own.compareDocumentPosition(screen.getByTestId("module-home-settings")) &
+      own.compareDocumentPosition(screen.getByTestId("module-catalogue")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
@@ -215,7 +179,7 @@ describe("ModuleHome", () => {
     });
     render(<ModuleHome project={project()} />);
     expect(screen.getByTestId("module-home-own")).toBeEmptyDOMElement();
-    expect(screen.getByTestId("module-home-settings")).toBeInTheDocument();
+    expect(screen.getByTestId("module-catalogue")).toBeInTheDocument();
     quiet.mockRestore();
   });
 
@@ -244,7 +208,7 @@ describe("ModuleHome", () => {
       ],
     });
     render(<ModuleHome project={project()} />);
-    expect(screen.queryByTestId("module-home-settings")).toBeNull();
+    expect(screen.queryByTestId("catalogue-screen-conversations:speakers")).toBeNull();
   });
 
   it("leads to the captured items when the module has some", () => {

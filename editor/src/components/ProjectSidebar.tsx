@@ -590,7 +590,6 @@ function ActiveProjectDocuments({
   if (!project) return null;
   return (
     <div className="px-1.5 pt-0.5">
-      <ModuleViewRows project={project} part="views" />
       <div data-tour="elements">
         <ProjectDocumentTree
           projectId={project.id}

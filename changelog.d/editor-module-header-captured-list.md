@@ -11,3 +11,6 @@
   screen), kept in the browser.
 - **Fixed**: Changing module no longer shows "Opening the module…" again: the server's modules are
   read once for the whole session, not on every module page.
+- **Changed**: A module's settings screens are entries of the catalogue (a **Settings** filter, a
+  card each), no longer a block under Content. The sidebar has no Catalogue row any more: the
+  module's name opens it.

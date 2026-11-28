@@ -7,7 +7,6 @@ import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { moduleScreensOf } from "@/features/project/moduleScreens";
-import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { projectCollections } from "@/lib/documentCollections";
 import { countMissingForLang } from "@/lib/i18nUsages";
 import { kindCreatableIn } from "@/lib/moduleDocumentKinds";
@@ -19,23 +18,12 @@ import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { getModule } from "@artisan/editor-sdk";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import {
-  Blocks,
-  ChevronRight,
-  Database,
-  History,
-  Images,
-  Languages,
-  Package,
-  Settings,
-  Zap,
-} from "lucide-react";
+import { Blocks, Database, History, Images, Languages, Package, Zap } from "lucide-react";
 import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CapturedItemList } from "./CapturedItemList";
 import { ModuleCatalogue } from "./ModuleCatalogue";
 import { goToDocument } from "./goToDocument";
-import { type PreviewLine, screenPreview } from "./screenPreview";
 import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
 import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "./workspaceTabs";
 
@@ -179,6 +167,11 @@ export function ModuleHome({ project: opened }: { project: Project }) {
             creatable: kindCreatableIn(c, project),
           }))}
           onCreate={setCreating}
+          screens={moduleScreens.map((sc) => ({ id: sc.id, label: sc.label }))}
+          onOpenScreen={(id) => {
+            const sc = moduleScreens.find((x) => x.id === id);
+            if (sc && serverId) navigate(screenDestination(sc, serverId, [project]) as never);
+          }}
         />
 
         {hasContent && (
@@ -187,9 +180,6 @@ export function ModuleHome({ project: opened }: { project: Project }) {
               {t("moduleHome.content")}
             </h2>
             <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {moduleScreens.length > 0 && (
-                <SettingsPlace project={project} screens={moduleScreens} serverId={serverId} />
-              )}
               {dataSources.length > 0 && (
                 <Place
                   testId="module-home-sources"
@@ -336,127 +326,6 @@ function Place({
       {children && <div className="mt-auto flex flex-wrap gap-1.5">{children}</div>}
     </li>
   );
-}
-
-/**
- * The module's settings screens: what each one holds, at a glance (its first values, how
- * many entries its lists have), read from the Project's copy of its file. Each screen is a
- * row that opens it. One screen: the block is that screen, named after it.
- */
-function SettingsPlace({
-  project,
-  screens,
-  serverId,
-}: {
-  project: Project;
-  screens: ServerEditorScreen[];
-  serverId: string | undefined;
-}) {
-  const { t } = useTranslation();
-  const lone = screens.length === 1 ? screens[0] : undefined;
-  return (
-    <Place
-      testId="module-home-settings"
-      icon={
-        <IconTile icon={Settings} fg="var(--text-mut)" soft="var(--surface-raised-2)" size="sm" />
-      }
-      title={lone ? lone.label : t("moduleHome.settings")}
-      count={lone ? undefined : screens.length}
-      summary={t("moduleHome.settingsHint")}
-      picture={
-        lone ? (
-          <ScreenValues project={project} screen={lone} />
-        ) : (
-          <ul className="flex flex-col gap-1.5" data-testid="module-home-screens">
-            {screens.map((s) => (
-              <li key={s.id}>
-                <ScreenRow project={project} screen={s} serverId={serverId} />
-              </li>
-            ))}
-          </ul>
-        )
-      }
-    >
-      {lone && serverId && (
-        <Link {...screenDestination(lone, serverId, [project])} className="btn btn-outline btn-sm">
-          {t("moduleHome.open")}
-        </Link>
-      )}
-    </Place>
-  );
-}
-
-/** One screen among several: its name, its values below, the whole row opens it. */
-function ScreenRow({
-  project,
-  screen,
-  serverId,
-}: {
-  project: Project;
-  screen: ServerEditorScreen;
-  serverId: string | undefined;
-}) {
-  const body = (
-    <>
-      <span className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[var(--text)]">
-          {screen.label}
-        </span>
-        {serverId && (
-          <ChevronRight
-            className="size-3.5 shrink-0 text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--text-mut)]"
-            aria-hidden
-          />
-        )}
-      </span>
-      <ScreenValues project={project} screen={screen} />
-    </>
-  );
-  const frame =
-    "flex flex-col gap-1.5 rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)] px-2.5 py-2";
-  return serverId ? (
-    <Link
-      {...screenDestination(screen, serverId, [project])}
-      className={`group ${frame} hover:border-[var(--border-strong)]`}
-      data-testid={`module-home-screen-${screen.id}`}
-    >
-      {body}
-    </Link>
-  ) : (
-    <div className={frame} data-testid={`module-home-screen-${screen.id}`}>
-      {body}
-    </div>
-  );
-}
-
-/** A screen's first values, label beside value; nothing when its file is not known here. */
-function ScreenValues({ project, screen }: { project: Project; screen: ServerEditorScreen }) {
-  const { t } = useTranslation();
-  const { lines, rows } = screenPreview(project, screen);
-  if (rows != null)
-    return (
-      <p className="text-[12px] text-[var(--text-mut)]">{t("moduleHome.rows", { count: rows })}</p>
-    );
-  if (lines.length === 0) return null;
-  return (
-    <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 text-[12px]">
-      {lines.map((line) => (
-        <div key={line.label} className="contents">
-          <dt className="truncate text-[var(--text-mut)]" title={line.label}>
-            {line.label}
-          </dt>
-          <dd className="max-w-40 truncate text-right font-mono tabular-nums text-[var(--text)]">
-            {valueText(line, t)}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function valueText(line: PreviewLine, t: (key: string) => string): string {
-  if (typeof line.value === "boolean") return line.value ? t("moduleHome.on") : t("moduleHome.off");
-  return String(line.value);
 }
 
 /**

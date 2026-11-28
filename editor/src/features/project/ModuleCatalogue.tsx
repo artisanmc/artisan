@@ -4,7 +4,7 @@ import { docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useUiStore } from "@/state/uiStore";
-import { LayoutGrid, List, Plus, Puzzle, Search } from "lucide-react";
+import { LayoutGrid, List, Plus, Puzzle, Search, Settings } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CataloguePreview } from "./CataloguePreview";
@@ -25,7 +25,12 @@ export function ModuleCatalogue({
   serverId,
   collections = [],
   onCreate,
+  screens = [],
+  onOpenScreen,
 }: {
+  /** The module's settings screens: entries of the catalogue like Documents, under the kind `settings`. */
+  screens?: { id: string; label: string }[];
+  onOpenScreen?: (screenId: string) => void;
   project: Project;
   /** Kinds kept in the catalogue even with no Document yet (the module's collections), with whether each may be created here. */
   collections?: { kind: string; creatable: boolean }[];
@@ -64,7 +69,11 @@ export function ModuleCatalogue({
       ),
     }))
     .filter((g) => g.items.length > 0 || (!needle && kept.has(g.type)));
-  if (groups.length === 0) return null;
+  const shownScreens = screens.filter(
+    (sc) =>
+      (!kind || kind === SETTINGS_KIND) && (!needle || sc.label.toLowerCase().includes(needle)),
+  );
+  if (groups.length === 0 && screens.length === 0) return null;
   return (
     <section
       data-testid="module-catalogue"
@@ -129,6 +138,17 @@ export function ModuleCatalogue({
         >
           {t("moduleCatalogue.all")}
         </button>
+        {screens.length > 0 && (
+          <button
+            type="button"
+            data-testid={`catalogue-kind-${SETTINGS_KIND}`}
+            className={`chip ${kind === SETTINGS_KIND ? "is-active" : ""}`}
+            aria-pressed={kind === SETTINGS_KIND}
+            onClick={() => onKind(kind === SETTINGS_KIND ? undefined : SETTINGS_KIND)}
+          >
+            {t("moduleCatalogue.settings")} {screens.length}
+          </button>
+        )}
         {groups.map((g) => (
           <button
             key={g.type}
@@ -142,7 +162,7 @@ export function ModuleCatalogue({
           </button>
         ))}
       </div>
-      {shown.length === 0 ? (
+      {shown.length === 0 && shownScreens.length === 0 ? (
         <p className="text-[13px] text-[var(--text-mut)]">{t("moduleCatalogue.none")}</p>
       ) : (
         shown.map((g) => {
@@ -242,9 +262,45 @@ export function ModuleCatalogue({
           );
         })
       )}
+      {shownScreens.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[12px] font-medium text-[var(--text-mut)]">
+            {t("moduleCatalogue.settings")} · {shownScreens.length}
+          </h3>
+          <ul
+            aria-label={t("moduleCatalogue.settings")}
+            className="grid gap-2"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(14rem, 1fr))" }}
+          >
+            {shownScreens.map((sc) => (
+              <li key={sc.id}>
+                <button
+                  type="button"
+                  data-testid={`catalogue-screen-${sc.id}`}
+                  onClick={() => onOpenScreen?.(sc.id)}
+                  className="card flex w-full items-center gap-2 p-2.5 text-left hover:border-[var(--border-strong)]"
+                >
+                  <IconTile
+                    icon={Settings}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                    {sc.label}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
+
+/** The catalogue's `?kind=` for the module's settings screens, which are not a Document kind. */
+const SETTINGS_KIND = "settings";
 
 type Layout = "list" | "grid";
 const LAYOUT_KEY = "artisan.catalogue.layout";
