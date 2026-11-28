@@ -293,6 +293,10 @@ export function DocumentGroups({
   const root = useFolderDroppable("", editable);
   const container = useRef<HTMLDivElement>(null);
   useGlidingRows(container, drag.key !== null);
+  // A kind's group folds once the module is crowded: the one holding the open Document stays
+  // open, and the admin's own choice wins over both.
+  const [unfolded, setUnfolded] = useState<Record<string, boolean>>({});
+  const crowded = documentCount(project) > CROWDED_MODULE;
   return (
     <div
       ref={(node) => {
@@ -338,24 +342,42 @@ export function DocumentGroups({
         const notSyncedHint = notSynced
           ? t("projectPanel.kindNotSynced", { kind: label })
           : undefined;
+        const holdsActive = rootItems.some((it) => docKey(g.type, it.id) === activeId);
+        const open = unfolded[g.type] ?? (!crowded || holdsActive);
+        const Chevron = open ? ChevronDown : ChevronRight;
         return (
           <div key={g.type} className="flex flex-col pb-1.5 last:pb-0">
-            <ul aria-label={label} className="flex flex-col">
-              {rootItems.map((it) => (
-                <li key={it.id} data-flip={docKey(g.type, it.id)}>
-                  <DocumentRow
-                    projectId={editable ? project.id : null}
-                    project={project}
-                    item={it}
-                    kind={g.type}
-                    onOpen={() => onOpen(docKey(g.type, it.id))}
-                    origin={originOf(docKey(g.type, it.id))}
-                    notSyncedHint={notSyncedHint}
-                    activeId={activeId}
-                  />
-                </li>
-              ))}
-            </ul>
+            <button
+              type="button"
+              data-testid={`type-group-${g.type}`}
+              aria-expanded={open}
+              onClick={() => setUnfolded((u) => ({ ...u, [g.type]: !open }))}
+              className="flex items-center gap-1.5 rounded-[10px] py-[3px] pr-2 pl-0.5 text-left text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+            >
+              <Chevron className="size-3 text-[var(--text-faint)]" aria-hidden />
+              <span className="flex-1 truncate">{label}</span>
+              <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
+                {rootItems.length}
+              </span>
+            </button>
+            {open && (
+              <ul aria-label={label} className="flex flex-col">
+                {rootItems.map((it) => (
+                  <li key={it.id} data-flip={docKey(g.type, it.id)}>
+                    <DocumentRow
+                      projectId={editable ? project.id : null}
+                      project={project}
+                      item={it}
+                      kind={g.type}
+                      onOpen={() => onOpen(docKey(g.type, it.id))}
+                      origin={originOf(docKey(g.type, it.id))}
+                      notSyncedHint={notSyncedHint}
+                      activeId={activeId}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         );
       })}
@@ -363,6 +385,9 @@ export function DocumentGroups({
     </div>
   );
 }
+
+/** Over this many Documents, a module's kinds fold in the sidebar (the open one stays unfolded). */
+const CROWDED_MODULE = 12;
 
 const DROP_RING = "outline outline-1 outline-[var(--brand)] bg-[var(--brand-soft)]";
 

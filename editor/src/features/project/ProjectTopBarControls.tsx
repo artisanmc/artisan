@@ -19,21 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScopeHeader, type ScopeTab, ScopeTabs } from "@/components/ui/scope-header";
+import { ScopeHeader } from "@/components/ui/scope-header";
 import type { Project, ProjectId } from "@/domain/types";
-import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { SaveControls } from "@/features/project/publish/SaveControls";
-import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
-import {
-  WORKSPACE_VIEW_TABS,
-  type WorkspaceViewTab,
-  effectiveTab,
-} from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
-import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
+import { listLanguages } from "@/lib/i18nUsages";
 import { useDocumentTrailStore } from "@/state/documentTrailStore";
-import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
@@ -166,7 +158,7 @@ export function ProjectTopBarControls({
           )}
         </>
       }
-      nav={server ? server.nav : <WorkspaceViewNav project={currentProject} />}
+      nav={server ? server.nav : undefined}
       end={
         <div className="project-topbar flex items-center gap-1">
           {server ? null : (
@@ -231,68 +223,6 @@ export function ProjectTopBarControls({
  * code, switches the active language, and `addLanguage` records the
  * existence of the new code in the i18n map.
  */
-/**
- * The module's views, the same tabs as the server's (`ScopeTabs`). Each entry navigates
- * via `?tab=` (deep links / back-button keep working); Home (the module's entry view)
- * first, then the board. The row is the same for every module and holds no file: the
- * module's settings are a row of its tree in the sidebar, like its settings screens.
- * The missing-translations badge rides on the Translations entry. The
- * hotbar digit shortcut follows WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
- */
-const TAB_LABEL: Record<WorkspaceViewTab, string> = {
-  home: "project.tabs.home",
-  board: "project.tabs.canvas",
-  translations: "project.tabs.translations",
-  resources: "project.tabs.resources",
-  history: "project.tabs.history",
-};
-
-function WorkspaceViewNav({ project }: { project: Project }) {
-  const runtime = useProjectRuntime(project.id);
-  const { t } = useTranslation();
-  const activeLang = useUiStore((s) => s.activeLang);
-  const missing = countMissingForLang(project, activeLang);
-  const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
-  const tourActive = useTourPresentation((s) => s.step !== null);
-  const childOpen = useChildPageOpen();
-  const go = useGoToWorkspaceTab();
-  const active = tourActive ? "board" : effectiveTab(search.tab, childOpen);
-  // Versions only exist for a server Project.
-  const views: ScopeTab[] = WORKSPACE_VIEW_TABS.filter(
-    (tab) => tab !== "history" || !!runtime?.serverId,
-  ).map((tab) => {
-    const label = t(TAB_LABEL[tab]);
-    const badge = tab === "translations" ? missing : 0;
-    return {
-      id: tab,
-      label,
-      onSelect: () => go(tab),
-      testId: `open-view-${tab}`,
-      // Tooltip carries the hotbar digit (the digit follows WORKSPACE_VIEW_TABS).
-      title: `${label} (${WORKSPACE_VIEW_TABS.indexOf(tab) + 1})`,
-      badge:
-        badge > 0 ? (
-          <span
-            title={t("project.tabs.missingTranslations", { count: badge })}
-            className="flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--warning)] px-0.5 font-mono text-[9.5px] text-[var(--warning-fg)]"
-          >
-            {badge}
-          </span>
-        ) : undefined,
-    };
-  });
-  return (
-    <ScopeTabs
-      label={t("project.tabs.label")}
-      moreLabel={t("serverDetail.tabs.more")}
-      testId="project-view-navigation"
-      tour="tabs"
-      active={active}
-      tabs={views}
-    />
-  );
-}
-
 function LangSwitcher({ project }: { project: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);

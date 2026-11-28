@@ -1,12 +1,11 @@
-import type { I18nKey, Project, ProjectId } from "@/domain/types";
+import type { Project, ProjectId } from "@/domain/types";
 import { syncPersistedDraft, usePersistedDraftStore } from "@/features/project/persistedDrafts";
 import { saveProjectToDisk } from "@/features/project/saveProjectToDisk";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useAuthStore } from "@/state/authStore";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useUiStore } from "@/state/uiStore";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectTopBarControls } from "./ProjectTopBarControls";
@@ -390,32 +389,5 @@ describe("ProjectTopBarControls — Enregistrer", () => {
     } finally {
       usePersistedDraftStore.setState({ sessions: {} });
     }
-  });
-});
-
-/**
- * Regression: the Translations tab badge counted missing entries on the
- * `project` prop frozen at load time, so it only moved on page reload, even
- * once every translation was filled in.
- */
-describe("ProjectTopBarControls — Translations badge", () => {
-  it("updates live when a translation is filled in", () => {
-    const key = "k1" as I18nKey;
-    const stale: Project = { ...baseProject("trad"), i18nKeys: { [key]: { en: "Hi", fr: "" } } };
-    useProjectsStore.setState({
-      openProjects: { projects: [stale], projectOrder: [stale.id] },
-    } as never);
-    useUiStore.setState({ activeLang: "fr" });
-
-    render(<ProjectTopBarControls project={stale} projectId={stale.id} />);
-    const tab = screen.getByTestId("open-view-translations");
-    expect(within(tab).getByText("1")).toBeInTheDocument();
-
-    act(() =>
-      useProjectsStore
-        .getState()
-        .setI18nValue({ projectId: stale.id, lt: { key }, lang: "fr", value: "Salut" }),
-    );
-    expect(within(tab).queryByText("1")).not.toBeInTheDocument();
   });
 });

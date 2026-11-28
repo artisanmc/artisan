@@ -43,7 +43,12 @@ export function ScopeHeader({
     >
       {/* Where you are keeps its room (a long breadcrumb truncates inside it); the tabs
           give way first, scrolling sideways. */}
-      <div className="flex min-h-14 min-w-0 items-center gap-2.5 lg:max-w-sm lg:shrink-0">
+      <div
+        className={cx(
+          "flex min-h-14 min-w-0 items-center gap-2.5",
+          nav ? "lg:max-w-sm lg:shrink-0" : "lg:flex-1",
+        )}
+      >
         {title}
       </div>
       {nav}
