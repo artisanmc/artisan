@@ -118,4 +118,24 @@ class TreeSyncTest {
         assertEquals("title: Mine\n", file("menus/b.yml").readText())
         assertEquals(setOf("menus/main.yml"), index().keys)
     }
+
+    @Test
+    fun `a conflict says an update is available until the owner keeps their version`() {
+        sync(system(1, "menus/main.yml" to "title: Shop\n"))
+        file("menus/main.yml").writeText("title: Mine\n")
+        val v2 = system(2, "menus/main.yml" to "title: Shop v2\n")
+        sync(v2)
+        assertEquals("title: Mine\n", file("menus/main.yml").readText())
+        val templates = TreeSync.Templates { m, t -> v2.takeIf { m == "shop" && t == "menus" } }
+        val pending = TreeSync.pending(folder, templates)
+        assertEquals(hash("title: Shop v2\n"), pending.getValue("originals/menus/main.yml").hash)
+        assertEquals(1, ProjectOrigins.read(folder).getValue("menus/main.yml").version)
+
+        assertTrue(SystemFiles.keep(folder, "menus/main.yml", templates))
+        assertEquals(2, index().getValue("menus/main.yml").version)
+        assertEquals(emptyMap(), TreeSync.pending(folder, templates))
+        assertTrue(SystemFiles.base(folder, hash("title: Shop v2\n")).isFile, "the next update merges from it")
+        assertTrue(SystemFiles.keep(folder, "menus/main.yml", templates), "already kept")
+        assertFalse(SystemFiles.keep(folder, "menus/other.yml", templates))
+    }
 }

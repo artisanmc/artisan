@@ -1,5 +1,8 @@
 import type { Asset } from "@/domain/asset";
+import { SHIPPED_INDEX } from "@/domain/documentLayout";
+import { readShippedIndex } from "@/domain/shippedIndex";
 import type { ProjectId } from "@/domain/types";
+import type { ShippedEntry } from "@/domain/types";
 import { API_URL } from "@/lib/api/client";
 import type { FileOrigin } from "@/lib/api/templates";
 import { assetDiskPath, assetFileName } from "@/lib/pack/assetDiskWrite";
@@ -8,9 +11,9 @@ import {
   type ImageFunction,
   type ImageOverOriginal,
   type PixelSize,
+  imagesAtOtherMeasures,
   imagesOverOriginals,
   measuredPaths,
-  imagesAtOtherMeasures,
 } from "@/lib/pack/imageFunction";
 import { yamlStem } from "@/lib/yamlFiles";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
@@ -32,7 +35,14 @@ type BinaryTree = Record<string, { hash: string }>;
  */
 export interface ImageStanding {
   own?: string;
-  original?: { path: string; hash: string };
+  /**
+   * The module's version. In a folder that holds its whole tree (ADR `editable-module-tree`),
+   * set only when the owner changed the file: `path` is the file's own, `shipped` names the
+   * template it is read from (`shippedImageUrl`), and restoring writes it back.
+   */
+  original?: { path: string; hash: string; shipped?: { module: string; template: string } };
+  /** The tree layout: the file is the module's as shipped (it follows the module's updates). */
+  asShipped?: boolean;
 }
 
 const ORIGINALS = "originals/";
@@ -52,6 +62,8 @@ export function imageStanding(
   asset: Pick<Asset, "id" | "type" | "compose">,
   /** The module's text files (their paths): where a composed image, which has no PNG, is held. */
   files: Iterable<string> = [],
+  /** `artisan-shipped.yml` of a folder that holds its whole tree (`readShippedIndex`). */
+  index?: Record<string, ShippedEntry>,
 ): ImageStanding {
   if (asset.type === "font") return {};
   const dir = assetDiskPath(asset.type, asset.id).replace(/\/[^/]*$/, "/");
@@ -65,6 +77,18 @@ export function imageStanding(
       )
     : undefined;
   const own = fileOf(paths, dir, asset.id) ?? recipe;
+  const entry = own && index ? index[own] : undefined;
+  if (entry && !paths.some((p) => p.startsWith(ORIGINALS))) {
+    if (tree[own!]?.hash === entry.hash) return { own, asShipped: true };
+    return {
+      own,
+      original: {
+        path: own!,
+        hash: entry.hash,
+        shipped: { module: entry.module, template: entry.template },
+      },
+    };
+  }
   const original = fileOf(paths, `${ORIGINALS}${dir}`, asset.id);
   return {
     ...(own ? { own } : {}),
@@ -88,15 +112,35 @@ export function useImageStanding(
   return useMemo(
     () =>
       tree && id && type
-        ? imageStanding(tree, { id, type, compose }, files ? Object.keys(files) : [])
+        ? imageStanding(
+            tree,
+            { id, type, compose },
+            files ? Object.keys(files) : [],
+            readShippedIndex(files?.[SHIPPED_INDEX] ?? null),
+          )
         : {},
     [tree, files, id, type, compose],
   );
 }
 
 /** The published file of a module's original: the server writes it, a draft never holds another. */
-export function originalImageUrl(projectId: string, original: { path: string; hash: string }) {
+export function originalImageUrl(projectId: string, original: ImageStanding["original"] & {}) {
+  if (original.shipped) return shippedImageUrl(projectId, original);
   return `${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/binary?path=${encodeURIComponent(original.path)}&h=${original.hash}`;
+}
+
+/** What a module shipped at a path of a folder in the tree layout, read through the hub. */
+export function shippedImageUrl(
+  projectId: string,
+  original: { path: string; hash: string; shipped?: { module: string; template: string } },
+): string {
+  const q = new URLSearchParams({
+    path: original.path,
+    h: original.hash,
+    module: original.shipped?.module ?? "",
+    template: original.shipped?.template ?? "",
+  });
+  return `${API_URL}/api/v1/projects/${encodeURIComponent(projectId)}/shipped?${q}`;
 }
 
 /** The measures a function fixes, as a descriptor states them. */
@@ -234,6 +278,18 @@ export function imageMarks(
       .map((path) => stemOf(path.slice(ORIGINALS.length))),
   );
   const marks = new Map<string, ImageMark>();
+  // A folder that holds its whole tree: an indexed image the owner changed is their version.
+  const index = shipped.size === 0 ? readShippedIndex(files[SHIPPED_INDEX] ?? null) : undefined;
+  if (index) {
+    for (const [path, entry] of Object.entries(index)) {
+      const b = binaries[path];
+      if (!b || b.hash === entry.hash || !path.endsWith(".png")) continue;
+      marks.set(
+        stemOf(path),
+        origins && originalChanged(origins, path) ? "original_changed" : "own_version",
+      );
+    }
+  }
   if (shipped.size === 0) return marks;
   for (const path of Object.keys(binaries)) {
     const stem = stemOf(path);

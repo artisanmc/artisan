@@ -29,7 +29,7 @@ import java.util.UUID
  * The index and `.artisan/origins.yaml` (its mirror, read by an older Artisan) are written in
  * the same journaled commit as the files.
  */
-internal object TreeSync {
+object TreeSync {
     private val yaml = ObjectMapper(Yaml12.factory()).registerKotlinModule()
 
     fun sync(
@@ -135,6 +135,55 @@ internal object TreeSync {
         merged.forEach { (path, conflicts) -> onMerged(path, conflicts) }
         restored.forEach(onRestored)
         return changes.keys.filter { it != ProjectOrigins.PATH && it != ShippedIndex.PATH && !it.startsWith("${SystemFiles.BASES}/") }
+    }
+
+    /** What a template finds: (module, template) → its declaration, null when the module is gone. */
+    fun interface Templates {
+        fun find(module: String, template: String): TemplateDeclaration?
+    }
+
+    /**
+     * The files of a folder in the tree layout whose index stays on another version than the
+     * module ships now (a merge with conflicts, a file that cannot be merged): "update
+     * available". As the origins route says it in the former layout, the current shipped
+     * version under `originals/<path>`, beside the one the file answers at `<path>`.
+     */
+    fun pending(projectDir: File, templates: Templates): Map<String, FileOrigin> {
+        val out = linkedMapOf<String, FileOrigin>()
+        for ((path, entry) in ShippedIndex.read(projectDir)) {
+            val template = templates.find(entry.module, entry.template) ?: continue
+            val shippedPath = template.paths.firstOrNull { YamlFiles.onDisk(projectDir, it) == path } ?: continue
+            val hash = template.getHash(shippedPath) ?: continue
+            if (hash == entry.hash || !ProjectPathPolicy.resolve(projectDir, path).isFile) continue
+            out["${net.artisanmc.plugin.model.Originals.DIR}/$path"] = FileOrigin(entry.module, entry.template, template.version, hash)
+        }
+        return out
+    }
+
+    /**
+     * The owner keeps their version of [path] (ADR `editable-module-tree`, "update available"):
+     * its index entry moves to the version the module ships now, with its base, so the next
+     * update compares the file with it. False when [path] is not indexed, absent, or its module
+     * no longer ships it; true when the entry is, or already was, that version.
+     */
+    fun keep(projectDir: File, path: String, templates: Templates): Boolean {
+        val index = ShippedIndex.read(projectDir)
+        val entry = index[path] ?: return false
+        if (!ProjectPathPolicy.resolve(projectDir, path).isFile) return false
+        val template = templates.find(entry.module, entry.template) ?: return false
+        val shippedPath = template.paths.firstOrNull { YamlFiles.onDisk(projectDir, it) == path } ?: return false
+        val hash = template.getHash(shippedPath) ?: return false
+        if (hash == entry.hash) return true
+        val next = index + (path to entry.copy(version = template.version, hash = hash))
+        val changes = linkedMapOf<String, ByteArray?>(ShippedIndex.PATH to ShippedIndex.serialize(next))
+        if (YamlFiles.isYaml(path) && !SystemFiles.base(projectDir, hash).isFile) changes["${SystemFiles.BASES}/$hash"] = template.getFile(shippedPath)!!
+        val origins = ProjectOrigins.read(projectDir)
+        changes[ProjectOrigins.PATH] = ProjectOrigins.serialize(origins + next.mapValues { it.value.origin })
+        ProjectPublisher(projectDir).commit(
+            "system-${UUID.randomUUID()}", UUID.randomUUID().toString(), changes,
+            ObjectMapper().valueToTree(mapOf("ok" to true)),
+        )
+        return true
     }
 
     /**

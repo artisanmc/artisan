@@ -33,6 +33,7 @@ export default {
       alt: "{{name}} as its module ships it",
       confirmRestore:
         "Delete your version of {{name}}? Menus show the module's original again once deployed.",
+      restoreFailed: "The module's version could not be read: is its server online?",
       asShipped:
         "Shipped by the module, as it is. Editing it in the atelier makes your version, shown in its place.",
       asShippedCommon:
@@ -1891,6 +1892,12 @@ export default {
     revert: "Back to the original",
     revertHint: "Drops your changes: the module's version serves again, and follows its updates.",
     revertConfirm: "Drop your changes and go back to the module's version?",
+    update: "Update available",
+    updateHint:
+      "The module changed this file where you changed it too: your values are kept. Compare, then keep yours or go back to the module's.",
+    keep: "Keep mine",
+    keepHint:
+      "Keeps your version: the next module update compares it with the version shipped now.",
   },
   variants: {
     originalBanner: "Module original: {{name}}",

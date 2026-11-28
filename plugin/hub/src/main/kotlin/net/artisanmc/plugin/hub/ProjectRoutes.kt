@@ -32,6 +32,7 @@ class ProjectRoutes(
     private val logger: java.util.logging.Logger? = null,
 ) {
     private val drafts = draftStorage?.let(::ProjectDrafts)
+    private val contents: ContentStore? = draftStorage
     fun register(router: Router) {
         router.on("GET", "$SERVER/projects", VIEW) { call ->
             val server = servers.of(call) ?: return@on call.error(404, "unknown_project")
@@ -74,6 +75,7 @@ class ProjectRoutes(
             onProject(router, "GET", "$base/history", VIEW, ::history)
         }
         onProject(router, "GET", "/api/v1/projects/:project/binary", VIEW, ::asset)
+        onProject(router, "GET", "/api/v1/projects/:project/shipped", VIEW, ::shipped)
         onProject(router, "GET", "$SERVER/projects/:project/asset", VIEW, ::asset)
         onProject(router, "GET", "/api/v1/projects/:project/versions", VIEW) { call, project ->
             call.json(mapOf("versions" to (history?.versions(project.server.id, project.folder) ?: emptyList<Any>())))
@@ -332,6 +334,35 @@ class ProjectRoutes(
             if (!ok(reply) || content == null) return@send readError(call, reply)
             val bytes = Base64.getDecoder().decode(content)
             call.send(200, contentType(path), bytes, cacheFor(bytes, call.query("h")))
+        }
+    }
+
+    /**
+     * What a module shipped at `path` of a folder that holds its whole tree (ADR
+     * `editable-module-tree`): `h`, the hash its index names, from the hub's `contents`; else the
+     * module's `template` read from the server (kept by hash), its file of that hash or at that path.
+     */
+    private fun shipped(call: Call, project: ProjectRef) {
+        val path = call.query("path") ?: return call.error(422, "invalid_input")
+        val hash = call.query("h")?.takeIf { SHA256.matches(it) } ?: return call.error(422, "invalid_input")
+        val module = call.query("module") ?: return call.error(422, "invalid_input")
+        val template = call.query("template") ?: return call.error(422, "invalid_input")
+        val known = { h: String -> runCatching { contents?.content(h) }.getOrNull()?.takeIf { net.artisanmc.plugin.project.ContentHash.hashBytes(it) == h } }
+        known(hash)?.let { return call.send(200, contentType(path), it, cacheFor(it, hash)) }
+        if (!project.server.online) return call.error(503, "server_offline")
+        relay.send(call, project.server, mapOf("type" to "template_fetch", "module_id" to module, "template_id" to template)) { reply ->
+            if (!ok(reply)) return@send readError(call, reply)
+            var atPath: ByteArray? = null
+            (reply["files"] as? List<*>)?.forEach { f ->
+                val file = f as? Map<*, *> ?: return@forEach
+                val bytes = (file["content_base64"] as? String)?.let { runCatching { Base64.getDecoder().decode(it) }.getOrNull() } ?: return@forEach
+                val h = net.artisanmc.plugin.project.ContentHash.hashBytes(bytes)
+                runCatching { if (contents?.content(h) == null) contents?.putContent(h, bytes) }
+                val at = file["path"] as? String
+                if (at != null && net.artisanmc.plugin.model.DocumentLayout.sameFile(at) == net.artisanmc.plugin.model.DocumentLayout.sameFile(path)) atPath = bytes
+            }
+            val bytes = known(hash) ?: atPath ?: return@send call.error(404, "not_found")
+            call.send(200, contentType(path), bytes, if (net.artisanmc.plugin.project.ContentHash.hashBytes(bytes) == hash) cacheFor(bytes, hash) else "no-cache")
         }
     }
 

@@ -35,6 +35,7 @@ const fr: typeof en = {
       alt: "{{name}} telle que son module la livre",
       confirmRestore:
         "Supprimer ta version de {{name}} ? Les menus montrent de nouveau l'original du module une fois déployé.",
+      restoreFailed: "Impossible de lire la version du module : son serveur est-il en ligne ?",
       asShipped:
         "Livrée par le module, telle quelle. La modifier dans l'atelier en fait ta version, montrée à sa place.",
       asShippedCommon:
@@ -1925,6 +1926,12 @@ const fr: typeof en = {
     revertHint:
       "Abandonne tes modifications : la version du module sert de nouveau et suit ses mises à jour.",
     revertConfirm: "Abandonner tes modifications et revenir à la version du module ?",
+    update: "Mise à jour disponible",
+    updateHint:
+      "Le module a changé ce fichier là où tu l'as changé aussi : tes valeurs sont gardées. Compare, puis garde ta version ou reviens à celle du module.",
+    keep: "Garder la mienne",
+    keepHint:
+      "Garde ta version : la prochaine mise à jour du module la compare à la version livrée maintenant.",
   },
   variants: {
     originalBanner: "Original du module : {{name}}",

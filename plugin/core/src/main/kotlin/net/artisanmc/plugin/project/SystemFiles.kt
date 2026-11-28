@@ -187,6 +187,10 @@ object SystemFiles {
         return file.name to EditorYaml.write(root).toByteArray(Charsets.UTF_8)
     }
 
+    /** The folder holds its module's whole tree (ADR `editable-module-tree`): an index, no `originals/`. */
+    fun inTree(projectDir: File): Boolean =
+        ShippedIndex.exists(projectDir) && !File(projectDir, Originals.DIR).isDirectory
+
     internal fun base(projectDir: File, hash: String): File = ProjectPathPolicy.resolve(projectDir, "$BASES/$hash")
 
     /**
@@ -195,7 +199,8 @@ object SystemFiles {
      * version" is answered until the original changes again. False when [path] has no original
      * in the folder or no file of the owner's; true when the origin is, or already was, that one.
      */
-    fun keep(projectDir: File, path: String): Boolean {
+    fun keep(projectDir: File, path: String, templates: TreeSync.Templates = TreeSync.Templates { _, _ -> null }): Boolean {
+        if (inTree(projectDir)) return TreeSync.keep(projectDir, path, templates)
         if (Originals.isOriginal(path) || !ProjectPathPolicy.resolve(projectDir, path).isFile) return false
         val origins = ProjectOrigins.read(projectDir)
         val shipped = origins["${Originals.DIR}/$path"] ?: return false
