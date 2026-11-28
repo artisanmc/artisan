@@ -30,7 +30,13 @@ public interface ArtisanModule {
     @Stable
     void onDisable();
 
-    /** Called when the projects are reloaded from disk (publish, {@code /artisan reload}, sync). */
+    /**
+     * Called when the projects are reloaded from disk: a Deploy, {@code /artisan reload},
+     * {@code /artisan reload <this id>}, {@code api.project.reload(...)}. Re-read here everything
+     * the module keeps in its folder (settings, Documents), so one reload path serves the
+     * editor, the admin and the module's own reload command. Lang files declared
+     * {@code inFolder} are read again by Artisan before this call.
+     */
     @Stable
     default void onReload() {}
 }

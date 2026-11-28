@@ -45,6 +45,10 @@ open class ArtisanPlugin : JavaPlugin() {
         if (!::menuProvider.isInitialized) return
         (menuProvider as? SyncedMenuProvider)?.refreshFromDisk()
     }
+    fun refreshModuleFromDisk(moduleId: String) {
+        if (!::menuProvider.isInitialized) return
+        (menuProvider as? SyncedMenuProvider)?.refreshModule(moduleId)
+    }
     private lateinit var artisanCommand: ArtisanCommand
     internal lateinit var menuWindows: MenuWindows
         private set

@@ -73,7 +73,7 @@ docker compose up       # Paper :25565 + plugin editor :8765 + the shop's MySQL
 docker compose -f docker/network/compose.yml up   # network: one hub + one leaf
 ```
 
-**Plugin commands** — `/artisan menu|variant [name|auto]|reload|sync|editor [sessions|revoke <id>|logout]|stats forget <player>|import [list|history|<source> [file] [confirm]|rollback <batch>]|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
+**Plugin commands** — `/artisan menu|variant [name|auto]|reload [module]|sync|editor [sessions|revoke <id>|logout]|stats forget <player>|import [list|history|<source> [file] [confirm]|rollback <batch>]|dump-title` (+ the internal `click <token>` of `chat_button`), detail in
 `docs/architecture/plugin-commands.md`.
 
 **MC assets** — `cd tools/minecraft-assets && bun gen-items.ts [version]` → `gen-icons.ts` → `pack-icons.ts`

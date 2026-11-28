@@ -128,6 +128,17 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 |---|---|---|
 | `TemplateDeclaration.fromResourceFolder(loader, root, id, version)`: `fromResources` with every file under `root` (any depth, code unit order, a path with a dot segment left out), read from the module's jar (`jar:` resource, the jar must hold the folder's directory entry, as Gradle and Shadow write it) or a classes directory (`file:`); `IllegalArgumentException` when the folder is missing or empty. `fromResources` with its list is unchanged | `TemplateDeclaration.Builder` | 1.10.0 |
 
+## 1.12.0 — one reload path
+
+`/artisan reload` now runs what a Deploy runs: the projects read again, the modules' folder lang
+files, then every module's `onReload()` (before, the modules kept what they read at their start).
+`/artisan reload <module>` and `api.project.reload(moduleId)` do it for one module: its own
+reload command calls it, so the admin's two commands and the editor reload the same files.
+
+| Member | Type | Since |
+|---|---|---|
+| `ProjectContentApi.reload(moduleId: String)` `@Beta` | `Unit` | 1.12.0 |
+
 ## 1.11.0 — menu labels and hover areas
 
 No new Java member: the version marks a menu capability, so a module whose shipped menus use it
@@ -846,6 +857,7 @@ Read-only project content (`plugins/Artisan/modules/` and the registered roots),
 | `read` finds a YAML file under either extension (`lang/fr.yaml` reads `lang/fr.yml` when only that one exists), and a module file under any of its names (`manifest.yaml` reads `artisan-module.yml`) | `String?` | 1.0.0 |
 | `hasContent(dir: String)` | `Boolean` | 1.0.0 |
 | `reload()` | `Unit` | 1.0.0 |
+| `reload(moduleId: String)` (`@Beta`): that module's folders and lang files read again, then its `onReload()` only (`/artisan reload <module>`); before 1.12.0 the default reloads every module | `Unit` | 1.12.0 |
 | `documents(projectId: String, kind: String)` (`@Beta`) | `List<Map<String, Object>>` | 1.0.0 |
 
 ### `net.artisanmc.modules.api.project.ProjectRootRegistry`

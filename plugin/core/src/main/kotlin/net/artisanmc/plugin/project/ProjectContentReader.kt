@@ -19,6 +19,8 @@ class ProjectContentReader(
     private val roots: ProjectRoots,
     /** Snapshot reload: wired to the provider, absent in tests. */
     private val onReloadRequested: () -> Unit = {},
+    /** One module's folders reloaded, that module notified: wired to the provider, absent in tests. */
+    private val onModuleReloadRequested: (moduleId: String) -> Unit = {},
     /** The loaded Projects, read at call time: wired to the provider, `[]` before it exists and in tests. */
     private val runtimes: () -> List<RuntimeProject> = { emptyList() },
     /** The loaded files, read at call time: wired to the provider, empty before it exists and in tests. */
@@ -26,6 +28,8 @@ class ProjectContentReader(
 ) : ProjectContentApi {
 
     override fun reload() = onReloadRequested()
+
+    override fun reload(moduleId: String) = onModuleReloadRequested(moduleId)
 
     /**
      * The Documents of a module kind as the last load read them (W6): raw

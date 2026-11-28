@@ -301,6 +301,17 @@ class SyncedMenuProvider(
     fun refreshFromDisk() = refresh(folders = null, notifyModules = true)
 
     /**
+     * `/artisan reload <module>` and `api.project.reload(moduleId)`: the folders [moduleId]
+     * registered (its own one included), read again, then that module's `onReload()` only.
+     * The module's folder lang files go with them, as on a publication.
+     */
+    fun refreshModule(moduleId: String) {
+        val folders = roots.all().keys.filter { it == moduleId || roots.ownerOf(it) == moduleId }.toSet()
+        notifyOwners.add(moduleId)
+        refresh(folders = folders, notifyModules = false)
+    }
+
+    /**
      * Asks that pile up before the read starts make one reload; an ask made during a read
      * queues one more. It reads [folders] only (the folders just registered), or every
      * project when an ask names none. [onReload] gets the modules to notify: every one when

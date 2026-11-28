@@ -33,6 +33,8 @@ class ArtisanCommand(
                 (offered(sender) + "auto").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("dump-title", ignoreCase = true) ->
                 plugin.menuProvider.listMenuIds().filter { it.startsWith(args[1]) }
+            args.size == 2 && args[0].equals("reload", ignoreCase = true) && sender.hasPermission("artisan.admin") ->
+                plugin.api.modules.active().map { it.id }.sorted().filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("sync", ignoreCase = true) ->
                 listOf("status", "reject").filter { it.startsWith(args[1].lowercase()) }
             args.size == 2 && args[0].equals("stats", ignoreCase = true) ->
@@ -71,10 +73,23 @@ class ArtisanCommand(
                 variant(sender, args.getOrNull(1)?.lowercase())
             }
             "reload" -> {
+                val moduleId = args.getOrNull(1)?.lowercase()
+                if (moduleId != null) {
+                    // One module: its folders and lang files, then its onReload(), as its own
+                    // reload command does. Artisan's config.yml stays as it is.
+                    if (plugin.api.modules.active().none { it.id == moduleId }) {
+                        Chat.send(sender, lang.get("artisan.unknown_module", sender, "id" to moduleId))
+                        return true
+                    }
+                    plugin.refreshModuleFromDisk(moduleId)
+                    Chat.send(sender, lang.get("artisan.reloaded_module", sender, "id" to moduleId))
+                    return true
+                }
                 // Re-read disk config + reconfigure the translations so options like
                 // `per_player_language` and `language` pick up changes without
                 // needing a full server restart. reinit() rebuilds the provider and
-                // loads it: the disk-side YAML edits are read there, once.
+                // loads it: the disk-side YAML edits are read there, once; then every
+                // module's onReload() runs, as after a Deploy.
                 plugin.reinit(plugin.loadPluginConfig())
                 Chat.send(sender, lang.get("artisan.reloaded", sender))
             }
