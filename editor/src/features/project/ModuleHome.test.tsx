@@ -13,7 +13,7 @@ import { useProjectsStore } from "@/state/projectsStore";
 import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import type { DocumentKindContribution, FrontendModule } from "@artisan/editor-sdk";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRegistry } from "../../../packages/editor-sdk/src/contract/registry";
