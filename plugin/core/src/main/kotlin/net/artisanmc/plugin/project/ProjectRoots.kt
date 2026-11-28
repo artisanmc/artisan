@@ -103,10 +103,10 @@ class ProjectRoots(
     /**
      * Forgets the theme [name]: its folder is no longer a Project of the server. The folder
      * itself is the caller's to move ([ServerThemes.delete], [ServerThemes.rename]). The theme
-     * `artisan` is never forgotten. Whether a theme of that name was registered.
+     * `artisan` too: deleted, menus draw Artisan's built-in images ([ArtisanTheme.install]). Whether a theme of that name was registered.
      */
     fun forgetTheme(name: String): Boolean = synchronized(registryLock) {
-        if (name == ArtisanTheme.NAME || !themeRoots.remove(name)) return@synchronized false
+        if (!themeRoots.remove(name)) return@synchronized false
         registered.remove(name)
         owners.remove(name)
         recovered.remove(name)

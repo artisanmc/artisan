@@ -27,6 +27,10 @@ shows the whole module as it ships, read-only. The module's versions are read fr
 (or, with the server off, from what the editor last fetched): until they arrive, the panel says
 nothing.
 
+When a module update changed a file you modified and the two could not be merged, the panel
+says **Update available**: compare, take the module's version, or **Keep mine** to stop being
+told until the next change.
+
 Edit a document back to what the module ships and it is the module's again. A file reformatted
 without a change of value stays the module's; a comment you add makes it yours.
 
@@ -42,7 +46,16 @@ originals:
 ```
 
 Some menus and dialogs are **required**: the module's code opens them. Deleted, they come back
-at the next start, with a warning in the log; change them instead.
+at the next start, with a warning in the log and a problem on the module file until the
+following start; change them instead.
+
+## The theme artisan
+
+Artisan's own images and components (buttons, frames, `confirm`…) are the theme `artisan`, in
+`themes/artisan/`, laid out and updated like a module's files: a redrawn image is yours, an
+untouched one follows Artisan. It is always the lowest theme, under the ones you enable. You can
+delete it from its page; menus then draw Artisan's built-in images, and it is not written again.
+**Resources** offers to install it again.
 
 ## Updates
 

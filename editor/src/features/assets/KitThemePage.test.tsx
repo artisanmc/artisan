@@ -35,7 +35,7 @@ describe("KitThemePage", () => {
     const sheet = within(screen.getByTestId("kit-theme-sheet"));
     expect(sheet.getAllByTestId("kit-theme-sheet-row")).toHaveLength(1);
     // Every image of the base, without the theme and with it: what it redraws comes first.
-    fireEvent.click(sheet.getByRole("button", { name: /Toutes les images de la base/ }));
+    fireEvent.click(sheet.getByRole("button", { name: /Toutes les images du thème artisan/ }));
     const rows = sheet.getAllByTestId("kit-theme-sheet-row");
     expect(rows.length).toBeGreaterThan(10);
     expect(rows[0]).toHaveTextContent("close.1x1");

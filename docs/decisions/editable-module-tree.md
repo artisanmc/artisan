@@ -230,17 +230,32 @@ What the code does today, where it departs from the decisions above:
 - The hub's shipped-content cache is filled when a template is fetched (the editor opening a
   migrated folder, MCP `read_document shipped`), not at Presence; its `contents` rows are kept
   for good. With the server off and a file never fetched, the shipped version is unavailable.
-- `keep` and `madeAgainst` are not adapted to the index: in a migrated folder the origins
-  routes answer nothing, and "update available" has no editor view yet.
-- A required file written again after its deletion is a warning in the log, not a
-  `required_restored` problem on the module file.
+- "Update available" reuses the origins convention: in a migrated folder `project_origins_fetch`
+  adds, for each indexed file whose `artisan-shipped.yml` hash is not the current shipped one,
+  `originals/<path>` → the current shipped origin (`TreeSync.pending`); the editor's existing
+  "original changed" bar shows it, with **Keep mine** (`project_origin_keep` →
+  `TreeSync.keep`: the entry moves to the current version, its merge base with it). A restored
+  image reads the shipped bytes through the hub's `GET /api/v1/projects/:project/shipped`
+  (`contents` by hash, else a `template_fetch`).
+- A required file written again is listed in `.artisan/restored.yaml` and read as a
+  `required_restored` problem of the module (`ProjectReader`) until the next start clears it.
 - A moved Document keeps its index entry at the shipped path (`elsewhere`): the sync neither
   writes it again nor follows it.
 - Packs: both builders read module folders as they are (step 4 needed no change; the former
   layer stays until step 7). The theme `artisan` is migrated and its base read from the index
-  (`KitLayout`); it is still undeletable, not placed in `resource-pack.themes`, and the editor
-  still says "base": the rest of decision 9 (seeded once, deletable, installable, one stack, the
-  Resources screen) is to do.
+  (`KitLayout`).
+- The theme `artisan` is seeded once (`.artisan-seeds.yaml`, key `artisan/base`), deleted like
+  any theme (`project_delete` from protocol `1.13`, `ARTISAN_THEME`; never renamed: menus look
+  in its name), and installed again by `project_create` with `role: "theme"` and its name
+  (`ArtisanTheme.install`, the base written at once, not a `template_copy`). The editor's
+  Resources offers **Install** when the server is read without it, and calls it "artisan", not
+  "base".
+- **Not one stack.** The theme `artisan` stays the implicit lowest layer, never listed in
+  `resource-pack.themes`, and the migration does not add it there. Making it movable means the
+  pack builders' base (`Kit.image`'s shipped drawing, the tinted variants, `ImageNames.common`)
+  would have to come from any level of the stack, in `Kit.kt` and `kit.ts` alike, for a case
+  no server has asked for (a theme drawn under Artisan's images). Deleting it already gives
+  "without it".
 
 ## Steps
 

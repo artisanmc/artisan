@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SortableList } from "@/components/ui/sortable-list";
 import { Switch } from "@/components/ui/switch";
@@ -12,6 +13,7 @@ import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import type { ServerEditorScreen } from "@/lib/api/configScreens";
 import { patchServerConfig } from "@/lib/api/serverConfig";
+import { createProject } from "@/lib/api/servers";
 import { cx } from "@/lib/cx";
 import { THEMES_CONFIG_KEY, themeChange, themesMoved } from "@/lib/pack/theme";
 import { useKitStore } from "@/state/kitStore";
@@ -69,6 +71,8 @@ export function ResourcePlaces({
   const inPlace = useKitStore((s) => s.themes);
   const stacks = useKitStore((s) => s.stacks);
   const every = useServerIndexStore((s) => s.projects);
+  // Read without the theme `artisan`: it was deleted, and can be installed again.
+  const indexed = useServerIndexStore((s) => s.status === "ready");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const held = useMemo(() => serverThemeNames(read, own), [read, own]);
@@ -135,6 +139,21 @@ export function ResourcePlaces({
       const { themes, stacks: lists } = useKitStore.getState();
       return patchServerConfig(serverKeyId, themeChange(themes, lists, name, on));
     });
+  // The theme `artisan` installed again (ADR `editable-module-tree`, decision 9): Artisan's base written at once.
+  const install = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await createProject(serverKeyId, "artisan", "theme");
+      useServerIndexRereads.getState().bump();
+      rebuildServerPackInBackground(t, serverKeyId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
   // A theme just made is not read yet: its page says so until it is, and leads to its files.
   const arrived = (name: string) => {
     useServerIndexRereads.getState().bump();
@@ -252,14 +271,32 @@ export function ResourcePlaces({
         ) : (
           stack.map((name) => <div key={name}>{themeInPlace(name)}</div>)
         )}
-        {read
-          ? entry(
-              { kind: "server" },
-              t("places.server"),
-              null,
-              <InfoTip content={t("places.serverHint")} />,
-            )
-          : null}
+        {read ? (
+          entry(
+            { kind: "server" },
+            t("places.server"),
+            null,
+            <InfoTip content={t("places.serverHint")} />,
+          )
+        ) : indexed ? (
+          <div className={ROW} data-testid="place-server-missing">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-medium text-[var(--text-faint)]">
+                {t("places.server")}
+              </span>
+              <span className="text-[11px] text-[var(--text-mut)]">{t("places.notInstalled")}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              title={t("places.installHint")}
+              onClick={() => void install()}
+            >
+              {t("places.install")}
+            </Button>
+          </div>
+        ) : null}
         {away.map((name) => (
           <div key={name}>
             {entry(
@@ -272,7 +309,7 @@ export function ResourcePlaces({
             )}
           </div>
         ))}
-        {read ? (
+        {read || indexed ? (
           <div className="flex flex-wrap gap-1.5 pt-1">
             <NewThemeDialog serverKeyId={serverKeyId} taken={held} onCreated={arrived} />
             {importTheme?.({ serverKeyId, taken: held, onImported: arrived })}

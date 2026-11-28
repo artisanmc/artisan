@@ -52,14 +52,13 @@ class ProjectRoutes(
             listed(call, server) { reply ->
                 if (!ok(reply)) return@listed readError(call, reply)
                 val root = ProjectListing.from(reply).root(project.folder) ?: return@listed call.error(404, "not_found")
-                val movable = movable(server, root)
                 call.json(mapOf(
                     "project" to summary(server, root),
                     "serverKeyId" to server.id,
                     // Capture relays `player-inventory` to this server; `connection.available` turns it off when offline.
                     "capabilities" to mapOf(
                         "liveData" to true, "captureInGame" to true, "preview" to true,
-                        "canRename" to movable, "canDelete" to movable,
+                        "canRename" to movable(server, root), "canDelete" to movable(server, root, delete = true),
                     ),
                     "minecraftVersion" to server.minecraftVersion,
                     // Offline: the Project opens from the database, without live data or capture.
@@ -218,11 +217,16 @@ class ProjectRoutes(
 
     private fun folderError(call: Call, reply: Map<String, Any?>) = readError(call, reply)
 
-    /** Whether the server renames and trashes this folder: a module's own, or a theme's other than the common images'. */
-    private fun movable(server: EditorServer, root: ProjectRootInfo): Boolean {
+    /**
+     * Whether the server renames (or, with [delete], trashes) this folder: a module's own, or a
+     * theme's. The theme `artisan` is trashed from protocol [ProtocolVersion.ARTISAN_THEME] on,
+     * never renamed: its name is the one menus look in.
+     */
+    private fun movable(server: EditorServer, root: ProjectRootInfo, delete: Boolean = false): Boolean {
         val minor = ProtocolVersion.minor(server.protocolVersion)
-        return if (root.role == ServerThemes.ROLE) root.projectId != ArtisanTheme.NAME && minor >= ProtocolVersion.THEME_MOVES
-        else root.identity == "folder" && minor >= ProtocolVersion.PROJECT_FOLDERS
+        if (root.role != ServerThemes.ROLE) return root.identity == "folder" && minor >= ProtocolVersion.PROJECT_FOLDERS
+        if (root.projectId == ArtisanTheme.NAME) return delete && minor >= ProtocolVersion.ARTISAN_THEME
+        return minor >= ProtocolVersion.THEME_MOVES
     }
 
     /** A URL naming its content's hash never changes content: the browser keeps it for good. */
@@ -504,7 +508,7 @@ class ProjectRoutes(
             "serverKeyId" to server.id, "hash" to "",
             "identityKind" to root.identity, "ownerModule" to root.moduleId, "projectKey" to root.projectKey,
             "role" to root.role,
-            "capabilities" to mapOf("canRename" to movable(server, root)),
+            "capabilities" to mapOf("canRename" to movable(server, root), "canDelete" to movable(server, root, delete = true)),
         )
     }
 

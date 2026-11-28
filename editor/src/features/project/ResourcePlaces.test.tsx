@@ -6,7 +6,15 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ResourcePlaces, moduleLabels } from "./ResourcePlaces";
 
-const api = vi.hoisted(() => ({ patchServerConfig: vi.fn(), navigate: vi.fn() }));
+const api = vi.hoisted(() => ({
+  patchServerConfig: vi.fn(),
+  navigate: vi.fn(),
+  createProject: vi.fn(),
+}));
+vi.mock("@/lib/api/servers", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  createProject: api.createProject,
+}));
 vi.mock("@/lib/api/serverConfig", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   patchServerConfig: api.patchServerConfig,
@@ -83,7 +91,7 @@ describe("ResourcePlaces", () => {
     // Artisan's images and the server's are one place.
     expect(screen.queryByTestId("places-base")).toBeNull();
     expect(screen.getByTestId("place-server")).toHaveAttribute("aria-current", "true");
-    expect(screen.getByTestId("place-server")).toHaveTextContent("Base");
+    expect(screen.getByTestId("place-server")).toHaveTextContent("artisan");
   });
 
   it("opens a theme, a module and the server's theme in their Project, a theme the common images keep on its page", async () => {
@@ -111,7 +119,7 @@ describe("ResourcePlaces", () => {
       params: { serverId: "s", projectId: "srv.guilds" },
       search: { tab: "resources" },
     });
-    fireEvent.click(within(screen.getByTestId("place-server")).getByText("Base"));
+    fireEvent.click(within(screen.getByTestId("place-server")).getByText("artisan"));
     expect(api.navigate).toHaveBeenLastCalledWith(
       expect.objectContaining({ params: { serverId: "s", projectId: "srv.artisan" } }),
     );
@@ -171,6 +179,18 @@ describe("ResourcePlaces", () => {
 });
 
 describe("moduleLabels", () => {
+  it("offers to install the theme artisan again once the server is read without it", async () => {
+    useKitStore.setState({ read: undefined });
+    useServerIndexStore.setState({ status: "ready" });
+    api.createProject.mockResolvedValue({ id: "key.artisan" });
+    render(<ResourcePlaces serverId="s" serverKeyId="key" selected={null} />);
+    expect(screen.queryByTestId("place-server")).toBeNull();
+    const row = within(screen.getByTestId("place-server-missing"));
+    expect(row.getByText(/images intégrées d'Artisan/)).toBeInTheDocument();
+    fireEvent.click(row.getByRole("button", { name: "Installer" }));
+    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith("key", "artisan", "theme"));
+  });
+
   it("names a plugin's module as the sidebar does, before the admin's folders", () => {
     const project = (id: string, name: string, ownerModule?: string) =>
       ({ id, name, updatedAt: "", ...(ownerModule ? { ownerModule } : {}) }) as never;

@@ -34,7 +34,7 @@ object ArtisanTheme {
      * so a menu that names one finds it. While both hold files, or when the move fails, the
      * module stays a module and the log says what to do.
      */
-    fun register(roots: ProjectRoots, logger: Logger? = null): File {
+    fun register(roots: ProjectRoots, logger: Logger? = null, seeds: TemplateSeeds? = null): File? {
         val target = File(roots.themesRoot, NAME)
         val legacy = File(roots.coreRoot, LEGACY_MODULE).takeIf { it.isDirectory && holdsContent(it) }
         if (legacy != null) {
@@ -57,7 +57,31 @@ object ArtisanTheme {
                 }
             }
         }
+        // Seeded once (ADR `editable-module-tree`, decision 9): a server that deleted it does not get it back.
+        if (!target.isDirectory && seeds != null && SEED in seeds.seeded()) {
+            logger?.info("[Artisan] The theme '$NAME' was deleted on this server: menus draw Artisan's built-in images. Install it again from the editor's Resources.")
+            return null
+        }
+        seeds?.markSeeded(SEED)
         return roots.theme(NAME)
+    }
+
+    /** The key of the theme in `.artisan-seeds.yaml`: written the first start that knows it. */
+    const val SEED = "$SHIPPER/$TEMPLATE"
+
+    /** Artisan's base, its images and components by name: set at startup by the plugin, read by [install]. */
+    @Volatile var base: (() -> Pair<Map<String, ByteArray>, Map<String, String>>)? = null
+
+    /**
+     * Installs the theme again after it was deleted (`project_create` of `artisan` as a theme):
+     * registered, its base written at once. Returns a protocol error code, or null.
+     */
+    fun install(roots: ProjectRoots): String? {
+        if (roots.isTheme(NAME)) return "project_exists"
+        val dir = roots.theme(NAME)
+        val (images, components) = base?.invoke() ?: return null
+        sync(dir, images, components)
+        return null
     }
 
     /**

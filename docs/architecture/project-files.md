@@ -57,7 +57,10 @@ holds no Document: the server loads no menu, command or Trigger from it
 The theme's page renames it (`project_rename`, `ServerThemes.rename`: the folder moves within
 `themes/`, to a name no module, theme or folder there has) and deletes it (`project_delete`,
 `ServerThemes.delete`: the folder moves to `themes/.artisan-trash/<name>-<UTC timestamp>/`,
-never erased). The theme `artisan` is neither renamed nor deleted. `resource-pack.themes` is
+never erased). The theme `artisan` is never renamed; from protocol `1.13` it is deleted like
+the others, recorded as seeded in `.artisan-seeds.yaml` so it is not written again, and
+`project_create` of `artisan` as a theme installs it again with Artisan's base
+(`ArtisanTheme.install`). Without it, menus draw the pack builders' own copy of the slots. `resource-pack.themes` is
 not the server's to follow: the editor writes it after the move.
 A theme the common images' folder kept (`themes/artisan/themes/<name>/`, `theme.yml` and
 `assets/`) moves to its own folder at start (`ServerThemes.migrate`): `theme.yml` becomes

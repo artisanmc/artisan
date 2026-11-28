@@ -291,6 +291,8 @@ The risk remains: hub and leaves are distinct jars, updated at different times.
   theme in that server's common images, where it keeps them. `1.12` (`THEME_MOVES`):
   `project_delete` and `project_rename` reach a theme's folder; an older leaf answers
   `addon_immutable`, so the hub says a theme of that server cannot be renamed or deleted.
+  `1.13` (`ARTISAN_THEME`): `project_delete` trashes the theme `artisan` and `project_create`
+  installs it again; an older leaf keeps it undeletable.
 - **One release = one number** for all jars; update hub and leaves together.
 
 The server that hosts the hub talks to it in process (`LocalServerLink`): never a version gap.

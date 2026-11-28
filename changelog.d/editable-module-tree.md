@@ -11,3 +11,9 @@
     YAML file reformatted by hand stays a full copy until the next module update.
 - **Added**: MCP `restore_document` and `read_document` with `shipped: true`; `list_documents`
   gives each Document's origin from `artisan-shipped.yml` and lists the shipped ones deleted.
+- **Added**: "Update available" on a modified file a module update could not merge into, with
+  **Keep mine**; a required file written again is a problem on its module until the next start.
+- **Changed**: The theme `artisan` is a theme like the others: deleted from its page (menus then
+  draw Artisan's built-in images, and it is not written again), installed again from
+  Resources. The editor calls it "artisan" instead of "base". It is never renamed, and stays
+  under the themes you enable.

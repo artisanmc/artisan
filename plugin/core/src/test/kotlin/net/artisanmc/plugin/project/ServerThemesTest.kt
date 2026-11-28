@@ -164,7 +164,7 @@ class ServerThemesTest {
         assertEquals("project_exists", ServerThemes.create(roots, "noel"))
         // A module's name, the common images' and a name that differs by its case alone are taken.
         assertEquals("project_exists", ServerThemes.create(roots, "guilds"))
-        assertEquals("invalid_name", ServerThemes.create(roots, "artisan"))
+        assertEquals("project_exists", ServerThemes.create(roots, "artisan"))
         assertEquals("invalid_name", ServerThemes.create(roots, "Noel"))
         assertEquals("invalid_name", ServerThemes.create(roots, "../x"))
         File(data, "themes/Hiver").mkdirs()
