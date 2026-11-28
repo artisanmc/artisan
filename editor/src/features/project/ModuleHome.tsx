@@ -25,7 +25,7 @@ import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { type DocumentKindContribution, getModule } from "@artisan/editor-sdk";
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
   Blocks,
   ChevronRight,
@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { Component, type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ModuleCatalogue } from "./ModuleCatalogue";
 import { typeLabel } from "./ProjectDocumentTree";
 import { goToDocument } from "./goToDocument";
 import { type PreviewLine, screenPreview } from "./screenPreview";
@@ -49,8 +50,9 @@ import { documentLabel } from "./useProjectDocuments";
  * A module's entry view (`?tab=` absent, at the module's root): what the module holds and
  * what it gives the server, built from what is already declared (kinds, collections,
  * screens, data sources, commands, actions). One block per place of the module, never a
- * row per Document: the left bar lists the Documents, the home says how many there are
- * and leads to the page that edits them.
+ * row per Document in those blocks: above them the catalogue (`ModuleCatalogue`) lists every
+ * Document as a card, kind after kind, with a search and a filter by kind; the left bar lists
+ * the same Documents for switching from one to another.
  */
 export function ModuleHome({
   project: opened,
@@ -63,6 +65,8 @@ export function ModuleHome({
     useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === opened.id)) ?? opened;
   const navigate = useNavigate();
   const { serverId } = useParams({ strict: false }) as { serverId?: string };
+  // `?kind=` narrows the catalogue to one kind: a kind of the sidebar links to it.
+  const { kind: shownKind } = useSearch({ strict: false }) as { kind?: string };
   const uiLang = useUiStore((s) => s.editorLang);
   const activeLang = useUiStore((s) => s.activeLang);
   const screens = useServerScreensStore((s) => s.screens);
@@ -190,6 +194,18 @@ export function ModuleHome({
             </LeaveOutOnError>
           </div>
         )}
+
+        <ModuleCatalogue
+          project={project}
+          kind={shownKind}
+          onKind={(kind) =>
+            navigate({
+              to: ".",
+              search: (prev) => ({ ...(prev as object), kind }) as never,
+            })
+          }
+          onOpen={(ref) => goToDocument(navigate, { serverId, project, ref })}
+        />
 
         <section className="flex flex-col gap-2.5" aria-labelledby="module-home-content">
           <h2 id="module-home-content" className="field-label">

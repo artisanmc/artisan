@@ -24,6 +24,7 @@ const navigate = vi.fn();
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => navigate,
   useParams: () => ({ serverId: "s1" }),
+  useSearch: () => ({}),
   Link: ({ children, params }: { children: ReactNode; params?: Record<string, string> }) => (
     <a href={`#${Object.values(params ?? {}).join("/")}`}>{children}</a>
   ),
@@ -120,7 +121,10 @@ describe("ModuleHome", () => {
 
   it("puts a board with only commands after the lists, without its picture", () => {
     render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const blocks = screen.getAllByRole("listitem").map((li) => li.getAttribute("data-testid"));
+    const blocks = screen
+      .getAllByRole("listitem")
+      .map((li) => li.getAttribute("data-testid"))
+      .filter(Boolean);
     expect(blocks.indexOf("module-home-board")).toBeGreaterThan(
       blocks.indexOf("module-home-collection-conversation"),
     );
@@ -141,7 +145,10 @@ describe("ModuleHome", () => {
       },
     } as never);
     render(<ModuleHome project={project()} onOpenBoard={() => {}} />);
-    const blocks = screen.getAllByRole("listitem").map((li) => li.getAttribute("data-testid"));
+    const blocks = screen
+      .getAllByRole("listitem")
+      .map((li) => li.getAttribute("data-testid"))
+      .filter(Boolean);
     expect(blocks[0]).toBe("module-home-board");
     expect(screen.getByTestId("module-home-board").className).toContain("md:col-span-2");
     // Out of the flow, so its viewBox ratio never sets the block's height (a tall board

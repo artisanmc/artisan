@@ -1488,6 +1488,7 @@ export default {
     },
   },
   projectPanel: {
+    openKind: "Show the {{kind}} in the catalogue",
     expandParts: "Show the parts of {{name}}",
     collapseParts: "Hide the parts of {{name}}",
     systemDocumentHint:
@@ -2240,7 +2241,7 @@ export default {
     serverOfflineExport: "Server offline — cannot export the files",
     tabs: {
       label: "Module views",
-      home: "Home",
+      home: "Catalogue",
       resources: "Resources",
       canvas: "Canvas",
       translations: "Translations",
@@ -2826,6 +2827,14 @@ export default {
     ctxDialogBody: "dialog · {{owner}}",
     ctxDialogButton: "button · {{owner}}",
     ctxInDocument: "in {{owner}}",
+  },
+  moduleCatalogue: {
+    title: "Documents",
+    search: "Search a Document",
+    kinds: "Filter by kind",
+    all: "All",
+    none: "No Document matches.",
+    tone: { modified: "modified", update: "update" },
   },
   moduleHome: {
     translationsMissing_one: "{{count}} text to translate.",

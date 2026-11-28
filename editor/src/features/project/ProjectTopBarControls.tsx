@@ -20,9 +20,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScopeHeader } from "@/components/ui/scope-header";
+import { Segmented } from "@/components/ui/segmented";
 import type { Project, ProjectId } from "@/domain/types";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
 import { SaveControls } from "@/features/project/publish/SaveControls";
+import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
+import type { WorkspaceViewTab } from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
 import { listLanguages } from "@/lib/i18nUsages";
 import { isTypingTarget } from "@/lib/keyboard";
@@ -159,7 +162,7 @@ export function ProjectTopBarControls({
           )}
         </>
       }
-      nav={server ? server.nav : undefined}
+      nav={server ? server.nav : <ModuleViewSwitch />}
       end={
         <div className="project-topbar flex items-center gap-1">
           {server ? null : (
@@ -224,6 +227,34 @@ export function ProjectTopBarControls({
  * code, switches the active language, and `addLanguage` records the
  * existence of the new code in the i18n map.
  */
+/**
+ * Catalogue or canvas: the two ways to look at the module's Documents, one switch in its
+ * header (the canvas holds every Document of the module, the catalogue lists them as cards).
+ * Neither is pressed on a Document's own page or on a tool (Translations, Resources…): the
+ * switch then leads back to one of them.
+ */
+function ModuleViewSwitch() {
+  const { t } = useTranslation();
+  const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
+  const childOpen = useChildPageOpen();
+  const go = useGoToWorkspaceTab();
+  const value: WorkspaceViewTab | "" =
+    search.tab === "board" ? "board" : !search.tab && !childOpen ? "home" : "";
+  return (
+    <div data-tour="tabs" className="flex min-h-12 items-center lg:min-h-0">
+      <Segmented
+        label={t("project.tabs.label")}
+        value={value}
+        onChange={(tab) => tab && go(tab)}
+        options={[
+          { value: "home", label: t("project.tabs.home") },
+          { value: "board", label: t("project.tabs.canvas") },
+        ]}
+      />
+    </div>
+  );
+}
+
 function LangSwitcher({ project }: { project: Project }) {
   const activeLang = useUiStore((s) => s.activeLang);
   const setActiveLang = useUiStore((s) => s.setActiveLang);

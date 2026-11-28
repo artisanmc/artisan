@@ -209,6 +209,7 @@ export function ProjectDocumentTree({
   onOpen,
   header = "name",
   activeId,
+  onOpenKind,
 }: {
   projectId: ProjectId;
   /** Its argument: the Document's key (`docKey`). */
@@ -216,6 +217,8 @@ export function ProjectDocumentTree({
   header?: "name" | "none";
   /** The key (`docKey`) of the Document open in the view, highlighted in the tree. */
   activeId?: string;
+  /** A kind's name leads to the catalogue narrowed to it; absent, the name only folds the group. */
+  onOpenKind?: (kind: string) => void;
 }) {
   const { t } = useTranslation();
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
@@ -249,7 +252,13 @@ export function ProjectDocumentTree({
           projectId={project.id}
           overlay={(key) => <DragGhost project={project} docKeyOf={key} />}
         >
-          <DocumentGroups project={project} onOpen={onOpen} editable activeId={activeId} />
+          <DocumentGroups
+            project={project}
+            onOpen={onOpen}
+            editable
+            activeId={activeId}
+            onOpenKind={onOpenKind}
+          />
         </DocumentDragArea>
       )}
     </div>
@@ -266,17 +275,18 @@ export function DocumentGroups({
   onOpen,
   editable = false,
   activeId,
+  onOpenKind,
 }: {
   project: Project;
   /** Its argument: the Document's key (`docKey`). */
   onOpen: (documentId: string) => void;
   editable?: boolean;
   activeId?: string;
+  onOpenKind?: (kind: string) => void;
 }) {
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
   const serverKinds = useServerDocumentKindsStore();
-  const templates = useProjectTemplates(project.id);
   const drag = useDocumentDrag();
   // While a Document is dragged, the tree already shows it where it would land.
   const allGroups = withDropPreview(buildProjectDocuments(project, activeLang), drag, (it) =>
@@ -285,10 +295,7 @@ export function DocumentGroups({
   // A collection's Documents are listed under its own entry, never at the root or in a folder.
   const groups = allGroups.filter((g) => !isCollectionKind(g.type));
   const collections = projectCollections(project);
-  const originOf = (id: string) =>
-    project.originals
-      ? originalsOrigin(project, id, t)
-      : templateOrigin(templates, project, documentRelPath(project, id), t);
+  const originOf = useOriginOf(project);
   // Dropped outside every folder: back to the module's root.
   const root = useFolderDroppable("", editable);
   const container = useRef<HTMLDivElement>(null);
@@ -347,19 +354,34 @@ export function DocumentGroups({
         const Chevron = open ? ChevronDown : ChevronRight;
         return (
           <div key={g.type} className="flex flex-col pb-1.5 last:pb-0">
-            <button
-              type="button"
-              data-testid={`type-group-${g.type}`}
-              aria-expanded={open}
-              onClick={() => setUnfolded((u) => ({ ...u, [g.type]: !open }))}
-              className="flex items-center gap-1.5 rounded-[10px] py-[3px] pr-2 pl-0.5 text-left text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
-            >
-              <Chevron className="size-3 text-[var(--text-faint)]" aria-hidden />
-              <span className="flex-1 truncate">{label}</span>
-              <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
-                {rootItems.length}
-              </span>
-            </button>
+            <div className="flex items-center rounded-[10px] text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)]">
+              <button
+                type="button"
+                data-testid={`type-group-${g.type}`}
+                aria-expanded={open}
+                aria-label={t(open ? "collections.collapse" : "collections.expand", {
+                  collection: label,
+                })}
+                onClick={() => setUnfolded((u) => ({ ...u, [g.type]: !open }))}
+                className="flex shrink-0 items-center py-[3px] pl-0.5"
+              >
+                <Chevron className="size-3 text-[var(--text-faint)]" aria-hidden />
+              </button>
+              <button
+                type="button"
+                data-testid={`type-open-${g.type}`}
+                title={onOpenKind ? t("projectPanel.openKind", { kind: label }) : undefined}
+                onClick={() =>
+                  onOpenKind ? onOpenKind(g.type) : setUnfolded((u) => ({ ...u, [g.type]: !open }))
+                }
+                className="flex min-w-0 flex-1 items-center gap-1.5 py-[3px] pr-2 pl-1.5 text-left hover:text-[var(--text)]"
+              >
+                <span className="flex-1 truncate">{label}</span>
+                <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
+                  {rootItems.length}
+                </span>
+              </button>
+            </div>
             {open && (
               <ul aria-label={label} className="flex flex-col">
                 {rootItems.map((it) => (
@@ -383,6 +405,30 @@ export function DocumentGroups({
       })}
       <DataSourceRows project={project} editable={editable} />
     </div>
+  );
+}
+
+/**
+ * Where a Document of the module comes from, for the sidebar and the catalogue alike: the
+ * module's original (system or copy) or a template copy, with how far it drifted.
+ */
+export function useOriginOf(project: Project): OriginOf {
+  const { t } = useTranslation();
+  const templates = useProjectTemplates(project.id);
+  return (id) =>
+    project.originals
+      ? originalsOrigin(project, id, t)
+      : templateOrigin(templates, project, documentRelPath(project, id), t);
+}
+
+/** What an origin's tag says: a system element, or a copy that is up to date, drifted or outdated. */
+export function originLabelOf(origin: ReturnType<OriginOf>, t: TFunction): string | undefined {
+  if (!origin) return undefined;
+  return t(
+    origin.system
+      ? `projectPanel.systemBadge.${origin.tone}`
+      : `moduleTemplates.badge.${origin.tone}`,
+    { module: origin.module },
   );
 }
 
