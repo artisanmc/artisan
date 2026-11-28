@@ -76,6 +76,7 @@ export function ModuleCatalogue({
           />
         </label>
       </div>
+      {/* biome-ignore lint/a11y/useSemanticElements: a row of toggle chips, not a form fieldset */}
       <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("moduleCatalogue.kinds")}>
         <button
           type="button"
