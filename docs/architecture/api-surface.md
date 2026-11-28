@@ -86,7 +86,7 @@ The older constructors declare `RUNTIME`, the behaviour before internal 2.19.0. 
 | `api.text.OverlayApi` `@Beta` (`width`, `raise`, `move`, `image`, `hasPack`, `show`, `hide`, `Slot`, `MIN_RISE`, `MAX_RISE`, `NONE`) | interface | 1.0.0 |
 | `getOverlay()` `@Beta` | `OverlayApi` | 1.0.0 |
 
-Artisan owns the slots of the screen (`Slot.ACTION_BAR` for now, the boss bar and the sidebar to come on the same contract): a module puts a named layer there with `show(player, slot, layer, priority, miniMessage)` and takes it away with `hide`. The slot's line is its layers one after the other, by ascending priority, resent every 20 ticks while one is there; two modules never overwrite each other. A layer is drawn from the centre of the slot and leaves the pen there (x is measured from the centre of the screen). Its MiniMessage pieces come from the same interface, with the pack's fonts: `raise(text, rise)` puts text in `artisan:text_up<rise>` (up to 128 px) or `artisan:text_y<6-rise>_h8` (down to -166 px), both always in the pack, `move(px)` shifts the pen with the `space` provider of `artisan:default`, `image(asset, rise)` draws an image of a Project's `assets/` without shadow and brings the pen back (null when the pack lacks that (asset, rise): the module's editor kind declares it, `pack.images`, editor SDK 1.13), `width(text)` is the vanilla advance (1.21.4 tables, bold + 1). `hasPack(player)` is true once the player's client loaded Artisan's pack (or the host plugin's that merges it). Detail: `modules.md`, "HUD in the action bar".
+Artisan owns the slots of the screen (`Slot.ACTION_BAR`, `Slot.BOSS_BAR` since 1.13.0, the sidebar to come on the same contract): a module puts a named layer there with `show(player, slot, layer, priority, miniMessage)` and takes it away with `hide`. The slot's line is its layers one after the other, by ascending priority, resent every 20 ticks while one is there; two modules never overwrite each other. A layer is drawn from the centre of the slot and leaves the pen there (x is measured from the centre of the screen). Its MiniMessage pieces come from the same interface, with the pack's fonts: `raise(text, rise)` puts text in `artisan:text_up<rise>` (up to 128 px) or `artisan:text_y<6-rise>_h8` (down to -166 px), both always in the pack, `move(px)` shifts the pen with the `space` provider of `artisan:default`, `image(asset, rise)` draws an image of a Project's `assets/` without shadow and brings the pen back (null when the pack lacks that (asset, rise): the module's editor kind declares it, `pack.images`, editor SDK 1.13), `width(text)` is the vanilla advance (1.21.4 tables, bold + 1). `hasPack(player)` is true once the player's client loaded Artisan's pack (or the host plugin's that merges it). Detail: `modules.md`, "HUD in the action bar".
 
 ## internal 2.21.0 — HUD layouts
 
@@ -127,6 +127,14 @@ The Java twin of an editor kind's `pack.images` (SDK 1.13): the server calls it 
 | Member | Type | Since |
 |---|---|---|
 | `TemplateDeclaration.fromResourceFolder(loader, root, id, version)`: `fromResources` with every file under `root` (any depth, code unit order, a path with a dot segment left out), read from the module's jar (`jar:` resource, the jar must hold the folder's directory entry, as Gradle and Shadow write it) or a classes directory (`file:`); `IllegalArgumentException` when the folder is missing or empty. `fromResources` with its list is unchanged | `TemplateDeclaration.Builder` | 1.10.0 |
+
+## 1.13.0 — a HUD in the boss bar
+
+| Member | Type | Since |
+|---|---|---|
+| `OverlayApi.Slot.BOSS_BAR` `@Beta` | enum constant | 1.13.0 |
+
+The second slot of `OverlayApi`, on the contract of `ACTION_BAR`: a layer shown there is drawn as the name of a boss bar Artisan keeps for the player (shown with the first layer, renamed in place, hidden with the last, never resent: a boss bar does not fade). The bar is yellow without notches, and Artisan's pack always holds the yellow bar's two sprites (`assets/minecraft/textures/gui/sprites/boss_bar/yellow_{background,progress}.png`) as transparent images: only the name shows. Yellow is reserved: no vanilla boss uses it, and any plugin's yellow bar loses its bar for a player who has the pack. The name's line is 3 px under the top of the screen, so a layer draws downwards (negative rise); other plugins' bars stack under or above it in the order they were shown. An older Artisan has no such constant: a module that uses it requires 1.13.0.
 
 ## 1.12.0 — one reload path
 

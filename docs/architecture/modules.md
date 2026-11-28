@@ -165,7 +165,9 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > `show(player, Slot.ACTION_BAR, "<module>:<layer>", priority, miniMessage)`, drawn from the centre of the
 > screen with the pen brought back there, and `hide`s it; Artisan (`OverlaySlots`) draws every layer of the
 > slot by priority and resends it. A module renders through it only for a player whose `hasPack` is true and
-> keeps a chat fallback.
+> keeps a chat fallback. `Slot.BOSS_BAR` (API 1.13.0) is the same contract at the top of the screen: the name
+> of a yellow boss bar whose sprites the pack makes transparent (`lib/pack/bossBar.ts`, `BossBar.kt`), shown
+> with the first layer and hidden with the last (`HudBossBars`), drawn downwards from 3 px under the top.
 > The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
 
 > **HUD layouts (since 2026-10-30)** — rather than placing each piece with `move` and

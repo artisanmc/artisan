@@ -56,4 +56,13 @@ class OverlaySlotsTest {
         slots.hide(player, Slot.ACTION_BAR, "b")
         assertEquals(5, sent.size)
     }
+
+    @Test
+    fun `the boss bar is not sent again, it stays until changed`() {
+        slots.show(player, Slot.BOSS_BAR, "quests:tracking", 0, "Q")
+        assertEquals(0, scheduler.later.size)
+        assertEquals("", slots.line(player, Slot.ACTION_BAR))
+        slots.hide(player, Slot.BOSS_BAR, "quests:tracking")
+        assertEquals(listOf("Q", ""), sent)
+    }
 }

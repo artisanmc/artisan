@@ -65,9 +65,12 @@ open class ArtisanPlugin : JavaPlugin() {
                     if (line.isEmpty()) net.kyori.adventure.text.Component.empty()
                     else net.artisanmc.plugin.text.LenientText.parse(line),
                 )
+                net.artisanmc.modules.api.text.OverlayApi.Slot.BOSS_BAR -> hudBossBars.send(player, line)
             }
         }
     }
+    /** The boss bar of `Slot.BOSS_BAR`, one per player. */
+    private val hudBossBars = net.artisanmc.plugin.resourcepack.HudBossBars()
     private val openedContainers = net.artisanmc.plugin.render.title.OpenedContainers()
     private var menuPackets: MenuPacketInterceptor? = null
     /** Exposed for /artisan dump-title diagnostics. */
@@ -220,6 +223,7 @@ open class ArtisanPlugin : JavaPlugin() {
             }
         }
         server.pluginManager.registerEvents(overlaySlots, this)
+        server.pluginManager.registerEvents(hudBossBars, this)
         server.pluginManager.registerEvents(openedContainers, this)
         geyser.start()
         saveDefaultConfig()
