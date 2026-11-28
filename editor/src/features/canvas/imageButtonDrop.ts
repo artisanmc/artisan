@@ -12,15 +12,21 @@ export function dropImageButton(
   asset: Pick<Asset, "id" | "projectId" | "width" | "height">,
   x: number,
   y: number,
+  /** A component the button names, `asset` giving its size. */
+  component?: string,
 ) {
   // A common image is named where it is (its `id` is what the menu writes): nothing is copied.
-  if (asset.projectId !== projectId && asset.projectId !== KIT_FOLDER) return false;
+  if (!component && asset.projectId !== projectId && asset.projectId !== KIT_FOLDER) return false;
   const hit = tryStageSlotHit(x, y);
   if (!hit) return false;
   const menuId = hit.menuId as MenuId;
-  const id = useProjectsStore
-    .getState()
-    .addImageButton({ projectId, menuId, position: hit.position, asset });
+  const id = useProjectsStore.getState().addImageButton({
+    projectId,
+    menuId,
+    position: hit.position,
+    asset,
+    ...(component ? { component } : {}),
+  });
   if (!id) return false;
   useSelectionStore.getState().set([id], null, menuId);
   return true;

@@ -12,7 +12,7 @@ type DataCarrier = Parameters<typeof readDrag>[0];
 
 export type WorkspaceDrop =
   /** An image button released at a screen point. */
-  | { kind: "imageButton"; asset: Asset; x: number; y: number }
+  | { kind: "imageButton"; asset: Asset; component?: string; x: number; y: number }
   /** A static-source row released at a screen point (pinned if it lands on its menu). */
   | {
       kind: "placementRow";
@@ -66,7 +66,12 @@ export function decodeDragEnd(e: DragEndFields): WorkspaceDrop | null {
       const event = e.activatorEvent;
       const start = "touches" in event ? (event as TouchEvent).touches[0] : (event as MouseEvent);
       if (!start) return null;
-      return { kind: "imageButton", asset: drag.asset, ...releasePoint(start, e.delta) };
+      return {
+        kind: "imageButton",
+        asset: drag.asset,
+        ...(drag.component ? { component: drag.component } : {}),
+        ...releasePoint(start, e.delta),
+      };
     }
     case "placementRow": {
       const { kind: _kind, ...row } = drag;

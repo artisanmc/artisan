@@ -570,6 +570,9 @@ const fr: typeof en = {
   },
   imageButton: {
     search: "Rechercher une image…",
+    components: "Composants",
+    componentHint:
+      "Glisse {{name}} sur le menu : le bouton nomme ce composant, ses paramètres se règlent dans ses propriétés.",
     fromLibrary: "Bibliothèque du serveur",
     fromModule: "Images de ce module",
     native: "Taille naturelle",
@@ -1207,6 +1210,8 @@ const fr: typeof en = {
     insertLore: "Insérer le lore source",
     replaceLore: "Remplacer le lore de l’item de base",
     editItem: "Modifier l’item",
+    editTooltip: "Modifier le nom et la description",
+    noTooltip: "Aucun nom ni description : affichés au survol du bouton",
     inGamePreview: "En jeu",
     noLoreWrap:
       "Les lignes du lore ne sont pas coupées : ce module n'a pas de largeur max du lore (propriétés du module).",

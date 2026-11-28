@@ -561,6 +561,9 @@ export default {
   },
   imageButton: {
     search: "Search images…",
+    components: "Components",
+    componentHint:
+      "Drag {{name}} onto the menu: the button names this component, its parameters are set in its properties.",
     fromLibrary: "The server's library",
     fromModule: "This module's images",
     native: "Natural size",
@@ -1187,6 +1190,8 @@ export default {
     insertLore: "Insert source lore",
     replaceLore: "Replace the base item lore",
     editItem: "Edit item",
+    editTooltip: "Edit name and lore",
+    noTooltip: "No name or lore: shown when hovering the button",
     inGamePreview: "In game",
     noLoreWrap: "Lore lines are not wrapped: this module has no lore max width (module settings).",
     done: "Done",

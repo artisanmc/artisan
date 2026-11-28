@@ -276,7 +276,9 @@ copied into the project as images, so they work as buttons, backgrounds or title
 glyphs like any upload. Greyed glyphs have no texture in the Nexo pack. If you change
 a glyph in Nexo, import it again: the image is updated and its uses are kept.
 
-Configure the title, lore and click actions as usual. Every slot in the rectangle
+Configure the title, lore and click actions as usual: **Edit name and lore** opens the same
+dialog as an item button, with the rich text editors and the in-game preview, without the
+item-only fields (count, enchantments, head). Every slot in the rectangle
 triggers the same actions, including transparent parts of the image. Minecraft
 handles clicks by slot, so the small gaps between slots are not separate targets.
 Titles and lore appear on hover and use the player's language, including when a
@@ -385,7 +387,9 @@ compose:
 A size on an image without margins, or smaller than its margins, is ignored: the layer is
 drawn at the image's own size.
 
-**Label.** Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
+**Label.** The editor no longer offers a label on a new look: a text over a button is a
+component's or a piece's. A look that already has one keeps it, editable.
+Any button that does not repeat (no `iterates`/`places`) can carry a **Label**:
 a text drawn in the menu's title over the button's slots. It is centred in the button by
 default; **Alignment**, the text size and the offsets (in pixels) move it inside the area.
 The label follows the button when you move or resize it, and each state has its own, so a
@@ -498,7 +502,10 @@ module; an image the button gives is read from the button's. A button writes `co
 component. A name no component answers draws nothing. The editor's canvas draws a
 button's component as the game does.
 
-In the editor, the **Component** section of a button's properties offers the module's
+In the editor, the library of the menu's left panel lists the module's components first,
+each a tile drawn with its first image: drag one onto the menu to place a button that names
+it. The **Component** section of an image button's properties (an item button has none: a
+component draws images) offers the module's
 components and the server's common ones (**Use a component…**), then a field per parameter
 of the one named. **Detach** keeps what the component draws as the button's own parts and
 drops the link; **Remove** leaves the button without a look. On a button made of its own
