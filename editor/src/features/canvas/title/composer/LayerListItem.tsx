@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import type { Asset } from "@/domain/asset";
 import type { AssetId, MenuId, MenuTitleLayer, ProjectId } from "@/domain/types";
 import { useAssetsWithKit } from "@/features/assets/kitAssets";
-import { imageNamed } from "@/lib/pack/kit";
 import { cn } from "@/lib/cx";
 import { getText } from "@/lib/i18n";
+import { imageNamed } from "@/lib/pack/kit";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 

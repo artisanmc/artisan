@@ -1057,31 +1057,66 @@ function ModuleEntries({
   projects: ProjectSummary[];
 }) {
   const { t } = useTranslation();
+  const screens = entries.flatMap((e) => (e.kind === "screen" ? [e.screen] : []));
+  const params = useParams({ strict: false }) as { screenId?: string };
+  // Like a kind of Documents: a group that folds, open while one of its screens is.
+  const [open, setOpen] = useState(true);
+  const label = t("moduleCatalogue.settings");
+  const Chevron = open ? ChevronDown : ChevronRight;
   return (
-    <ul className="flex flex-col">
-      {entries.map((e) =>
-        e.kind === "screen" ? (
-          <ScreenItem
-            key={`s:${e.screen.id}`}
-            screen={e.screen}
-            serverId={serverId}
-            projects={projects}
-          />
-        ) : (
-          <li key={`c:${e.moduleId}`}>
-            <Link
-              to="/m/$moduleId"
-              params={{ moduleId: e.moduleId }}
-              onClick={() => useSidebarStore.getState().close()}
-              className={entryRowClass(false)}
+    <div className="flex flex-col">
+      {screens.length > 0 && (
+        <div className="flex flex-col pb-1.5">
+          <div className="flex items-center rounded-[10px] text-[12px] font-medium text-[var(--text-mut)] hover:bg-[var(--surface-hover)]">
+            <button
+              type="button"
+              data-testid="settings-group"
+              aria-expanded={open || screens.some((sc) => sc.id === params.screenId)}
+              aria-label={t(open ? "collections.collapse" : "collections.expand", {
+                collection: label,
+              })}
+              onClick={() => setOpen(!open)}
+              className="flex min-w-0 flex-1 items-center gap-1 py-[3px] pl-0.5 pr-2 text-left hover:text-[var(--text)]"
             >
-              <EntryTile icon={Settings} />
-              <span className="truncate flex-1">{t("sidebar.configuration")}</span>
-            </Link>
-          </li>
-        ),
+              <Chevron className="size-3 shrink-0 text-[var(--text-faint)]" aria-hidden />
+              <span className="flex-1 truncate pl-1">{label}</span>
+              <span className="shrink-0 text-[11px] text-[var(--text-faint)]">
+                {screens.length}
+              </span>
+            </button>
+          </div>
+          {(open || screens.some((sc) => sc.id === params.screenId)) && (
+            <ul aria-label={label} className="flex flex-col">
+              {screens.map((screen) => (
+                <ScreenItem
+                  key={screen.id}
+                  screen={screen}
+                  serverId={serverId}
+                  projects={projects}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-    </ul>
+      <ul className="flex flex-col">
+        {entries.map((e) =>
+          e.kind === "screen" ? null : (
+            <li key={`c:${e.moduleId}`}>
+              <Link
+                to="/m/$moduleId"
+                params={{ moduleId: e.moduleId }}
+                onClick={() => useSidebarStore.getState().close()}
+                className={entryRowClass(false)}
+              >
+                <EntryTile icon={Settings} />
+                <span className="truncate flex-1">{t("sidebar.configuration")}</span>
+              </Link>
+            </li>
+          ),
+        )}
+      </ul>
+    </div>
   );
 }
 

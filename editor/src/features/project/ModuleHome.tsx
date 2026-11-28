@@ -17,15 +17,15 @@ import { useServerActionsStore } from "@/state/serverActionsStore";
 import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
 import { getModule } from "@artisan/editor-sdk";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { Blocks, Database, History, Images, Languages, Package, Zap } from "lucide-react";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Blocks, Database, History, Images, Languages, Package, Settings, Zap } from "lucide-react";
 import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CapturedItemList } from "./CapturedItemList";
-import { ModuleCatalogue } from "./ModuleCatalogue";
+import { CapturedItemPicture } from "./CapturedItemList";
+import { type CataloguePlace, ModuleCatalogue } from "./ModuleCatalogue";
 import { goToDocument } from "./goToDocument";
 import { useGoToWorkspaceTab } from "./useGoToWorkspaceTab";
-import { WORKSPACE_VIEW_TABS, type WorkspaceViewTab } from "./workspaceTabs";
+import type { WorkspaceViewTab } from "./workspaceTabs";
 
 /**
  * A module's entry view (`?tab=` absent, at the module's root): what the module holds and
@@ -64,15 +64,45 @@ export function ModuleHome({ project: opened }: { project: Project }) {
 
   const goToTab = useGoToWorkspaceTab();
   const captured = project.capturedItems ?? [];
-  // No block to show: no "Content" heading over nothing.
-  const hasContent = moduleScreens.length > 0 || dataSources.length > 0 || captured.length > 0;
-
   const activeLang = useUiStore((s) => s.activeLang);
   const runtime = useProjectRuntime(project.id);
   const missing = countMissingForLang(project, activeLang);
-  const toolTabs = WORKSPACE_VIEW_TABS.filter(
-    (tab): tab is ToolTab => tab in TOOL_ICON && (tab !== "history" || !!runtime?.serverId),
-  );
+  // Always offered, empty or not: it is how a module with no captured item learns to capture one.
+  const toolTabs = TOOL_TABS.filter((tab) => tab !== "history" || !!runtime?.serverId);
+
+  // What is not a Document is a place of the catalogue all the same: no "Content" leftover.
+  const places: CataloguePlace[] = [
+    {
+      kind: "settings",
+      label: t("moduleCatalogue.settings"),
+      icon: Settings,
+      items: moduleScreens.map((sc) => ({ id: sc.id, label: sc.label })),
+      onOpen: (id: string) => {
+        const sc = moduleScreens.find((x) => x.id === id);
+        if (sc && serverId) navigate(screenDestination(sc, serverId, [project]) as never);
+      },
+    },
+    {
+      kind: "data",
+      label: t("dataSources.sidebarGroup"),
+      icon: Database,
+      items: dataSources.map((d) => ({ id: String(d.id), label: d.name || String(d.id) })),
+      onOpen: (id: string) => {
+        if (serverId) navigate(dataSourceDestination(project, serverId, id) as never);
+      },
+    },
+    {
+      kind: "items",
+      label: t("moduleHome.captured"),
+      icon: Package,
+      items: captured.map((item) => ({
+        id: item.id,
+        label: item.name,
+        visual: <CapturedItemPicture project={project} item={item} />,
+      })),
+      onOpen: () => goToTab("items"),
+    },
+  ].filter((pl) => pl.items.length > 0);
 
   const moduleActions = owner ? actions.filter((a) => a.moduleId === owner) : [];
 
@@ -167,74 +197,8 @@ export function ModuleHome({ project: opened }: { project: Project }) {
             creatable: kindCreatableIn(c, project),
           }))}
           onCreate={setCreating}
-          screens={moduleScreens.map((sc) => ({ id: sc.id, label: sc.label }))}
-          onOpenScreen={(id) => {
-            const sc = moduleScreens.find((x) => x.id === id);
-            if (sc && serverId) navigate(screenDestination(sc, serverId, [project]) as never);
-          }}
+          places={places}
         />
-
-        {hasContent && (
-          <section className="flex flex-col gap-2.5" aria-labelledby="module-home-content">
-            <h2 id="module-home-content" className="field-label">
-              {t("moduleHome.content")}
-            </h2>
-            <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {dataSources.length > 0 && (
-                <Place
-                  testId="module-home-sources"
-                  icon={
-                    <IconTile
-                      icon={Database}
-                      fg="var(--text-mut)"
-                      soft="var(--surface-raised-2)"
-                      size="sm"
-                    />
-                  }
-                  title={t("moduleHome.dataSources")}
-                  count={dataSources.length}
-                >
-                  {serverId &&
-                    dataSources.map((d) => (
-                      <Link
-                        key={String(d.id)}
-                        {...dataSourceDestination(project, serverId, String(d.id))}
-                        className="btn btn-outline btn-sm"
-                      >
-                        {d.name || String(d.id)}
-                      </Link>
-                    ))}
-                </Place>
-              )}
-              {captured.length > 0 && (
-                <Place
-                  testId="module-home-captured"
-                  icon={
-                    <IconTile
-                      icon={Package}
-                      fg="var(--text-mut)"
-                      soft="var(--surface-raised-2)"
-                      size="sm"
-                    />
-                  }
-                  title={t("moduleHome.captured")}
-                  count={captured.length}
-                  summary={t("moduleHome.capturedHint")}
-                  wide
-                  picture={<CapturedItemList project={project} items={captured} />}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => goToTab("items")}
-                  >
-                    {t("moduleHome.openCaptured")}
-                  </button>
-                </Place>
-              )}
-            </ul>
-          </section>
-        )}
 
         {moduleActions.length > 0 && (
           <section className="flex flex-col gap-2.5" aria-labelledby="module-home-exposes">
@@ -280,53 +244,13 @@ export function ModuleHome({ project: opened }: { project: Project }) {
 }
 
 type ToolTab = Extract<WorkspaceViewTab, "items" | "translations" | "resources" | "history">;
+const TOOL_TABS: ToolTab[] = ["items", "translations", "resources", "history"];
 const TOOL_ICON: Record<ToolTab, typeof Package> = {
   items: Package,
   translations: Languages,
   resources: Images,
   history: History,
 };
-
-/** One place of the module: its name, how many things it holds, a line about them, its links. */
-function Place({
-  testId,
-  wide,
-  picture,
-  icon,
-  title,
-  count,
-  summary,
-  children,
-}: {
-  testId?: string;
-  /** Spans two columns: the place the module is mostly about. */
-  wide?: boolean;
-  /** A picture of the place, above its links. */
-  picture?: ReactNode;
-  icon: ReactNode;
-  title: string;
-  count?: number;
-  summary?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <li
-      className={`card flex flex-col gap-2.5 p-3.5 ${wide ? "md:col-span-2" : ""}`}
-      data-testid={testId}
-    >
-      <div className="flex items-center gap-2">
-        <span className="flex shrink-0" aria-hidden>
-          {icon}
-        </span>
-        <h3 className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{title}</h3>
-        {count != null && <span className="badge tabular-nums">{count}</span>}
-      </div>
-      {summary && <p className="text-[12.5px] text-[var(--text-mut)]">{summary}</p>}
-      {picture}
-      {children && <div className="mt-auto flex flex-wrap gap-1.5">{children}</div>}
-    </li>
-  );
-}
 
 /**
  * A module's own section (`FrontendModule.home`) that throws is left out: the blocks the
