@@ -253,6 +253,10 @@ describe("ModuleHome", () => {
       },
     } as never);
     rerender(<ModuleHome project={project()} />);
+    // The block shows the items, not only a link.
+    expect(
+      within(screen.getByTestId("module-home-captured-list")).getByText("Key"),
+    ).toBeInTheDocument();
     fireEvent.click(
       within(screen.getByTestId("module-home-captured")).getByRole("button", {
         name: "Voir les items capturés",

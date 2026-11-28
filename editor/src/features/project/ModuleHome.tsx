@@ -25,6 +25,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { Blocks, ChevronRight, Database, Package, Plus, Settings, Zap } from "lucide-react";
 import { Component, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CapturedItemList } from "./CapturedItemList";
 import { ModuleCatalogue } from "./ModuleCatalogue";
 import { goToDocument } from "./goToDocument";
 import { type PreviewLine, screenPreview } from "./screenPreview";
@@ -181,6 +182,8 @@ export function ModuleHome({ project: opened }: { project: Project }) {
                 title={t("moduleHome.captured")}
                 count={captured.length}
                 summary={t("moduleHome.capturedHint")}
+                wide
+                picture={<CapturedItemList project={project} items={captured} />}
               >
                 <button
                   type="button"

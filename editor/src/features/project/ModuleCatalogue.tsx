@@ -147,9 +147,7 @@ export function ModuleCatalogue({
                         type="button"
                         data-testid={`catalogue-doc-${key}`}
                         onClick={() => onOpen(key)}
-                        className={`card flex w-full gap-2 p-2.5 text-left hover:border-[var(--border-strong)] ${
-                          layout === "grid" ? "flex-col" : "items-center"
-                        }`}
+                        className="card flex w-full flex-col gap-2 p-2.5 text-left hover:border-[var(--border-strong)]"
                       >
                         {layout === "grid" && (
                           <CataloguePreview
@@ -159,32 +157,37 @@ export function ModuleCatalogue({
                             serverId={serverId}
                           />
                         )}
-                        {layout === "list" && (
-                          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium">{it.label}</span>
-                          {it.folder && (
-                            <span className="block truncate text-[11px] text-[var(--text-faint)]">
-                              {it.folder}
+                        {/* One row, grid or list: the marks sit on the name's line, never below. */}
+                        <span className="flex w-full items-center gap-2">
+                          {layout === "list" && (
+                            <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-medium">
+                              {it.label}
+                            </span>
+                            {it.folder && (
+                              <span className="block truncate text-[11px] text-[var(--text-faint)]">
+                                {it.folder}
+                              </span>
+                            )}
+                          </span>
+                          {mark && (
+                            <span
+                              className="badge shrink-0"
+                              title={originLabelOf(mark, t)}
+                              data-testid="catalogue-doc-mark"
+                            >
+                              {t(`moduleCatalogue.tone.${mark.tone}`)}
                             </span>
                           )}
+                          {origin?.system && (
+                            <Puzzle
+                              className="size-3 shrink-0 text-[var(--text-faint)]"
+                              aria-label={originLabelOf(origin, t)}
+                            />
+                          )}
                         </span>
-                        {mark && (
-                          <span
-                            className="badge shrink-0"
-                            title={originLabelOf(mark, t)}
-                            data-testid="catalogue-doc-mark"
-                          >
-                            {t(`moduleCatalogue.tone.${mark.tone}`)}
-                          </span>
-                        )}
-                        {origin?.system && (
-                          <Puzzle
-                            className="size-3 shrink-0 text-[var(--text-faint)]"
-                            aria-label={originLabelOf(origin, t)}
-                          />
-                        )}
                       </button>
                     </li>
                   );
