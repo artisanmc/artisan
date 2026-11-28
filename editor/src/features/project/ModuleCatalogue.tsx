@@ -4,7 +4,7 @@ import { docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useUiStore } from "@/state/uiStore";
-import { LayoutGrid, List, Puzzle, Search } from "lucide-react";
+import { LayoutGrid, List, Plus, Puzzle, Search, Settings } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CataloguePreview } from "./CataloguePreview";
@@ -23,8 +23,19 @@ export function ModuleCatalogue({
   onKind,
   onOpen,
   serverId,
+  collections = [],
+  onCreate,
+  screens = [],
+  onOpenScreen,
 }: {
+  /** The module's settings screens: entries of the catalogue like Documents, under the kind `settings`. */
+  screens?: { id: string; label: string }[];
+  onOpenScreen?: (screenId: string) => void;
   project: Project;
+  /** Kinds kept in the catalogue even with no Document yet (the module's collections), with whether each may be created here. */
+  collections?: { kind: string; creatable: boolean }[];
+  /** "New" on a creatable kind's heading. */
+  onCreate?: (kind: string) => void;
   /** The kind shown alone; every kind when absent. */
   kind: string | undefined;
   onKind: (kind: string | undefined) => void;
@@ -38,7 +49,12 @@ export function ModuleCatalogue({
   const originOf = useOriginOf(project);
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useCatalogueLayout();
-  const groups = buildProjectDocuments(project, activeLang).filter((g) => g.items.length > 0);
+  const [size, setSize] = useCatalogueSize();
+  const kept = new Map(collections.map((c) => [c.kind, c.creatable]));
+  const built = buildProjectDocuments(project, activeLang);
+  for (const kind of kept.keys())
+    if (!built.some((g) => g.type === kind)) built.push({ type: kind, items: [] });
+  const groups = built.filter((g) => g.items.length > 0 || kept.has(g.type));
   const needle = query.trim().toLowerCase();
   const shown = groups
     .filter((g) => !kind || g.type === kind)
@@ -52,8 +68,12 @@ export function ModuleCatalogue({
           it.folder.toLowerCase().includes(needle),
       ),
     }))
-    .filter((g) => g.items.length > 0);
-  if (groups.length === 0) return null;
+    .filter((g) => g.items.length > 0 || (!needle && kept.has(g.type)));
+  const shownScreens = screens.filter(
+    (sc) =>
+      (!kind || kind === SETTINGS_KIND) && (!needle || sc.label.toLowerCase().includes(needle)),
+  );
+  if (groups.length === 0 && screens.length === 0) return null;
   return (
     <section
       data-testid="module-catalogue"
@@ -81,6 +101,18 @@ export function ModuleCatalogue({
             },
           ]}
         />
+        {layout === "grid" && (
+          <Segmented
+            label={t("moduleCatalogue.size")}
+            value={size}
+            onChange={setSize}
+            options={(["s", "m", "l"] as const).map((v) => ({
+              value: v,
+              label: t(`moduleCatalogue.sizes.${v}`),
+              title: t(`moduleCatalogue.sizeHint.${v}`),
+            }))}
+          />
+        )}
         <label className="relative flex items-center">
           <Search
             className="pointer-events-none absolute left-2.5 size-3.5 text-[var(--text-faint)]"
@@ -106,6 +138,17 @@ export function ModuleCatalogue({
         >
           {t("moduleCatalogue.all")}
         </button>
+        {screens.length > 0 && (
+          <button
+            type="button"
+            data-testid={`catalogue-kind-${SETTINGS_KIND}`}
+            className={`chip ${kind === SETTINGS_KIND ? "is-active" : ""}`}
+            aria-pressed={kind === SETTINGS_KIND}
+            onClick={() => onKind(kind === SETTINGS_KIND ? undefined : SETTINGS_KIND)}
+          >
+            {t("moduleCatalogue.settings")} {screens.length}
+          </button>
+        )}
         {groups.map((g) => (
           <button
             key={g.type}
@@ -119,23 +162,43 @@ export function ModuleCatalogue({
           </button>
         ))}
       </div>
-      {shown.length === 0 ? (
+      {shown.length === 0 && shownScreens.length === 0 ? (
         <p className="text-[13px] text-[var(--text-mut)]">{t("moduleCatalogue.none")}</p>
       ) : (
         shown.map((g) => {
           const look = kindAppearance(g.type);
           return (
             <div key={g.type} className="flex flex-col gap-2">
-              <h3 className="text-[12px] font-medium text-[var(--text-mut)]">
-                {typeLabel(g.type, t)} · {g.items.length}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[12px] font-medium text-[var(--text-mut)]">
+                  {typeLabel(g.type, t)} · {g.items.length}
+                </h3>
+                {onCreate && kept.get(g.type) && (
+                  <button
+                    type="button"
+                    data-testid={`catalogue-new-${g.type}`}
+                    className="btn btn-ghost btn-sm inline-flex items-center gap-1"
+                    onClick={() => onCreate(g.type)}
+                  >
+                    <Plus className="size-3.5" aria-hidden />
+                    {t("collections.create")}
+                  </button>
+                )}
+              </div>
+              {g.items.length === 0 && (
+                <p className="text-[13px] text-[var(--text-mut)]">
+                  {t("collections.empty", { collection: typeLabel(g.type, t) })}
+                </p>
+              )}
               <ul
                 aria-label={typeLabel(g.type, t)}
-                className={
-                  layout === "grid"
-                    ? "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-                    : "grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4"
-                }
+                className="grid gap-2"
+                style={{
+                  gridTemplateColumns:
+                    layout === "grid"
+                      ? `repeat(auto-fill, minmax(${GRID_MIN[size]}, 1fr))`
+                      : "repeat(auto-fill, minmax(14rem, 1fr))",
+                }}
               >
                 {g.items.map((it) => {
                   const key = docKey(g.type, it.id);
@@ -147,8 +210,8 @@ export function ModuleCatalogue({
                         type="button"
                         data-testid={`catalogue-doc-${key}`}
                         onClick={() => onOpen(key)}
-                        className={`card flex w-full gap-2 p-2.5 text-left hover:border-[var(--border-strong)] ${
-                          layout === "grid" ? "flex-col" : "items-center"
+                        className={`card flex w-full flex-col text-left hover:border-[var(--border-strong)] ${
+                          layout === "grid" ? "gap-1.5 p-2" : "gap-2 p-2.5"
                         }`}
                       >
                         {layout === "grid" && (
@@ -159,32 +222,37 @@ export function ModuleCatalogue({
                             serverId={serverId}
                           />
                         )}
-                        {layout === "list" && (
-                          <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium">{it.label}</span>
-                          {it.folder && (
-                            <span className="block truncate text-[11px] text-[var(--text-faint)]">
-                              {it.folder}
+                        {/* One row, grid or list: the marks sit on the name's line, never below. */}
+                        <span className="flex w-full items-center gap-2">
+                          {layout === "list" && (
+                            <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="sm" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13px] font-medium">
+                              {it.label}
+                            </span>
+                            {it.folder && (
+                              <span className="block truncate text-[11px] text-[var(--text-faint)]">
+                                {it.folder}
+                              </span>
+                            )}
+                          </span>
+                          {mark && (
+                            <span
+                              className="badge shrink-0"
+                              title={originLabelOf(mark, t)}
+                              data-testid="catalogue-doc-mark"
+                            >
+                              {t(`moduleCatalogue.tone.${mark.tone}`)}
                             </span>
                           )}
+                          {origin?.system && (
+                            <Puzzle
+                              className="size-3 shrink-0 text-[var(--text-faint)]"
+                              aria-label={originLabelOf(origin, t)}
+                            />
+                          )}
                         </span>
-                        {mark && (
-                          <span
-                            className="badge shrink-0"
-                            title={originLabelOf(mark, t)}
-                            data-testid="catalogue-doc-mark"
-                          >
-                            {t(`moduleCatalogue.tone.${mark.tone}`)}
-                          </span>
-                        )}
-                        {origin?.system && (
-                          <Puzzle
-                            className="size-3 shrink-0 text-[var(--text-faint)]"
-                            aria-label={originLabelOf(origin, t)}
-                          />
-                        )}
                       </button>
                     </li>
                   );
@@ -194,9 +262,45 @@ export function ModuleCatalogue({
           );
         })
       )}
+      {shownScreens.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[12px] font-medium text-[var(--text-mut)]">
+            {t("moduleCatalogue.settings")} · {shownScreens.length}
+          </h3>
+          <ul
+            aria-label={t("moduleCatalogue.settings")}
+            className="grid gap-2"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(14rem, 1fr))" }}
+          >
+            {shownScreens.map((sc) => (
+              <li key={sc.id}>
+                <button
+                  type="button"
+                  data-testid={`catalogue-screen-${sc.id}`}
+                  onClick={() => onOpenScreen?.(sc.id)}
+                  className="card flex w-full items-center gap-2 p-2.5 text-left hover:border-[var(--border-strong)]"
+                >
+                  <IconTile
+                    icon={Settings}
+                    fg="var(--text-mut)"
+                    soft="var(--surface-raised-2)"
+                    size="sm"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+                    {sc.label}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
+
+/** The catalogue's `?kind=` for the module's settings screens, which are not a Document kind. */
+const SETTINGS_KIND = "settings";
 
 type Layout = "list" | "grid";
 const LAYOUT_KEY = "artisan.catalogue.layout";
@@ -218,6 +322,34 @@ function useCatalogueLayout(): [Layout, (layout: Layout) => void] {
         localStorage.setItem(LAYOUT_KEY, next);
       } catch {
         // Private window or blocked storage: the layout lasts until the page closes.
+      }
+    },
+  ];
+}
+
+type Size = "s" | "m" | "l";
+/** The narrowest a grid card gets: how many fit a row follows (about 7, 5 and 3 on a wide screen). */
+const GRID_MIN: Record<Size, string> = { s: "9.5rem", m: "13rem", l: "20rem" };
+const SIZE_KEY = "artisan.catalogue.size";
+
+/** The grid's card size, kept in this browser like the layout. */
+function useCatalogueSize(): [Size, (size: Size) => void] {
+  const [size, set] = useState<Size>(() => {
+    try {
+      const v = localStorage.getItem(SIZE_KEY);
+      return v === "s" || v === "l" ? v : "m";
+    } catch {
+      return "m";
+    }
+  });
+  return [
+    size,
+    (next) => {
+      set(next);
+      try {
+        localStorage.setItem(SIZE_KEY, next);
+      } catch {
+        // Private window or blocked storage: the size lasts until the page closes.
       }
     },
   ];

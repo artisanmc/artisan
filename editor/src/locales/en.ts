@@ -2842,6 +2842,10 @@ export default {
     ctxInDocument: "in {{owner}}",
   },
   moduleCatalogue: {
+    settings: "Settings",
+    size: "Card size",
+    sizes: { s: "S", m: "M", l: "L" },
+    sizeHint: { s: "Small cards", m: "Medium cards", l: "Large cards" },
     layout: "Layout",
     list: "List",
     grid: "Grid",
@@ -2853,6 +2857,7 @@ export default {
     tone: { modified: "modified", update: "update" },
   },
   moduleHome: {
+    tools: "Module tools",
     translationsMissing_one: "{{count}} text to translate.",
     translationsMissing_other: "{{count}} texts to translate.",
     translationsHint: "Menus, commands and the module's messages, in every language.",

@@ -2890,6 +2890,10 @@ const fr: typeof en = {
     ctxInDocument: "dans {{owner}}",
   },
   moduleCatalogue: {
+    settings: "Réglages",
+    size: "Taille des cartes",
+    sizes: { s: "S", m: "M", l: "L" },
+    sizeHint: { s: "Petites cartes", m: "Cartes moyennes", l: "Grandes cartes" },
     layout: "Affichage",
     list: "Liste",
     grid: "Grille",
@@ -2901,6 +2905,7 @@ const fr: typeof en = {
     tone: { modified: "modifié", update: "mise à jour" },
   },
   moduleHome: {
+    tools: "Outils du module",
     translationsMissing_one: "{{count}} texte à traduire.",
     translationsMissing_other: "{{count}} textes à traduire.",
     translationsHint: "Menus, commandes et messages du module, dans chaque langue.",

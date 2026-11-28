@@ -165,7 +165,16 @@ export function ProjectTopBarControls({
           )}
         </>
       }
-      nav={server ? server.nav : <ModuleViewSwitch />}
+      nav={
+        server ? (
+          server.nav
+        ) : (
+          <div className="flex min-w-0 items-center gap-2">
+            <ModuleViewSwitch />
+            <VariantSwitcher projectId={projectId} />
+          </div>
+        )
+      }
       end={
         <div className="project-topbar flex items-center gap-1">
           {server ? null : (
@@ -176,7 +185,6 @@ export function ProjectTopBarControls({
               )}
             </div>
           )}
-          {!server && <VariantSwitcher projectId={projectId} />}
           <AssistantButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls

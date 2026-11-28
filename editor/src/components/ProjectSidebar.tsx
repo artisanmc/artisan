@@ -16,12 +16,14 @@ import {
 } from "@/features/project/ProjectDocumentTree";
 import { goToDocument } from "@/features/project/goToDocument";
 import { PROJECTS_RELOADED_EVENT } from "@/features/project/onProjectsReloaded";
+import { useKnownVersionsFromIndex } from "@/features/project/seedProjectCache";
 import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
 import {
   WORKSPACE_VIEW_TABS,
   type WorkspaceViewTab,
   effectiveTab,
 } from "@/features/project/workspaceTabs";
+import { useServerIndexRereads } from "@/features/serverIndex/serverIndexRereads";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { useServerIndexLoader } from "@/features/serverIndex/useServerIndexLoader";
 import { countMissingForLang } from "@/lib/i18nUsages";
@@ -156,11 +158,20 @@ export function ProjectSidebar() {
       )?.serverId ?? rawServerParam)
     : null;
 
-  // A folder unfolded where no page reads the index (a server page, settings): read it here.
-  useServerIndexLoader(activeServerId ?? undefined, indexRequested);
-
   // URL-facing form: links carry slugs, everything else stays id-based.
   const srvParam = urlServerId(allServerEntries, activeServerId);
+
+  // The server's modules are read as soon as a server is active, on any page: the sidebar
+  // outlives every module page, so a module change reads nothing again, and the known
+  // versions it seeds (`useKnownVersionsFromIndex`) are there before the next module opens.
+  const indexRereads = useKnownVersionsFromIndex(srvParam ?? undefined);
+  // A theme created from the Resources' places is read with the server's Projects again.
+  const placesRereads = useServerIndexRereads((state) => state.count);
+  useServerIndexLoader(
+    activeServerId ?? undefined,
+    activeServerId != null || indexRequested,
+    indexRereads + placesRereads,
+  );
 
   // Persist the URL-driven selection so param-less routes keep it. Only store
   // resolved ids (never raw slugs) — the entry lookup guarantees that.
@@ -579,7 +590,6 @@ function ActiveProjectDocuments({
   if (!project) return null;
   return (
     <div className="px-1.5 pt-0.5">
-      <ModuleViewRows project={project} part="views" />
       <div data-tour="elements">
         <ProjectDocumentTree
           projectId={project.id}

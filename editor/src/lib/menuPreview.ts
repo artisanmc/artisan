@@ -7,6 +7,7 @@ export type MenuPreviewRenderer = (props: {
   projects: readonly Project[];
   projectId: string;
   menuId: string;
+  frame?: { width: number; height: number };
 }) => ReactNode;
 
 let renderer: MenuPreviewRenderer | null = null;

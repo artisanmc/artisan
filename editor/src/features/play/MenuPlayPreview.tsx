@@ -20,11 +20,14 @@ export function MenuPlayPreview({
   projects,
   projectId,
   menuId,
+  frame = { width: 960, height: 540 },
 }: {
   serverId: string;
   projects: readonly Project[];
   projectId: string;
   menuId: string;
+  /** The game window it is drawn in, in game pixels: a smaller one draws the menu larger. */
+  frame?: { width: number; height: number };
 }) {
   const { t } = useTranslation();
   const lang = useUiStore((s) => s.activeLang);
@@ -58,8 +61,8 @@ export function MenuPlayPreview({
   const project = open ? session.projectById(open.projectId) : undefined;
   return (
     <McScreen
-      width={960}
-      height={540}
+      width={frame.width}
+      height={frame.height}
       guiScale="auto"
       zoom="fit"
       hotbar={false}

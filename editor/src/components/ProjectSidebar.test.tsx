@@ -27,6 +27,8 @@ vi.mock("@/lib/api/projectFiles", () => ({
 }));
 
 vi.mock("@/lib/api/site", () => ({ listSiteModules: vi.fn() }));
+// The sidebar reads the server's index itself; these tests set the store by hand.
+vi.mock("@/features/serverIndex/useServerIndexLoader", () => ({ useServerIndexLoader: vi.fn() }));
 
 vi.mock("@tanstack/react-router", async () => {
   const actual =
@@ -192,10 +194,12 @@ describe("ProjectSidebar", () => {
       } as never);
       render(<ProjectSidebar />);
       await screen.findByRole("group", { name: /pack_a/ });
-      for (const id of ["home", "translations", "resources"]) {
+      for (const id of ["translations", "resources"]) {
         expect(screen.getByTestId(`open-view-${id}`)).toBeInTheDocument();
       }
       expect(screen.getByTestId("open-view-translations")).toHaveTextContent("1");
+      // The module's name opens its catalogue: no row of its own.
+      expect(screen.queryByTestId("open-view-home")).toBeNull();
       expect(screen.queryByTestId("open-view-board")).toBeNull();
       // History needs the module to be on a server.
       expect(screen.queryByTestId("open-view-history")).toBeNull();
