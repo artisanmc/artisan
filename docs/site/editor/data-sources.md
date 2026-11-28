@@ -68,7 +68,7 @@ On disk, the replace box writes `lore_mode: replace`. Boutique moves legacy prod
 
 The Boutique server also migrates existing catalogue files at startup, before loading the project. Original files are kept in `plugins/Boutique/catalog-icon-backup/`. New articles and imports write lore inside `icon` directly; opening and saving the editor is no longer needed to update old files. Existing canonical translations are copied to the icon addresses, while old translation keys remain available for references.
 Live catalogue screens edit item text in the file's default language; project editing supports translations.
-Their captured-item picker reads the owning project's existing captures. Create or delete captures in **Resources → Captured items** (or **Buttons → Captured items** on the canvas); catalogue saves only update the catalogue files.
+Their captured-item picker reads the owning project's existing captures. Create or delete captures from the module's **Captured items** row, after its Documents in the sidebar (or **Buttons → Captured items** on the canvas); catalogue saves only update the catalogue files.
 Material fields preserve expression and custom-reference casing when typing or pasting.
 Boutique previews resolve localized lore before assembling its lines and use the catalogue's configured price display format, including discounts.
 

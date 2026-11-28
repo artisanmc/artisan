@@ -1,8 +1,7 @@
 import type { Asset } from "@/domain/asset";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
-import { useProjectsStore } from "@/state/projectsStore";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetsTab, useResourcesView } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
@@ -251,31 +250,13 @@ describe("AssetsTab", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "not-found" } });
     expect(screen.getByRole("status")).toHaveTextContent(/Aucune ressource ne correspond/);
   });
-  it("switches to the module's captured items, and back to its files", () => {
-    useProjectsStore.setState({
-      openProjects: {
-        projects: [
-          {
-            id: "p1",
-            name: "P1",
-            capturedItems: [{ id: "ci_1", name: "Golden key", stackYaml: "", display: {} }],
-          },
-        ],
-        projectOrder: ["p1"],
-      },
-    } as never);
-    render(
-      <AssetsTab
-        projectId={"p1" as never}
-        capturedItems={<div data-testid="captured-items-section" title="Golden key" />}
-      />,
-    );
-    expect(screen.queryByTestId("captured-items-section")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /Items capturés/ }));
-    expect(screen.getByTestId("captured-items-section")).toBeTruthy();
-    expect(screen.getByTitle("Golden key")).toBeTruthy();
-    expect(screen.queryByTitle("bg_one")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /Images et polices/ }));
-    expect(screen.getByTitle("bg_one")).toBeTruthy();
+  it("shows what goes in the players' pack only: no captured items among its views", () => {
+    render(<AssetsTab projectId={"p1" as never} components={<div data-testid="components" />} />);
+    const views = screen.getByTestId("resources-views");
+    expect(
+      within(views)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Images et polices", "Composants"]);
   });
 });

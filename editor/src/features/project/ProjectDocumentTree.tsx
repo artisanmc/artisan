@@ -23,6 +23,7 @@ import { NewDialogDialog } from "@/features/canvas/NewDialogDialog";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { NewMenuDialog } from "@/features/canvas/NewMenuDialog";
 import { DataSourceRows } from "@/features/data/DataSourceRows";
+import { CapturedItemsRow } from "@/features/project/CapturedItemsRow";
 import { ModuleTemplatesDialog } from "@/features/templates/ModuleTemplatesDialog";
 import { sameAsShipped } from "@/features/templates/sameAsShipped";
 import {
@@ -382,6 +383,7 @@ export function DocumentGroups({
         );
       })}
       <DataSourceRows project={project} editable={editable} />
+      <CapturedItemsRow project={project} />
     </div>
   );
 }

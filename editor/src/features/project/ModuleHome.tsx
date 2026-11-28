@@ -6,7 +6,6 @@ import { allDocuments, docKey, documentsOf } from "@/domain/documents";
 import { listFolders } from "@/domain/folders";
 import { listedDataSources } from "@/domain/projectData";
 import type { Project } from "@/domain/types";
-import { useResourcesView } from "@/features/assets/AssetsTab";
 import { BoardThumbnail } from "@/features/canvas/BoardThumbnail";
 import { NewDocumentDialog } from "@/features/canvas/NewDocumentDialog";
 import { moduleScreensOf } from "@/features/project/moduleScreens";
@@ -283,10 +282,7 @@ export function ModuleHome({
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  onClick={() => {
-                    useResourcesView.getState().setView("captured");
-                    goToTab("resources");
-                  }}
+                  onClick={() => goToTab("items")}
                 >
                   {t("moduleHome.openCaptured")}
                 </button>

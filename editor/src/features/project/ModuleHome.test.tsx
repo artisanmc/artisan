@@ -6,7 +6,6 @@
 import "@/i18n";
 import { resetDocumentKinds } from "@/domain/documentKinds";
 import type { Project, ProjectId } from "@/domain/types";
-import { useResourcesView } from "@/features/assets/AssetsTab";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { resetDocumentCodecs } from "@/schema/documentCodecs";
 import { projectFromFiles } from "@/schema/projectFromFiles";
@@ -300,7 +299,6 @@ describe("ModuleHome", () => {
       }),
     );
     expect(onOpenBoard).not.toHaveBeenCalled();
-    expect(useResourcesView.getState().view).toBe("captured");
     expect(navigate).toHaveBeenCalledTimes(2);
   });
 });

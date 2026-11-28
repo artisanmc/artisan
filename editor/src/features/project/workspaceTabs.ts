@@ -5,7 +5,14 @@
  * `home` is the module's entry view and the default: it maps to `?tab=undefined`;
  * the canvas is `?tab=board`.
  */
-export type WorkspaceViewTab = "home" | "board" | "translations" | "resources" | "history";
+export type WorkspaceViewTab =
+  | "home"
+  | "board"
+  | "translations"
+  | "resources"
+  | "history"
+  /** The module's captured items: a row of its tree, no tab of the nav. */
+  | "items";
 
 export const WORKSPACE_VIEW_TABS: WorkspaceViewTab[] = [
   "home",

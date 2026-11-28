@@ -73,7 +73,7 @@ export default {
       followHint:
         "A common image is redrawn in the server's common images: every menu that names it follows.",
     },
-    view: { files: "Images and fonts", components: "Components", captured: "Captured items" },
+    view: { files: "Images and fonts", components: "Components" },
     capturedHint:
       "Items captured in game. Place one on a menu from the Buttons panel of the canvas, or pick it in an item field.",
     all: "All",
@@ -2253,6 +2253,7 @@ export default {
       missingTranslations: "{{count}} missing translation",
       missingTranslations_other: "{{count}} missing translations",
       history: "History",
+      items: "Captured items",
     },
   },
   breadcrumb: {

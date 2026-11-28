@@ -1,0 +1,1 @@
+- **Changed**: a module's captured items leave Resources for a row of the module's tree, after its Documents, which opens their page. Resources keep what goes in the players' pack: images, fonts and components.

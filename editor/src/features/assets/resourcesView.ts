@@ -16,12 +16,12 @@ export interface SaveAsRequest {
 }
 
 /**
- * What the Resources tab shows: the module's files (images, fonts), its components or its
- * captured items.
+ * What the Resources tab shows: the module's files (images, fonts) or its components, what goes
+ * in the players' pack. The captured items are the module's, in its tree (`?tab=items`).
  */
-export type ResourcesView = "files" | "components" | "captured";
+export type ResourcesView = "files" | "components";
 
-/** The tab's view, settable from elsewhere (the module home opens it on the captured items). */
+/** The tab's view, settable from elsewhere. */
 export const useResourcesView = create<{
   view: ResourcesView;
   setView: (view: ResourcesView) => void;

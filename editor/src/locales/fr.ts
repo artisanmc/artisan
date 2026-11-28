@@ -75,7 +75,7 @@ const fr: typeof en = {
       followHint:
         "Une image commune se redessine dans les images communes du serveur : chaque menu qui la nomme suit.",
     },
-    view: { files: "Images et polices", components: "Composants", captured: "Items capturés" },
+    view: { files: "Images et polices", components: "Composants" },
     capturedHint:
       "Items capturés en jeu. Pose-en un sur un menu depuis le panneau Boutons du canvas, ou choisis-le dans un champ item.",
     all: "Tout",
@@ -2289,6 +2289,7 @@ const fr: typeof en = {
       missingTranslations: "{{count}} traduction manquante",
       missingTranslations_other: "{{count}} traductions manquantes",
       history: "Historique",
+      items: "Items capturés",
     },
   },
   breadcrumb: {

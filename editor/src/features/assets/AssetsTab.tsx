@@ -152,7 +152,6 @@ export function ResourcesSplit({
 export function AssetsTab({
   projectId,
   compact = false,
-  capturedItems,
   components,
   onOpenCommon,
   onOpenMenu,
@@ -166,8 +165,6 @@ export function AssetsTab({
   onOpenCommon?: () => void;
   /** Opens the menu `menuId` of the module `projectId`, from a common image's uses. */
   onOpenMenu?: (projectId: string, menuId: string) => void;
-  /** The captured view's content, given by the page (the section lives with the canvas). */
-  capturedItems?: ReactNode;
   /** The components view's content, given by the page (it is drawn by the canvas and the inspector). */
   components?: ReactNode;
 }) {
@@ -177,9 +174,6 @@ export function AssetsTab({
   const [addedCommon, setAddedCommon] = useState<string | null>(null);
   const view = useResourcesView((s) => s.view);
   const setView = useResourcesView((s) => s.setView);
-  const captured = useProjectsStore(
-    (s) => s.openProjects.projects.find((p) => p.id === projectId)?.capturedItems?.length ?? 0,
-  );
   const studio = useResourcesView((s) => s.studio);
   const openStudio = useResourcesView((s) => s.openStudio);
   const listed = useAssetStore((s) =>
@@ -196,13 +190,10 @@ export function AssetsTab({
   useEffect(() => () => useResourcesView.getState().openStudio(null), []);
   useKitPieceAsked(projectId);
   useSaveAsAsked(projectId);
-  // The components view is the page's: a picker gives none.
-  const views: ResourcesView[] = [
-    "files",
-    ...(components ? (["components"] as const) : []),
-    "captured",
-  ];
-  const tabs = !capturedItems ? null : (
+  // The components view is the page's: a picker gives none. What goes in the players' pack
+  // only: the captured items are Documents of the module, in its tree.
+  const views: ResourcesView[] = ["files", "components"];
+  const tabs = !components ? null : (
     <div className="flex shrink-0 gap-1 px-3 pt-3" role="tablist" data-testid="resources-views">
       {views.map((entry) => (
         <button
@@ -214,9 +205,6 @@ export function AssetsTab({
           onClick={() => setView(entry)}
         >
           {t(`resources.view.${entry}`)}
-          {entry === "captured" && captured > 0 ? (
-            <span className="ml-1 opacity-60">{captured}</span>
-          ) : null}
         </button>
       ))}
     </div>
@@ -230,24 +218,11 @@ export function AssetsTab({
         server={server}
       />
     );
-  if (view === "components" && components && capturedItems) {
+  if (view === "components" && components) {
     return (
       <div className="flex h-full min-h-0 flex-col">
         {tabs}
         <div className="min-h-0 flex-1">{components}</div>
-      </div>
-    );
-  }
-  if (view === "captured" && capturedItems) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        {tabs}
-        {/* Picker mode with nothing to pick: the tiles are looked at, removed and captured
-            here, placed on a menu from the canvas's Buttons panel. */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <p className="mb-2 text-xs text-[var(--text-mut)]">{t("resources.capturedHint")}</p>
-          {capturedItems}
-        </div>
       </div>
     );
   }

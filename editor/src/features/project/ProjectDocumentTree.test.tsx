@@ -1,6 +1,6 @@
 import type { Project, ProjectId } from "@/domain/types";
 import { useProjectsStore } from "@/state/projectsStore";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTree } from "./ProjectDocumentTree";
@@ -9,10 +9,12 @@ import { dropDocument, withDropPreview } from "./documentDrag";
 const router = vi.hoisted(() => ({
   navigate: vi.fn(),
   params: { serverId: "srv" } as Record<string, string>,
+  search: {} as Record<string, string>,
 }));
 vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => router.navigate,
   useParams: () => router.params,
+  useSearch: () => router.search,
   // useOpenProjectSettings: outside a route, the gear opens the settings in place.
   useRouter: () => null,
 }));
@@ -44,6 +46,7 @@ function project(): Project {
 beforeEach(() => {
   router.navigate.mockReset();
   router.params = { serverId: "srv" };
+  router.search = {};
   useProjectsStore.setState({
     openProjects: { projects: [project()], projectOrder: [PID] },
   } as never);
@@ -128,6 +131,38 @@ describe("ProjectDocumentTree", () => {
     render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} activeId="command/c1" />);
     expect(screen.getByText("/heal").closest("button")).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("m1").closest("button")).not.toHaveAttribute("aria-current");
+  });
+
+  it("lists the captured items as one row of the module, which opens their page", () => {
+    render(<ProjectDocumentTree projectId={PID} onOpen={vi.fn()} />);
+    // None captured: no row.
+    expect(screen.queryByTestId("captured-items-row")).toBeNull();
+    act(() =>
+      useProjectsStore.setState({
+        openProjects: {
+          projects: [
+            {
+              ...project(),
+              capturedItems: [
+                { id: "ci_1", name: "Key", stackYaml: "", display: {} },
+                { id: "ci_2", name: "Gem", stackYaml: "", display: {} },
+              ],
+            },
+          ],
+          projectOrder: [PID],
+        },
+      } as never),
+    );
+    const row = within(screen.getByTestId("captured-items-row"));
+    expect(row.getByText("Items capturés")).toBeTruthy();
+    expect(row.getByText("2")).toBeTruthy();
+    fireEvent.click(row.getByRole("button"));
+    expect(router.navigate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "/servers/$serverId/projects/$projectId",
+        search: { tab: "items" },
+      }),
+    );
   });
 
   it("opens a document on click", () => {
