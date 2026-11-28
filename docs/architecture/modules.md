@@ -168,6 +168,7 @@ The core loads this registry at boot, mounts the routes, registers the WS handle
 > keeps a chat fallback. `Slot.BOSS_BAR` (API 1.13.0) is the same contract at the top of the screen: the name
 > of a yellow boss bar whose sprites the pack makes transparent (`lib/pack/bossBar.ts`, `BossBar.kt`), shown
 > with the first layer and hidden with the last (`HudBossBars`), drawn downwards from 3 px under the top.
+> `OverlayComposer`'s `slot: "boss_bar"` (SDK 1.24) lays a layout out from that line instead of the action bar's.
 > The images reach the pack once the module's editor bundle is loaded in the editor that builds it.
 
 > **HUD layouts (since 2026-10-30)** — rather than placing each piece with `move` and
