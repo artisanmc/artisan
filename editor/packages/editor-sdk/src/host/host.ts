@@ -311,10 +311,25 @@ export interface OptionChoice {
   label: string;
 }
 
+/**
+ * A variable a `MiniMessageInput` offers while typing `{` (SDK 1.25), as Artisan's own fields
+ * do: inserted as `{path}`, shown with its sample in the rich view and the suggestions.
+ */
+export interface MiniMessageVariable {
+  /** What goes between the braces: `objective_name`, `quest.name`. */
+  path: string;
+  /** A value it could take, shown in place of the variable. */
+  sample?: string;
+  /** Default `"string"`. */
+  type?: "player" | "string" | "integer" | "number" | "boolean" | "list" | "object";
+}
+
 export interface MiniMessageInputProps {
   /** The raw text, MiniMessage tags included. */
   value: string;
   onChange: (value: string) => void;
+  /** The variables offered while typing `{`; none by default (SDK 1.25). */
+  variables?: MiniMessageVariable[];
   multiline?: boolean;
   rows?: number;
   placeholder?: string;

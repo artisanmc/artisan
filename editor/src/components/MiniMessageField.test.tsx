@@ -30,7 +30,7 @@ it("in a label, a click in the text does not press the toolbar's first button", 
     </label>,
   );
   fireEvent.focus(content());
-  const bold = screen.getAllByRole("button")[0];
+  const bold = screen.getAllByRole("button")[0] as HTMLElement;
   const pressed = vi.fn();
   bold.addEventListener("click", pressed);
   // The text's line and the field's frame, both under the label.

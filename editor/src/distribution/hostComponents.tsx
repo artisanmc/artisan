@@ -20,7 +20,16 @@ import { ConditionsField } from "@/features/inspector/properties/ConditionsField
 import { DocumentRefField } from "@/features/inspector/properties/DocumentRefField";
 import { PageTour } from "@/features/onboarding/PageTour";
 import { useFieldTranslate } from "@/lib/aiTranslate";
-import type { HostComponents } from "@artisan/editor-sdk";
+import type { PlaceholderEntry } from "@/lib/placeholderCatalog";
+import type { HostComponents, MiniMessageVariable } from "@artisan/editor-sdk";
+import { useMemo } from "react";
+
+const toEntry = (v: MiniMessageVariable): PlaceholderEntry => ({
+  path: v.path,
+  type: v.type ?? "string",
+  sample: v.sample ?? null,
+  origin: "context",
+});
 
 /**
  * The editor widgets a module view embeds through the SDK (`ActionChainEditor`,
@@ -37,7 +46,11 @@ export const hostComponents: HostComponents = {
     />
   ),
   MaterialInput: (props) => <MaterialField {...props} />,
-  MiniMessageInput: (props) => <MiniMessageField {...props} />,
+  MiniMessageInput: function HostMiniMessageInput({ variables, ...props }) {
+    // A module's variables become the entries Artisan's own fields offer (lore, titles).
+    const entries = useMemo(() => variables?.map(toEntry), [variables]);
+    return <MiniMessageField {...props} entries={entries} />;
+  },
   SortableList: (props) => <SortableList {...props} />,
   StatCard: (props) => <StatCard {...props} />,
   TimeChart: (props) => <TimeChart {...props} />,
