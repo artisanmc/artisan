@@ -144,8 +144,8 @@ describe("AssetsTab", () => {
     expect(mark(/^crest · Autre taille/)).toBe("warning");
     expect(mark(/^banner · Votre version d'une image/)).toBe("brand");
     // What replaces an image below wears a word, not a dot.
-    expect(screen.getByLabelText(/^banner · /)).toHaveTextContent("Surcharge");
-    expect(screen.getByLabelText(/^crest · /)).not.toHaveTextContent("Surcharge");
+    expect(screen.getByLabelText(/^banner · /)).toHaveTextContent("Redessinée");
+    expect(screen.getByLabelText(/^crest · /)).not.toHaveTextContent("Redessinée");
     expect(mark(/^seal · Votre version : l'original du module a changé/)).toBe("warning");
     expect(screen.getByTitle("mine").querySelector("[data-testid=asset-mark]")).toBeNull();
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
@@ -178,8 +178,8 @@ describe("AssetsTab", () => {
       },
     });
     render(<AssetsTab projectId={"p1" as never} />);
-    expect(screen.getByLabelText(/^window\.3/)).toHaveTextContent("Surcharge");
-    expect(screen.getByTitle("window.6")).not.toHaveTextContent("Surcharge");
+    expect(screen.getByLabelText(/^window\.3/)).toHaveTextContent("Redessinée");
+    expect(screen.getByTitle("window.6")).not.toHaveTextContent("Redessinée");
     useProjectBaselineStore.setState({ baselines: {}, binaryBaselines: {} });
     useKitStore.setState({ read: undefined, own: {} } as never);
   });

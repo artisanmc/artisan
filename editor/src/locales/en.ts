@@ -25,8 +25,8 @@ export default {
       otherSize: "Other size than the module's original it replaces",
       ownVersion: "Your version of an image the module ships",
       originalChanged: "Your version: the module's original changed since",
-      replacesBase: "Override: replaces the image of this name found below",
-      override: "Override",
+      replacesBase: "Redrawn: replaces the image of this name found below",
+      override: "Redrawn",
     },
     original: {
       label: "The module's original",
@@ -506,6 +506,9 @@ export default {
         filter: "Filter by name",
         empty: "No image of that name.",
         none: "none",
+        all: "Every image of the base ({{count}})",
+        redrawnOnly: "Redrawn images only",
+        nothing: "This theme redraws no image: the base shows as it is, with its colours.",
       },
       putHint:
         "Enabling a theme sets it above the ones already enabled and rebuilds the server's pack: players receive it at their next connection. Disabling it is done from here too.",

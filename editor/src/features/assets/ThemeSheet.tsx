@@ -1,15 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
+import { cx } from "@/lib/cx";
 import { KIT_PREFIX, kitNameOf } from "@/lib/pack/kit";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AssetPreview } from "./AssetPreview";
 
 /**
- * Every image of the base without a theme and with it, one card an image: what the theme
- * redraws first, then the rest by name, where a change of colour shows. A sheet, not a menu: a
- * menu has fewer slots than a base has pieces. `filter` narrows it by name.
+ * The base's images without a theme and with it, one card an image. At first only what the
+ * theme redraws: a pair of identical pictures says nothing. Every image is a click away, the
+ * redrawn ones first, where a change of colour shows. A sheet, not a menu: a menu has fewer
+ * slots than a base has pieces. `filter` narrows it by name.
  */
 export function ThemeSheet({
   name,
@@ -27,6 +29,7 @@ export function ThemeSheet({
 }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
+  const [every, setEvery] = useState(false);
   const rows = useMemo(() => {
     const before = new Map(plain.map((asset) => [asset.id, asset]));
     return themed
@@ -40,7 +43,8 @@ export function ThemeSheet({
       );
   }, [plain, themed, redrawn]);
   const wanted = filter.trim().toLowerCase();
-  const shown = wanted ? rows.filter((row) => row.piece.toLowerCase().includes(wanted)) : rows;
+  const listed = every ? rows : rows.filter((row) => row.redrawn);
+  const shown = wanted ? listed.filter((row) => row.piece.toLowerCase().includes(wanted)) : listed;
   const picture = (asset: Asset | undefined) =>
     asset ? (
       <AssetPreview asset={asset} lazy className="max-h-full max-w-full object-contain" />
@@ -49,15 +53,29 @@ export function ThemeSheet({
     );
   return (
     <div className="flex flex-col gap-3" data-testid="kit-theme-sheet">
-      <Input
-        className="h-8 max-w-xs"
-        aria-label={t("kit.theme.sheet.filter")}
-        placeholder={t("kit.theme.sheet.filter")}
-        value={filter}
-        onChange={(event) => setFilter(event.target.value)}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          className="h-8 max-w-xs"
+          aria-label={t("kit.theme.sheet.filter")}
+          placeholder={t("kit.theme.sheet.filter")}
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        />
+        <button
+          type="button"
+          aria-pressed={every}
+          className={cx("chip text-[12px]", every && "is-active")}
+          onClick={() => setEvery((all) => !all)}
+        >
+          {every
+            ? t("kit.theme.sheet.redrawnOnly")
+            : t("kit.theme.sheet.all", { count: rows.length })}
+        </button>
+      </div>
       {shown.length === 0 ? (
-        <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.sheet.empty")}</p>
+        <p className="text-xs text-[var(--text-mut)]">
+          {listed.length === 0 ? t("kit.theme.sheet.nothing") : t("kit.theme.sheet.empty")}
+        </p>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
           {shown.map((row) => (

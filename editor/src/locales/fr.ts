@@ -27,8 +27,8 @@ const fr: typeof en = {
       otherSize: "Autre taille que l'original du module qu'elle remplace",
       ownVersion: "Votre version d'une image livrée par le module",
       originalChanged: "Votre version : l'original du module a changé depuis",
-      replacesBase: "Surcharge : remplace l'image de ce nom qui se trouve en dessous",
-      override: "Surcharge",
+      replacesBase: "Redessinée : remplace l’image de ce nom qui se trouve en dessous",
+      override: "Redessinée",
     },
     original: {
       label: "Original du module",
@@ -514,6 +514,10 @@ const fr: typeof en = {
         filter: "Filtrer par nom",
         empty: "Aucune image de ce nom.",
         none: "absente",
+        all: "Toutes les images de la base ({{count}})",
+        redrawnOnly: "Seulement les images redessinées",
+        nothing:
+          "Ce thème ne redessine aucune image : la base s'affiche telle quelle, avec ses couleurs.",
       },
       putHint:
         "Activer un thème le pose au-dessus de ceux qui sont déjà actifs et reconstruit le pack du serveur : les joueurs le reçoivent à leur prochaine connexion. Le désactiver se fait d'ici aussi.",
