@@ -12,6 +12,8 @@ interface TopBarKebabMenuProps {
   onRefresh?: () => void;
   /** Opens the module's properties (id, name, description, lore width…). */
   onProperties?: () => void;
+  /** Opens the server's Play mode on this module. */
+  onPlay?: () => void;
   onImport?: () => void;
   onExportZip: () => void;
   onOpenPatterns: () => void;
@@ -23,6 +25,7 @@ interface TopBarKebabMenuProps {
 export function TopBarKebabMenu({
   onRefresh,
   onProperties,
+  onPlay,
   onImport,
   onExportZip,
   onOpenPatterns,
@@ -44,6 +47,11 @@ export function TopBarKebabMenu({
         {onProperties && (
           <DropdownMenuItem onSelect={onProperties}>
             {t("projectProperties.title")}
+          </DropdownMenuItem>
+        )}
+        {onPlay && (
+          <DropdownMenuItem onSelect={onPlay} title={t("play.openHint")}>
+            {t("play.open")}
           </DropdownMenuItem>
         )}
         {onRefresh && (

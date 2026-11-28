@@ -36,6 +36,15 @@ describe("TopBarKebabMenu", () => {
     expect(onProperties).toHaveBeenCalledOnce();
   });
 
+  it("opens the server's Play mode from the menu", async () => {
+    const user = userEvent.setup();
+    const onPlay = vi.fn();
+    render(<TopBarKebabMenu {...baseProps} onPlay={onPlay} />);
+    await user.click(screen.getByLabelText(/More actions|Plus d'actions|topbar\.more/i));
+    await user.click(screen.getByRole("menuitem", { name: /Test in game|Tester en jeu/ }));
+    expect(onPlay).toHaveBeenCalledOnce();
+  });
+
   it("opens menu on click and shows all items", async () => {
     const user = userEvent.setup();
     render(<TopBarKebabMenu {...baseProps} />);
