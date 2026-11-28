@@ -6,8 +6,10 @@ import { createRoot } from "react-dom/client";
 import { routeTree } from "./routeTree.gen";
 import "./styles/globals.css";
 import { hostComponents } from "@/distribution/hostComponents";
+import { MenuPlayPreview } from "@/features/play/MenuPlayPreview";
 import { useServerIndexStore } from "@/features/serverIndex/serverIndexStore";
 import { installHost } from "@/lib/editorHost";
+import { registerMenuPreview } from "@/lib/menuPreview";
 import { registerEditorModule } from "@/lib/moduleDocumentKinds";
 import { installRandomUuidFallback } from "@/lib/randomUuid";
 import { onServerIdsChanged, shortServerIdRewrite, toPublicPath } from "@/lib/shortServerIds";
@@ -21,6 +23,7 @@ import { variablesModule } from "./modules/variables";
 
 installRandomUuidFallback();
 // Before any module renders: the SDK's hooks reach the editor through it.
+registerMenuPreview((props) => <MenuPlayPreview {...props} />);
 installHost(hostComponents, {
   usePublishedProjects: () => useServerIndexStore((s) => s.projects),
 });

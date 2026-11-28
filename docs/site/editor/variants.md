@@ -17,8 +17,9 @@ you build it.
 ## View as
 
 The **View as** select in the module's header picks what the module shows, on the catalogue, the board
-and a Document's focus view: **Default** (the module's own documents) or one of the variants. The pick
-follows you from one module to the next, and a module without that variant shows its own documents. While a variant is shown:
+and a Document's focus view: **Default** (the module's own documents) or one of the variants. The select lists the server's variants. The pick
+follows you from one module to the next, and a module with no version of that variant shows its own
+documents, which is what that variant's players see there. While a variant is shown:
 
 - a document that has a version for this variant shows that version, tagged with the variant's
   name;

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { ProjectId } from "@/domain/types";
-import { VARIANT_NAME, variantNames, viewedVariant } from "@/domain/variants";
+import { VARIANT_NAME, variantNames } from "@/domain/variants";
 import { VariantRulesDialog } from "@/features/project/VariantRulesDialog";
 import { loadServerVariantNames } from "@/lib/variants/serverVariants";
 import { useProjectsStore } from "@/state/projectsStore";
@@ -41,10 +41,26 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   const project = useProjectsStore((s) => s.openProjects.projects.find((p) => p.id === projectId));
   const [creating, setCreating] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const serverId = useServersStore((s) => s.activeServerId);
+  const [declared, setDeclared] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!serverId) return;
+    let cancelled = false;
+    void loadServerVariantNames(serverId).then((n) => !cancelled && setDeclared(n));
+    return () => {
+      cancelled = true;
+    };
+  }, [serverId]);
+  // The pick is the server's: every variant it declares is offered, whether or not this
+  // module has versions of it.
+  const picked = useViewAsStore((s) => s.variant);
   if (!project) return null;
-  const names = variantNames(project);
+  const own = variantNames(project);
+  const names = [
+    ...new Set([...(declared ?? ["bedrock", "textured"]).filter((n) => n !== "default"), ...own]),
+  ];
   const original = project.originalView !== undefined;
-  const viewed = viewedVariant(project) ?? project.originalView?.variant;
+  const viewed = picked;
   const store = useProjectsStore.getState();
   const versions = (name: string) =>
     Object.values(project.variants?.documents[name] ?? {}).reduce((n, docs) => n + docs.length, 0) +
@@ -54,7 +70,8 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
   // Picking a variant (the one shown included) leaves the original: back to editing it.
   const pick = (variant: string | undefined) => {
     if (original) store.showOriginal(projectId, false);
-    store.showVariant(projectId, variant);
+    // A module without a version of it shows its own Documents: nothing to load.
+    store.showVariant(projectId, variant && own.includes(variant) ? variant : undefined);
     // The pick follows the editor to the next module (`useVariantInUrl`).
     useViewAsStore.getState().set(variant);
   };
@@ -103,27 +120,29 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
                 className="group/variant"
               >
                 <span className="min-w-0 flex-1 truncate">{name}</span>
-                <button
-                  type="button"
-                  title={t("variants.removeVariant", { name })}
-                  aria-label={t("variants.removeVariant", { name })}
-                  disabled={original}
-                  className="-my-1 ml-2 flex size-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] opacity-0 hover:bg-[var(--surface-hover)] hover:text-[var(--danger)] group-hover/variant:opacity-100 group-focus/variant:opacity-100 disabled:hidden"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (
-                      !window.confirm(
-                        t("variants.removeVariantConfirm", { name, count: versions(name) }),
+                {own.includes(name) && (
+                  <button
+                    type="button"
+                    title={t("variants.removeVariant", { name })}
+                    aria-label={t("variants.removeVariant", { name })}
+                    disabled={original}
+                    className="-my-1 ml-2 flex size-6 shrink-0 items-center justify-center rounded text-[var(--text-faint)] opacity-0 hover:bg-[var(--surface-hover)] hover:text-[var(--danger)] group-hover/variant:opacity-100 group-focus/variant:opacity-100 disabled:hidden"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (
+                        !window.confirm(
+                          t("variants.removeVariantConfirm", { name, count: versions(name) }),
+                        )
                       )
-                    )
-                      return;
-                    store.removeVariant(projectId, name);
-                  }}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
+                        return;
+                      store.removeVariant(projectId, name);
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -145,7 +164,7 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => setRulesOpen(true)}
-            disabled={names.length === 0 || original}
+            disabled={own.length === 0 || original}
           >
             <ListOrdered className="size-4" /> {t("variants.rules")}
           </DropdownMenuItem>
@@ -154,9 +173,11 @@ export function VariantSwitcher({ projectId }: { projectId: ProjectId }) {
       <NewVariantDialog
         open={creating}
         onOpenChange={setCreating}
-        taken={names}
+        taken={own}
         onCreate={(name) => {
-          if (store.addVariant(projectId, name)) pick(name);
+          if (!store.addVariant(projectId, name)) return;
+          store.showVariant(projectId, name);
+          useViewAsStore.getState().set(name);
         }}
       />
       <VariantRulesDialog projectId={projectId} open={rulesOpen} onOpenChange={setRulesOpen} />

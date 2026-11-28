@@ -1,7 +1,7 @@
 import { IconTile } from "@/components/ui/icon-tile";
 import type { Project } from "@/domain/types";
-import { MenuPlayPreview } from "@/features/play/MenuPlayPreview";
 import { kindAppearance } from "@/lib/documentKindAppearance";
+import { menuPreviewRenderer } from "@/lib/menuPreview";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useEffect, useRef, useState } from "react";
 
@@ -24,7 +24,8 @@ export function CataloguePreview({
   const ref = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
   const projects = useProjectsStore((s) => s.openProjects.projects);
-  const live = kind === "menu" && !!serverId;
+  const preview = menuPreviewRenderer();
+  const live = kind === "menu" && !!serverId && !!preview;
   useEffect(() => {
     const el = ref.current;
     if (!live || !el || seen) return;
@@ -52,13 +53,8 @@ export function CataloguePreview({
       data-testid="catalogue-preview"
       className="pointer-events-none relative aspect-video w-full overflow-hidden rounded-[var(--r-md)] border border-[var(--border-soft)] bg-[var(--surface-inset)]"
     >
-      {live && seen && serverId ? (
-        <MenuPlayPreview
-          serverId={serverId}
-          projects={projects}
-          projectId={project.id}
-          menuId={id}
-        />
+      {live && seen && serverId && preview ? (
+        preview({ serverId, projects, projectId: project.id, menuId: id })
       ) : (
         <div className="flex h-full items-center justify-center">
           <IconTile icon={look.icon} fg={look.fg} soft={look.soft} size="lg" />
