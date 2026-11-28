@@ -637,6 +637,8 @@ class SyncedMenuProvider(
             val seeds = net.artisanmc.plugin.project.TemplateSeeds(roots, logger, seedLang)
             val seededBefore = seeds.seeded()
             var wrote = false
+            // Before any sync: a module folder in the former layout becomes one tree (ADR `editable-module-tree`).
+            if (migrateFolders()) wrote = true
             registry?.registered()?.forEach { (moduleId, list) ->
                 list.forEach { template ->
                     runCatching { if (seeds.seed(moduleId, template)) wrote = true }
@@ -679,6 +681,35 @@ class SyncedMenuProvider(
     }
 
     /**
+     * Each module folder that still holds `originals/` turned into one tree the owner edits
+     * ([net.artisanmc.plugin.tree.FolderMigration]), checked against the server's reading and
+     * the pack's before anything is written. A folder refused stays as it is, read as before, and
+     * is tried again at the next start. Themes keep their layout for now. True when one moved.
+     */
+    private fun migrateFolders(): Boolean {
+        var moved = false
+        val check = net.artisanmc.plugin.tree.FolderMigration.Check { before, after ->
+            net.artisanmc.plugin.tree.FolderMigration.ReaderCheck.compare(before, after)
+                ?: net.artisanmc.plugin.pack.MigrationAssets.compare(before, after, before.name)
+        }
+        for ((name, dir) in roots.all()) {
+            if (roots.isTheme(name) || !java.io.File(dir, net.artisanmc.plugin.model.Originals.DIR).isDirectory) continue
+            runCatching {
+                when (val r = net.artisanmc.plugin.tree.FolderMigration.run(dir, check)) {
+                    is net.artisanmc.plugin.tree.FolderMigration.Result.Migrated -> {
+                        moved = true
+                        logger?.info("[Artisan] '$name' now holds every file its module ships, at its own path: edit them in place (originals/ is gone).")
+                    }
+                    is net.artisanmc.plugin.tree.FolderMigration.Result.Refused ->
+                        logger?.warning("[Artisan] '$name' keeps its originals/ folder for now: moving its files would change what players see (${r.reason}). Nothing was written; it is tried again at the next start.")
+                    else -> {}
+                }
+            }.onFailure { logger?.warning("[Artisan] '$name' was not moved out of originals/: ${it.message}") }
+        }
+        return moved
+    }
+
+    /**
      * Keeps [template]'s system elements in [moduleId]'s first folder by name (`SystemFiles`);
      * a module without a folder has nowhere to keep them. True when files were written.
      */
@@ -690,7 +721,10 @@ class SyncedMenuProvider(
             logger?.warning("[Artisan] Module '$moduleId' declares system elements but has no folder: call pluginFolder() in its onEnable.")
             return false
         }
-        val written = net.artisanmc.plugin.project.SystemFiles.sync(folder.value, moduleId, template) { path, conflicts ->
+        val written = net.artisanmc.plugin.project.SystemFiles.sync(
+            folder.value, moduleId, template,
+            onRestored = { path -> logger?.warning("[Artisan] '${folder.key}/$path' was deleted, but '$moduleId' needs it: written again as the module ships it.") },
+        ) { path, conflicts ->
             if (conflicts.isEmpty()) logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it.")
             else logger?.info("[Artisan] '${folder.key}/$path' was edited: the new version of '$moduleId' merged into it, except ${conflicts.joinToString()}, edited on both sides (the edit stays; Reset in the editor takes the module's version).")
         }

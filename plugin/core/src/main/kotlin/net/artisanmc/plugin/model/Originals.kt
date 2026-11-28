@@ -50,4 +50,14 @@ object Originals {
 
     /** Whether [path] (relative to the module folder) is under [DIR]: written by the server only. */
     fun isOriginal(path: String): Boolean = path.replace('\\', '/').startsWith("$DIR/")
+
+    /**
+     * Whether [path] is the server's to write: under [DIR], or the index of what a module shipped
+     * (`artisan-shipped.yml`, ADR `editable-module-tree`). Read by everyone, written by no tool.
+     */
+    fun isServerWritten(path: String): Boolean =
+        isOriginal(path) || path.replace('\\', '/') == SHIPPED_INDEX
+
+    /** The index of what a module shipped, at the folder's root (`ShippedIndex`). */
+    const val SHIPPED_INDEX = "artisan-shipped.yml"
 }

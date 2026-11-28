@@ -67,8 +67,8 @@ class DraftPublication(private val root: File) {
         val changes = linkedMapOf<String, ByteArray?>()
         val expected = linkedMapOf<String, String?>()
         (baseline.fieldNames().asSequence() + tree.fieldNames().asSequence()).toSet().forEach { path ->
-            // A module's originals follow the module, never a draft (design `originaux-modules`).
-            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) return@forEach
+            // A module's originals and its index follow the module, never a draft.
+            if (net.artisanmc.plugin.model.Originals.isServerWritten(path)) return@forEach
             val before = baseline[path]?.asText(); val after = tree[path]?.asText()
             // A file the editor only reformatted keeps its bytes: a draft autosaved before the
             // editor kept them (`keepEquivalentText`) holds every file it read in its own format.
@@ -77,7 +77,7 @@ class DraftPublication(private val root: File) {
         }
         val binaryBase = snapshot["binaryBaseline"]; val binaryTree = snapshot["binaryTree"]
         (binaryBase?.fieldNames()?.asSequence().orEmpty() + binaryTree?.fieldNames()?.asSequence().orEmpty()).toSet().forEach { path ->
-            if (net.artisanmc.plugin.model.Originals.isOriginal(path)) return@forEach
+            if (net.artisanmc.plugin.model.Originals.isServerWritten(path)) return@forEach
             val before = binaryBase?.get(path)?.get("hash")?.asText(); val after = binaryTree?.get(path)?.get("hash")?.asText()
             if (before != after) {
                 expected[path] = before
@@ -100,9 +100,19 @@ class DraftPublication(private val root: File) {
             val file = ProjectPathPolicy.resolve(root, path)
             val bytes = file.takeIf { it.isFile }?.readBytes()
             if (bytes?.let { ContentHash.hashBytes(it) } == hash && !file.isDirectory) null
+            // The disk already holds what the draft writes (a draft made before the folder held
+            // the module's whole tree, ADR `editable-module-tree`): nothing to write, no conflict.
+            else if (!file.isDirectory && alreadyThere(path, bytes, changes[path], path in changes)) { changes.remove(path); null }
             else mapOf("path" to path, "disk" to bytes?.takeIf { !ProjectFilesReader.isBinary(path) }?.toString(Charsets.UTF_8), "disk_hash" to bytes?.let { ContentHash.hashBytes(it) })
         }
         if (conflicts.isNotEmpty()) return emptyMap<String, ByteArray?>() to response("ok" to false, "error" to "conflict", "conflicts" to conflicts, "disk_files" to ProjectFilesReader.allPaths(root))
         return changes to null
+    }
+
+    private fun alreadyThere(path: String, disk: ByteArray?, change: ByteArray?, changed: Boolean): Boolean {
+        if (!changed) return false
+        if (disk == null || change == null) return disk == null && change == null
+        if (disk.contentEquals(change)) return true
+        return !ProjectFilesReader.isBinary(path) && YamlEquivalence.sameValue(path, disk.toString(Charsets.UTF_8), change.toString(Charsets.UTF_8))
     }
 }

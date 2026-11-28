@@ -30,15 +30,15 @@ class SystemFilesTest {
 
     @Test
     fun `the shipped file lives in originals, required, and the owner's folder stays empty`() {
-        assertEquals(listOf("originals/menus/shop_main.yml", "originals/originals.yml"), SystemFiles.sync(folder, "boutique", system()))
+        assertEquals(listOf("originals/menus/shop_main.yml", "originals/originals.yml"), SystemFiles.sync(folder, "boutique", system(), legacy = true))
         assertEquals("title: Shop\n", original().readText())
         assertTrue(!menu().exists())
         assertEquals(FileOrigin("boutique", "menus", 1, hash("title: Shop\n")), origins().getValue("originals/menus/shop_main.yml"))
         assertEquals(listOf("menus/shop_main.yml"), index().required)
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system()), "nothing to do twice")
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(), legacy = true), "nothing to do twice")
 
         original().delete()
-        assertEquals(listOf("originals/menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system()))
+        assertEquals(listOf("originals/menus/shop_main.yml"), SystemFiles.sync(folder, "boutique", system(), legacy = true))
     }
 
     @Test
@@ -46,13 +46,13 @@ class SystemFilesTest {
         menu().apply { parentFile.mkdirs(); writeText("title: Shop\n") }
         File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
             .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yml" to FileOrigin("boutique", "menus", 1, hash("title: Shop\n")))))
-        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"))
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"), legacy = true)
         assertTrue(!menu().exists(), "an untouched copy of v1: the original serves")
         assertEquals("title: Shop v2\n", original().readText())
         assertTrue("menus/shop_main.yml" !in origins())
 
         menu().apply { parentFile.mkdirs(); writeText("title: Mine\n") }
-        SystemFiles.sync(folder, "boutique", system(3, "title: Shop v3\n"))
+        SystemFiles.sync(folder, "boutique", system(3, "title: Shop v3\n"), legacy = true)
         assertEquals("title: Mine\n", menu().readText(), "no origin: edited, kept")
         assertEquals("title: Shop v3\n", original().readText())
         assertEquals(hash("title: Shop v3\n"), origin().hash, "counts as edited from v3")
@@ -62,9 +62,9 @@ class SystemFilesTest {
 
     /** The owner edits the menu as it was shipped in [v]. */
     private fun edit(v: String, mine: String) {
-        SystemFiles.sync(folder, "boutique", system(1, v))
+        SystemFiles.sync(folder, "boutique", system(1, v), legacy = true)
         menu().apply { parentFile.mkdirs(); writeText(mine) }
-        SystemFiles.sync(folder, "boutique", system(1, v))
+        SystemFiles.sync(folder, "boutique", system(1, v), legacy = true)
     }
 
     @Test
@@ -76,18 +76,18 @@ class SystemFilesTest {
 
         val v2 = "title: Shop\nsize: 54\nescape_goes_back: true\n"
         val merged = mutableListOf<Pair<String, List<String>>>()
-        SystemFiles.sync(folder, "boutique", system(2, v2)) { p, c -> merged += p to c }
+        SystemFiles.sync(folder, "boutique", system(2, v2), legacy = true) { p, c -> merged += p to c }
         assertEquals("title: Mine\nsize: 54\nescape_goes_back: true\n", menu().readText())
         assertEquals(listOf("menus/shop_main.yml" to emptyList<String>()), merged)
         assertEquals(FileOrigin("boutique", "menus", 2, hash(v2)), origin(), "follows v2 from here on")
         assertEquals(setOf(hash(v2)), bases(), "v1's base goes with the last origin naming it")
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "nothing to do twice")
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2), legacy = true), "nothing to do twice")
     }
 
     @Test
     fun `an edit the new version also makes leaves nothing of the owner's`() {
         edit("title: Shop\n", "title: Shop v2\n")
-        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"))
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop v2\n"), legacy = true)
         assertTrue(!menu().exists())
         assertTrue("menus/shop_main.yml" !in origins())
         assertEquals(emptySet(), bases())
@@ -98,15 +98,15 @@ class SystemFilesTest {
         edit("title: Shop\nsize: 27\n", "title: Mine\nsize: 27\n")
         val v2 = "title: Shop v2\nsize: 54\n"
         val merged = mutableListOf<List<String>>()
-        SystemFiles.sync(folder, "boutique", system(2, v2)) { _, c -> merged += c }
+        SystemFiles.sync(folder, "boutique", system(2, v2), legacy = true) { _, c -> merged += c }
         assertEquals("title: Mine\nsize: 54\n", menu().readText())
         assertEquals(listOf(listOf("title")), merged)
         assertEquals(1, origin().version)
-        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2)), "merged once: the next start has nothing to do")
+        assertEquals(emptyList(), SystemFiles.sync(folder, "boutique", system(2, v2), legacy = true), "merged once: the next start has nothing to do")
 
         // Back to the original: the owner's file goes.
         menu().delete()
-        SystemFiles.sync(folder, "boutique", system(2, v2))
+        SystemFiles.sync(folder, "boutique", system(2, v2), legacy = true)
         assertTrue("menus/shop_main.yml" !in origins())
         assertEquals(emptySet(), bases())
     }
@@ -118,14 +118,14 @@ class SystemFilesTest {
         val redraw = File(folder, "assets/textures/button.png")
         fun changed() = origins()["assets/textures/button.png"] != origins()["originals/assets/textures/button.png"]
 
-        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        SystemFiles.sync(folder, "artisan", base(1, "v1"), legacy = true)
         assertTrue(!SystemFiles.keep(folder, "assets/textures/button.png"), "nothing of the owner's to keep")
         redraw.apply { parentFile.mkdirs(); writeText("mine") }
-        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        SystemFiles.sync(folder, "artisan", base(1, "v1"), legacy = true)
         assertTrue(!changed(), "drawn from v1, which is the original")
 
         // Artisan changes the original: the redraw stays, and its origin still names v1.
-        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        SystemFiles.sync(folder, "artisan", base(2, "v2"), legacy = true)
         assertEquals("mine", redraw.readText())
         assertEquals("v2", File(folder, "originals/assets/textures/button.png").readText())
         assertEquals(hash("v1"), origins().getValue("assets/textures/button.png").hash)
@@ -135,12 +135,12 @@ class SystemFilesTest {
         assertTrue(SystemFiles.keep(folder, "assets/textures/button.png"))
         assertTrue(!changed())
         assertTrue(SystemFiles.keep(folder, "assets/textures/button.png"), "already kept")
-        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        SystemFiles.sync(folder, "artisan", base(2, "v2"), legacy = true)
         assertEquals("mine", redraw.readText())
         assertTrue(!changed())
 
         // Until the original changes again.
-        SystemFiles.sync(folder, "artisan", base(3, "v3"))
+        SystemFiles.sync(folder, "artisan", base(3, "v3"), legacy = true)
         assertTrue(changed())
 
         assertTrue(!SystemFiles.keep(folder, "originals/assets/textures/button.png"), "an original is never the owner's")
@@ -161,7 +161,7 @@ class SystemFilesTest {
         )
         fun changed(path: String) = origins()[path] != origins()["originals/$path"]
 
-        SystemFiles.sync(folder, "artisan", base(1, "v1"))
+        SystemFiles.sync(folder, "artisan", base(1, "v1"), legacy = true)
         // Nothing to record for a file that stands over no original, nor for a delete.
         assertEquals(emptyMap(), SystemFiles.madeAgainst(folder, mapOf("assets/textures/mine.png" to "x".toByteArray(), "menus/gone.yml" to null)))
 
@@ -171,7 +171,7 @@ class SystemFilesTest {
         assertTrue(File(folder, "${SystemFiles.BASES}/${hash("title: Shop v1\n")}").isFile, "the menu's base is kept for the merge")
 
         // The module ships another original before any sync saw the owner's files: it is said.
-        SystemFiles.sync(folder, "artisan", base(2, "v2"))
+        SystemFiles.sync(folder, "artisan", base(2, "v2"), legacy = true)
         assertEquals("mine", File(folder, "assets/textures/button.png").readText())
         assertTrue(changed("assets/textures/button.png"), "made against v1, and the original is v2")
 
@@ -189,16 +189,16 @@ class SystemFilesTest {
     fun `without a kept base an edited file stays as it is`() {
         edit("title: Shop\n", "title: Mine\n")
         File(folder, SystemFiles.BASES).deleteRecursively()
-        SystemFiles.sync(folder, "boutique", system(2, "title: Shop\nsize: 54\n"))
+        SystemFiles.sync(folder, "boutique", system(2, "title: Shop\nsize: 54\n"), legacy = true)
         assertEquals("title: Mine\n", menu().readText())
         assertEquals(1, origin().version)
     }
 
     @Test
     fun `a file no longer shipped leaves originals`() {
-        SystemFiles.sync(folder, "boutique", system())
+        SystemFiles.sync(folder, "boutique", system(), legacy = true)
         val other = TemplateDeclaration.builder("menus", 2).system().file("menus/other.yml", "title: O\n".toByteArray()).build()
-        SystemFiles.sync(folder, "boutique", other)
+        SystemFiles.sync(folder, "boutique", other, legacy = true)
         assertTrue(!original().exists())
         assertTrue(File(folder, "originals/menus/other.yml").isFile)
         assertEquals(listOf("menus/other.yml"), index().required)
@@ -210,7 +210,7 @@ class SystemFilesTest {
         val examples = TemplateDeclaration.builder("examples", 1).file("menus/shop_main.yml", "title: Shop\n".toByteArray()).build()
         File(folder, ProjectOrigins.PATH).apply { parentFile.mkdirs() }
             .writeBytes(ProjectOrigins.serialize(mapOf("menus/shop_main.yml" to FileOrigin("boutique", "examples", 1, hash("title: Shop\n")))))
-        SystemFiles.sync(folder, "boutique", examples, required = false, seeded = true)
+        SystemFiles.sync(folder, "boutique", examples, required = false, seeded = true, legacy = true)
         assertTrue(original().isFile)
         assertEquals(emptyList(), index().required)
         val manifest = net.artisanmc.plugin.model.ManifestYaml.parse(File(folder, "artisan-module.yml").readText())!!
@@ -220,7 +220,7 @@ class SystemFilesTest {
     @Test
     fun `bases are private metadata`() {
         assertTrue(ProjectPathPolicy.isPrivate("${SystemFiles.BASES}/abc"))
-        SystemFiles.sync(folder, "boutique", system())
+        SystemFiles.sync(folder, "boutique", system(), legacy = true)
         assertTrue(ProjectFilesReader.readAll(folder).keys.none { it.startsWith(SystemFiles.BASES) })
     }
 

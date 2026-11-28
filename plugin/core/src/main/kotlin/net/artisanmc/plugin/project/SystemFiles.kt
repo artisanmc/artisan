@@ -57,7 +57,21 @@ object SystemFiles {
         template: TemplateDeclaration,
         required: Boolean = template.isSystem,
         seeded: Boolean = false,
+        legacy: Boolean = false,
+        onRestored: (path: String) -> Unit = {},
         onMerged: (path: String, conflicts: List<String>) -> Unit = { _, _ -> },
+    ): List<String> =
+        if (legacy || File(projectDir, Originals.DIR).isDirectory) legacySync(projectDir, moduleId, template, required, seeded, onMerged)
+        else TreeSync.sync(projectDir, moduleId, template, required, onMerged, onRestored)
+
+    /** The former layout (design `originaux-modules`), for a folder [FolderMigration] has not turned yet. */
+    private fun legacySync(
+        projectDir: File,
+        moduleId: String,
+        template: TemplateDeclaration,
+        required: Boolean,
+        seeded: Boolean,
+        onMerged: (path: String, conflicts: List<String>) -> Unit,
     ): List<String> {
         val origins = ProjectOrigins.read(projectDir).toMutableMap()
         val before = origins.toMap()
@@ -162,7 +176,7 @@ object SystemFiles {
     }
 
     /** The module file with [paths] added to `originals.exclude`; null without a module file. */
-    private fun excluded(projectDir: File, paths: List<String>): Pair<String, ByteArray>? {
+    internal fun excluded(projectDir: File, paths: List<String>): Pair<String, ByteArray>? {
         val file = ModuleFile.find(projectDir) ?: return null
         @Suppress("UNCHECKED_CAST")
         val root = (runCatching { yaml.readValue(file, Map::class.java) }.getOrNull() as? Map<String, Any?>)?.toMutableMap() ?: return null
@@ -173,7 +187,7 @@ object SystemFiles {
         return file.name to EditorYaml.write(root).toByteArray(Charsets.UTF_8)
     }
 
-    private fun base(projectDir: File, hash: String): File = ProjectPathPolicy.resolve(projectDir, "$BASES/$hash")
+    internal fun base(projectDir: File, hash: String): File = ProjectPathPolicy.resolve(projectDir, "$BASES/$hash")
 
     /**
      * The owner keeps their version of [path] (ADR `common-images-and-themes`, decision 8): its
@@ -231,7 +245,7 @@ object SystemFiles {
      * (null when the merge is the owner's file as is) and the conflicts; null when it cannot be
      * merged (not YAML, no base, a document that is not a map).
      */
-    private fun merge(projectDir: File, path: String, baseHash: String, ours: ByteArray, shipped: ByteArray): Pair<ByteArray?, List<String>>? {
+    internal fun merge(projectDir: File, path: String, baseHash: String, ours: ByteArray, shipped: ByteArray): Pair<ByteArray?, List<String>>? {
         if (!path.endsWith(".yaml") && !path.endsWith(".yml")) return null
         val baseFile = base(projectDir, baseHash).takeIf { it.isFile } ?: return null
         val base = baseFile.readBytes().takeIf { ContentHash.hashBytes(it) == baseHash } ?: return null

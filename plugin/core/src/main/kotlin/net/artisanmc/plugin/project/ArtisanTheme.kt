@@ -80,5 +80,5 @@ object ArtisanTheme {
 
     /** Writes the base under [dir]'s `originals/`; the paths written, empty when nothing changed. */
     fun sync(dir: File, images: Map<String, ByteArray>, components: Map<String, String> = emptyMap()): List<String> =
-        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components))
+        if (images.isEmpty()) emptyList() else SystemFiles.sync(dir, SHIPPER, template(images, components), legacy = true)
 }

@@ -58,7 +58,8 @@ show the cost:
    - **untouched**: its content is the shipped one. Same bytes, or, for YAML, the same tree once
      parsed (`YamlEquivalence.sameValue`, already used by `DraftPublication`) **and** no comment
      the shipped file lacks. A save from the visual editor that changes no value leaves a file
-     untouched; an owner who only added comments has a modified file, never overwritten.
+     untouched; an owner who only added comments has a modified file: it is merged, never
+     replaced (a merge that changes a value drops the comments, see Consequences).
    - **modified**: another content.
    - **deleted**: indexed, absent, and no Document of the same identity (variant, kind folder,
      id: `DocumentLayout`'s, not `movedElsewhere`'s name match, which takes

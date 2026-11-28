@@ -41,13 +41,33 @@ class DraftPublicationTest {
     fun `an image published over an original records the original it was made against`() {
         val template = net.artisanmc.modules.api.template.TemplateDeclaration.builder("base", 1).system()
             .file("logo.png", "shipped".toByteArray()).build()
-        SystemFiles.sync(root, "guilds", template)
+        SystemFiles.sync(root, "guilds", template, legacy = true)
         val result = DraftPublication(root).publish(message("op-1"))
         assertEquals(true, result["ok"].asBoolean())
         // The files of the draft alone are counted.
         assertEquals(2, result["wrote"].asInt())
         val origins = ProjectOrigins.read(root)
         assertEquals(origins.getValue("originals/logo.png"), origins.getValue("logo.png"))
+    }
+
+    @Test
+    fun `a draft that creates a file the disk already holds, the same, does not conflict`() {
+        // A draft made before the folder held the module's whole tree: it created the file over
+        // an original, and the migration has since written the same content there.
+        File(root, "menus").mkdirs()
+        File(root, "menus/main.yml").writeText("title: Main\n")
+        val msg = mapper.valueToTree<com.fasterxml.jackson.databind.JsonNode>(mapOf(
+            "type" to "project_draft_publish", "request_id" to "r", "project_id" to "shop", "operation_id" to "op-1",
+            "draft" to mapOf("snapshot" to mapOf(
+                "baseline" to mapOf("a.yml" to "a: 0"), "tree" to mapOf("a.yml" to "a: 1", "menus/main.yml" to "title: 'Main'\n"),
+                "binaryBaseline" to emptyMap<String, Any>(), "binaryTree" to emptyMap<String, Any>(),
+            )),
+            "blobs" to emptyMap<String, Any>(),
+        ))
+        val result = DraftPublication(root).publish(msg)
+        assertEquals(true, result["ok"].asBoolean(), result.toString())
+        assertEquals("title: Main\n", File(root, "menus/main.yml").readText(), "the disk's bytes stay")
+        assertEquals("a: 1", File(root, "a.yml").readText())
     }
 
     @Test

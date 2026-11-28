@@ -110,6 +110,10 @@ class DocumentCheck(
                 problems += Problem(path, "layout", "originals/ holds what the module ships: the server writes it; write the same path without originals/ instead")
                 continue
             }
+            if (net.artisanmc.plugin.project.ShippedIndex.isIndex(path)) {
+                problems += Problem(path, "layout", "artisan-shipped.yml is what the module shipped: the server writes it; edit the files themselves")
+                continue
+            }
             layout.errors.firstOrNull { it.path == path }?.let { problems += Problem(path, "layout", it.reason) }
             val entry = documents[path] ?: continue
             val text = project[path] ?: continue
