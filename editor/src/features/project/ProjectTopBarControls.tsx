@@ -23,8 +23,6 @@ import { ScopeHeader, type ScopeTab, ScopeTabs } from "@/components/ui/scope-hea
 import type { Project, ProjectId } from "@/domain/types";
 import { useTourPresentation } from "@/features/onboarding/tourPresentation";
 import { AssistantButton } from "@/features/project/assistant/AssistantButton";
-import { moduleScreensOf } from "@/features/project/moduleScreens";
-import { useOpenProjectSettings } from "@/features/project/projectSettings";
 import { SaveControls } from "@/features/project/publish/SaveControls";
 import { useChildPageOpen, useGoToWorkspaceTab } from "@/features/project/useGoToWorkspaceTab";
 import {
@@ -35,15 +33,13 @@ import {
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
 import { isTypingTarget } from "@/lib/keyboard";
-import { screenDestination } from "@/lib/projectNavigation";
 import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
-import { useServerScreensStore } from "@/state/serverScreensStore";
 import { useUiStore } from "@/state/uiStore";
-import { Link, type LinkProps, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { ArrowUpRight, Gamepad2, Redo2, Undo2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -113,7 +109,6 @@ export function ProjectTopBarControls({
   const displayName = liveProject?.name ?? projectName ?? project.name;
   const { t } = useTranslation();
   const { tab } = useSearch({ strict: false }) as { tab?: string };
-  const openProjectSettings = useOpenProjectSettings();
   const { serverId: serverRef } = useParams({ strict: false }) as { serverId?: string };
   const trail = useDocumentTrailStore((s) => s.trail);
   const server = place ?? null;
@@ -172,13 +167,7 @@ export function ProjectTopBarControls({
           )}
         </>
       }
-      nav={
-        server ? (
-          server.nav
-        ) : (
-          <WorkspaceViewNav project={currentProject} onOpenSettings={openProjectSettings} />
-        )
-      }
+      nav={server ? server.nav : <WorkspaceViewNav project={currentProject} />}
       end={
         <div className="project-topbar flex items-center gap-1">
           {server ? null : (
@@ -246,8 +235,9 @@ export function ProjectTopBarControls({
 /**
  * The module's views, the same tabs as the server's (`ScopeTabs`). Each entry navigates
  * via `?tab=` (deep links / back-button keep working); Home (the module's entry view)
- * first, then the board. History, the module's settings screens and its settings sit
- * under **More**. The missing-translations badge rides on the Translations entry. The
+ * first, then the board. The row is the same for every module and holds no file: the
+ * module's settings are a row of its tree in the sidebar, like its settings screens.
+ * The missing-translations badge rides on the Translations entry. The
  * hotbar digit shortcut follows WORKSPACE_VIEW_TABS — see useWorkspaceTabShortcuts.
  */
 const TAB_LABEL: Record<WorkspaceViewTab, string> = {
@@ -258,33 +248,16 @@ const TAB_LABEL: Record<WorkspaceViewTab, string> = {
   history: "project.tabs.history",
 };
 
-function WorkspaceViewNav({
-  project,
-  onOpenSettings,
-}: {
-  project: Project;
-  onOpenSettings: () => void;
-}) {
+function WorkspaceViewNav({ project }: { project: Project }) {
   const runtime = useProjectRuntime(project.id);
   const { t } = useTranslation();
   const activeLang = useUiStore((s) => s.activeLang);
   const missing = countMissingForLang(project, activeLang);
   const search = useSearch({ strict: false }) as { tab?: WorkspaceViewTab };
-  const { serverId, screenId } = useParams({ strict: false }) as {
-    serverId?: string;
-    screenId?: string;
-  };
   const tourActive = useTourPresentation((s) => s.step !== null);
   const childOpen = useChildPageOpen();
-  const allScreens = useServerScreensStore((s) => s.screens);
-  const screens = useMemo(() => moduleScreensOf(project, allScreens), [project, allScreens]);
   const go = useGoToWorkspaceTab();
-  const shownScreen = screens.find((s) => s.id === screenId);
-  const active = tourActive
-    ? "board"
-    : shownScreen
-      ? `screen:${shownScreen.id}`
-      : effectiveTab(search.tab, childOpen);
+  const active = tourActive ? "board" : effectiveTab(search.tab, childOpen);
   // Versions only exist for a server Project.
   const views: ScopeTab[] = WORKSPACE_VIEW_TABS.filter(
     (tab) => tab !== "history" || !!runtime?.serverId,
@@ -294,7 +267,6 @@ function WorkspaceViewNav({
     return {
       id: tab,
       label,
-      more: tab === "history",
       onSelect: () => go(tab),
       testId: `open-view-${tab}`,
       // Tooltip carries the hotbar digit (the digit follows WORKSPACE_VIEW_TABS).
@@ -310,15 +282,6 @@ function WorkspaceViewNav({
         ) : undefined,
     };
   });
-  const screenTabs: ScopeTab[] = serverId
-    ? screens.map((screen) => ({
-        id: `screen:${screen.id}`,
-        label: screen.label,
-        more: true,
-        link: screenDestination(screen, serverId, [project]) as LinkProps,
-        testId: `open-screen-${screen.id}`,
-      }))
-    : [];
   return (
     <ScopeTabs
       label={t("project.tabs.label")}
@@ -326,17 +289,7 @@ function WorkspaceViewNav({
       testId="project-view-navigation"
       tour="tabs"
       active={active}
-      tabs={[
-        ...views,
-        ...screenTabs,
-        {
-          id: "settings",
-          label: t("projectProperties.title"),
-          more: true,
-          onSelect: onOpenSettings,
-          testId: "open-view-settings",
-        },
-      ]}
+      tabs={views}
     />
   );
 }
