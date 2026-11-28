@@ -33,8 +33,8 @@ import { listLanguages } from "@/lib/i18nUsages";
 import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
-import { Link, useParams, useSearch } from "@tanstack/react-router";
-import { ArrowUpRight, Gamepad2, Redo2, Undo2 } from "lucide-react";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Redo2, Undo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
@@ -109,6 +109,7 @@ export function ProjectTopBarControls({
   const trail = useDocumentTrailStore((s) => s.trail);
   const server = place ?? null;
   const openProperties = useOpenProjectSettings();
+  const navigate = useNavigate();
 
   // Offline is not a banner: the server badge already shows it in red, and the
   // tooltip gives the exact reason (copy date, draft, never-published).
@@ -176,21 +177,6 @@ export function ProjectTopBarControls({
             </div>
           )}
           {!server && <VariantSwitcher projectId={projectId} />}
-          {serverRef && !server && (
-            // A link to the server's Play tab, this module first: it says so, it is no tool here.
-            <Link
-              to="/servers/$serverId/play"
-              params={{ serverId: serverRef }}
-              search={{ project: currentProject.diskId ?? currentProject.id }}
-              className="btn btn-ghost btn-sm shrink-0"
-              title={t("play.openHint")}
-              data-testid="project-play"
-            >
-              <Gamepad2 className="size-4" aria-hidden />
-              <span className="hidden 2xl:inline">{t("play.open")}</span>
-              <ArrowUpRight className="size-3.5 opacity-60" aria-hidden />
-            </Link>
-          )}
           <AssistantButton />
           <div data-tour="save" className="flex items-center gap-1">
             <SaveControls
@@ -206,6 +192,17 @@ export function ProjectTopBarControls({
               <TopBarKebabMenu
                 onRefresh={onRefresh}
                 onProperties={server ? undefined : openProperties}
+                // The server's Play tab, this module first: an occasional check, not a daily tool.
+                onPlay={
+                  serverRef && !server
+                    ? () =>
+                        void navigate({
+                          to: "/servers/$serverId/play",
+                          params: { serverId: serverRef },
+                          search: { project: currentProject.diskId ?? currentProject.id },
+                        })
+                    : undefined
+                }
                 onImport={onImport}
                 onExportZip={onExportZip ?? (() => {})}
                 onOpenPatterns={onOpenPatterns ?? (() => {})}
