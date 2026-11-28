@@ -2,6 +2,7 @@ import type { Asset } from "@/domain/asset";
 import { useProjectBaselineStore } from "@/state/projectBaselineStore";
 import { useProjectTemplatesStore } from "@/state/projectTemplatesStore";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AssetsTab, useResourcesView } from "./AssetsTab";
 import { useAssetStore } from "./assetStore";
@@ -25,6 +26,12 @@ vi.mock("@tanstack/react-virtual", () => ({
       })),
   }),
 }));
+
+/** Opens the image upload, the second entry of the Add menu. */
+async function importImage() {
+  await userEvent.click(screen.getByRole("button", { name: /^Ajouter$/ }));
+  await userEvent.click(await screen.findByRole("menuitem", { name: /^Importer une image$/ }));
+}
 
 const A1: Asset = {
   id: "asset_1",
@@ -152,10 +159,10 @@ describe("AssetsTab", () => {
     useProjectTemplatesStore.setState({ entries: {} });
   });
 
-  it("opens the upload dialog when clicking Upload", () => {
+  it("opens the upload dialog from the Add menu", async () => {
     useAssetStore.getState().setAssets([]);
     render(<AssetsTab projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
+    await importImage();
     expect(screen.getByRole("dialog", { name: /importer une image/i })).toBeTruthy();
   });
 
@@ -197,7 +204,7 @@ describe("AssetsTab", () => {
       .mockResolvedValue({ id: "crest", projectId: "srv.artisan", name: "crest" } as never);
     useAssetStore.getState().setAssets([]);
     render(<AssetsTab projectId={"p1" as never} />);
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/i }));
+    await importImage();
     fireEvent.change(screen.getByLabelText(/fichier/i), {
       target: { files: [new File(["png"], "crest.png", { type: "image/png" })] },
     });
@@ -224,7 +231,7 @@ describe("AssetsTab", () => {
     expect(screen.queryByTitle("bg_one")).toBeNull();
     expect(screen.getByTitle("ico_one")).toBeTruthy();
   });
-  it("groups legacy backgrounds and decorations with menu images and scopes imports", () => {
+  it("groups legacy backgrounds and decorations with menu images and scopes imports", async () => {
     useAssetStore
       .getState()
       .setAssets([
@@ -237,7 +244,7 @@ describe("AssetsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Images du menu$/ }));
     for (const name of ["bg_one", "logo", "frame"]) expect(screen.getByTitle(name)).toBeTruthy();
     expect(screen.queryByTitle("ico_one")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Importer une image$/ }));
+    await importImage();
     // The import files the image under the part shown: nothing to tick.
     expect(screen.queryByRole("checkbox")).toBeNull();
   });

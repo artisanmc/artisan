@@ -81,6 +81,7 @@ export default {
     menu: "Menu images",
     font: "Fonts",
     unclassified: "Unclassified",
+    add: "Add",
     upload: "Import an image",
     importFont: "Import a font",
     importNexo: "Import from Nexo",

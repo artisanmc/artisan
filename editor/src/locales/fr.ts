@@ -83,6 +83,7 @@ const fr: typeof en = {
     menu: "Images du menu",
     font: "Polices",
     unclassified: "À classer",
+    add: "Ajouter",
     upload: "Importer une image",
     importFont: "Importer une police",
     importNexo: "Importer depuis Nexo",
