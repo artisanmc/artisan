@@ -1,7 +1,7 @@
 import { useProjectsStore } from "@/state/projectsStore";
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useUndoShortcuts } from "./ProjectTopBarControls";
+import { useUndoShortcuts } from "./undoShortcuts";
 
 function press(init: KeyboardEventInit, target: EventTarget = window) {
   const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });

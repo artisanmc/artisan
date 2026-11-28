@@ -32,17 +32,16 @@ import {
 } from "@/features/project/workspaceTabs";
 import { cn } from "@/lib/cx";
 import { countMissingForLang, listLanguages } from "@/lib/i18nUsages";
-import { isTypingTarget } from "@/lib/keyboard";
 import { useDocumentTrailStore } from "@/state/documentTrailStore";
 import { useProjectRuntime } from "@/state/projectRuntimeStore";
 import { useProjectsStore } from "@/state/projectsStore";
 import { useUiStore } from "@/state/uiStore";
 import { Link, useParams, useSearch } from "@tanstack/react-router";
 import { ArrowUpRight, Gamepad2, Redo2, Undo2 } from "lucide-react";
-import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useStore } from "zustand";
+import { useUndoShortcuts } from "./undoShortcuts";
 
 export interface ProjectTopBarControlsProps {
   project: Project;
@@ -387,29 +386,6 @@ function LangSwitcher({ project }: { project: Project }) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-/**
- * ⌘Z, and ⌘⇧Z or ⌘Y, wherever the undo buttons show: the board and every Document's page,
- * a module's included (its HUD composer, its forms). In a text field the browser undoes the
- * typing instead.
- */
-export function useUndoShortcuts(): void {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || isTypingTarget(e.target)) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        useProjectsStore.temporal.getState().undo();
-      } else if ((key === "z" && e.shiftKey) || key === "y") {
-        e.preventDefault();
-        useProjectsStore.temporal.getState().redo();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 }
 
 /**

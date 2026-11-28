@@ -40,7 +40,8 @@ const KIT_COLOURS = 32;
 /** Colours taken from each kit image: its body, its edges, its shade. */
 const PER_KIT_IMAGE = 6;
 
-const BLACK: Rgba = [0, 0, 0, 255];
+/** The colour in hand at first: white, which shows on the dark squares an empty layer is drawn over. */
+const FIRST: Rgba = [255, 255, 255, 255];
 
 const kitPalettes = new Map<string, Promise<Rgba[]>>();
 
@@ -194,8 +195,8 @@ export function PixelEditor({
     colour: Rgba;
     changed: boolean;
   } | null>(null);
-  const [colour, setColour] = useState<Rgba>(BLACK);
-  const [hex, setHex] = useState(toHex(BLACK));
+  const [colour, setColour] = useState<Rgba>(FIRST);
+  const [hex, setHex] = useState(toHex(FIRST));
   const bump = pixels.touched;
   const failed = pixels.failed;
   const picture = pixels.picture;

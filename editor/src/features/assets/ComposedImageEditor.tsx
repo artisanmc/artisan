@@ -339,7 +339,7 @@ export function ComposedImageEditor({
   /** Shows the image where a player sees it (`SituationPreview`). */
   situation?: boolean;
   /**
-   * Under the list of layers: what is done to them as a whole. `picture` gives the PNG of the
+   * In the bar, before Save: what is done to the image as a whole. `picture` gives the PNG of the
    * image as it is shown now, saved or not: what a copy is made of.
    */
   footer?: (picture: () => Promise<Uint8Array>) => ReactNode;
@@ -839,9 +839,7 @@ export function ComposedImageEditor({
                 }
               : undefined
           }
-        >
-          {footer?.(picture)}
-        </LayersPanel>
+        />
 
         {current && selected !== null && !alone && (
           <StudioSection title={t("studio.layer")} testId="compose-layer-fields">
@@ -1058,14 +1056,17 @@ export function ComposedImageEditor({
               controls: parts.controls,
               keys: parts.keys,
               actions: (
-                <SaveActions
-                  dirty={dirty}
-                  busy={busy}
-                  canSave={!!user}
-                  error={error}
-                  onSave={() => void save()}
-                  onDiscard={discard}
-                />
+                <>
+                  {footer?.(picture)}
+                  <SaveActions
+                    dirty={dirty}
+                    busy={busy}
+                    canSave={!!user}
+                    error={error}
+                    onSave={() => void save()}
+                    onDiscard={discard}
+                  />
+                </>
               ),
               panels: panels(parts.colour),
               preview: preview(),
@@ -1172,14 +1173,17 @@ export function ComposedImageEditor({
           </>
         ),
         actions: (
-          <SaveActions
-            dirty={dirty}
-            busy={busy}
-            canSave={!!user && recipe.layers.length > 0}
-            error={error}
-            onSave={() => void save()}
-            onDiscard={discard}
-          />
+          <>
+            {footer?.(picture)}
+            <SaveActions
+              dirty={dirty}
+              busy={busy}
+              canSave={!!user && recipe.layers.length > 0}
+              error={error}
+              onSave={() => void save()}
+              onDiscard={discard}
+            />
+          </>
         ),
         panels: panels(),
         preview: preview(),

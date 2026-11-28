@@ -129,3 +129,45 @@ it("lists the components the Project ships, and writes the owner's version on th
   expect(screen.getByLabelText("Valeur par défaut de text")).toHaveValue("Cancel");
   useProjectBaselineStore.getState().clear(p);
 });
+
+it("lists what a choice offers beside what each name writes, and undoes a change", async () => {
+  const { useProjectBaselineStore } = await import("@/state/projectBaselineStore");
+  useProjectBaselineStore.getState().set(p, {
+    "originals/components/button.yml":
+      "params:\n  color:\n    type: choice\n    default: green\n    values:\n      green: button.3x1\n      danger: button.danger.3x1\nparts:\n  - image: '{color}'\n",
+  });
+  render(<ComponentsView projectId={p} />);
+  fireEvent.click(
+    within(screen.getByTestId("components-shipped")).getByRole("button", { name: "button" }),
+  );
+  // Each name with the image it writes: what the choice offers is read here, not in the file.
+  expect(screen.getAllByTestId("choice-row")).toHaveLength(2);
+  expect(screen.getByLabelText("Ce qu’écrit danger")).toHaveValue("button.danger.3x1");
+  expect(screen.getByLabelText("Valeur par défaut de color")).toHaveValue("green");
+
+  fireEvent.click(screen.getByRole("button", { name: "Ajouter un nom" }));
+  fireEvent.change(screen.getByLabelText("Nom 3"), { target: { value: "gold" } });
+  fireEvent.change(screen.getByLabelText("Ce qu’écrit gold"), {
+    target: { value: "button.gold.3x1" },
+  });
+  fireEvent.change(screen.getByLabelText("Valeur par défaut de color"), {
+    target: { value: "gold" },
+  });
+  expect(parse(files()["button.yml"]!).params.color).toEqual({
+    type: "choice",
+    default: "gold",
+    values: { green: "button.3x1", danger: "button.danger.3x1", gold: "button.gold.3x1" },
+  });
+  // The default that is taken off the list goes with it.
+  fireEvent.click(screen.getByRole("button", { name: "Retirer gold" }));
+  expect(parse(files()["button.yml"]!).params.color.default).toBeUndefined();
+
+  // The page has the Project's undo: its button, and Ctrl+Z outside a field.
+  fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+  expect(parse(files()["button.yml"]!).params.color.default).toBe("gold");
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(parse(files()["button.yml"]!).params.color.default).toBe("green");
+  fireEvent.click(screen.getByRole("button", { name: "Rétablir" }));
+  expect(parse(files()["button.yml"]!).params.color.default).toBe("gold");
+  useProjectBaselineStore.getState().clear(p);
+});
