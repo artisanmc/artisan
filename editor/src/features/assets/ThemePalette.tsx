@@ -1,4 +1,5 @@
 import { ColorInput } from "@/components/ui/color-input";
+import { InfoTip } from "@/components/ui/info-tip";
 import { ResetButton } from "@/components/ui/reset-button";
 import { DEFAULT_PALETTE, PALETTE_FILE, type Palette, readPalette } from "@/lib/pack/palette";
 import { useProjectDraftStore } from "@/state/projectDraftStore";
@@ -120,10 +121,14 @@ export function ThemePalette({
       className={place === "theme" ? "card flex flex-col gap-2 p-4" : "flex flex-col gap-2"}
       data-testid="kit-theme-palette"
     >
-      {place === "theme" ? <h3 className="eyebrow">{t("kit.theme.palette.title")}</h3> : null}
-      <p className="text-xs text-[var(--text-mut)]">
-        {t(place === "theme" ? "kit.theme.palette.hint" : "kit.theme.palette.libraryHint")}
-      </p>
+      {place === "theme" ? (
+        <div className="flex items-center gap-1">
+          <h3 className="eyebrow">{t("kit.theme.palette.title")}</h3>
+          <InfoTip content={t("kit.theme.palette.hint")} />
+        </div>
+      ) : (
+        <p className="text-xs text-[var(--text-mut)]">{t("kit.theme.palette.libraryHint")}</p>
+      )}
       {children}
       <ul className="flex flex-col gap-1">
         {names.map((entry) => {

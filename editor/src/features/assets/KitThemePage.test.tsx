@@ -44,7 +44,7 @@ describe("KitThemePage", () => {
     fireEvent.change(screen.getByLabelText("Filtrer par nom"), { target: { value: "window" } });
     for (const row of screen.getAllByTestId("kit-theme-sheet-row"))
       expect(row).toHaveTextContent("window");
-    fireEvent.click(screen.getByRole("button", { name: "Activer le thème" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Activer le thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", true));
   });
 
@@ -55,12 +55,12 @@ describe("KitThemePage", () => {
     expect(screen.getByText("Actif")).toBeInTheDocument();
     // Alone in place: there is no order to tell.
     expect(screen.queryByTestId("kit-theme-stack")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Désactiver le thème" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Désactiver le thème" }));
     await waitFor(() => expect(onPutInPlace).toHaveBeenCalledWith("noel", false));
     unmount();
     render(<KitThemePage name="paques" onPutInPlace={onPutInPlace} />);
     expect(screen.getByText(/n'a pas de thème « paques »/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Activer le thème" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Activer le thème" })).toBeNull();
   });
 
   it("shows a theme of its own folder from the Project of its name", () => {
@@ -88,7 +88,7 @@ describe("KitThemePage", () => {
     ]);
     // Its files are its own folder's, not the common images'.
     expect(
-      screen.getByText(/themes\/printemps\/ : assets\/ contient ses images/),
+      screen.getByRole("button", { name: /themes\/printemps\/ : assets\/ contient ses images/ }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Ouvrir les images du serveur" })).toBeNull();
   });

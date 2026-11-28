@@ -1,0 +1,1 @@
+- **Changed**: the Resources screen explains itself in ⓘ tooltips beside the titles instead of paragraphs under them, and a theme is enabled or disabled by a switch on its row and on its page.

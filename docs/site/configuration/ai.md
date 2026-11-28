@@ -285,7 +285,7 @@ images, with a `theme.yml`) moves to its own folder at the server's next start, 
 at the places above; it keeps its name and its place in the stack, and the pack does not
 change. A theme's folder holds no menu, command or Trigger: the server reads none from it.
 The server's themes in place are a stack (`resource-pack.themes` of `config.yml`, the lowest
-first): each changes what the ones below show, so the highest that redraws an image wins. Enable a theme from **Resources** (the list of places on the left, **Enable**), which sets it above the others and rebuilds
+first): each changes what the ones below show, so the highest that redraws an image wins. Enable a theme from **Resources** (the list of places on the left, the theme's switch), which sets it above the others and rebuilds
 the pack; the same list holds the themes in order, where a theme is dragged to
 another place. The
 app cannot put a theme in place; it shows you a menu in a theme before you do.

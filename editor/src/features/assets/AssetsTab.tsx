@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Input } from "@/components/ui/input";
 import type { Asset } from "@/domain/asset";
 import { assetUsages } from "@/domain/assetUsage";
@@ -449,12 +450,12 @@ function OtherProjectAssets({
           {t("projectSource.from", { project: ownerName(selected) })}
         </div>
       </div>
-      <Button onClick={() => void copy()} disabled={busy}>
-        {t(mine ? "projectSource.open" : busy ? "projectSource.copying" : "projectSource.copy")}
-      </Button>
-      {!mine && (
-        <p className="text-[11px] text-[var(--text-faint)]">{t("projectSource.snapshotHint")}</p>
-      )}
+      <div className="flex items-center gap-1.5">
+        <Button className="flex-1" onClick={() => void copy()} disabled={busy}>
+          {t(mine ? "projectSource.open" : busy ? "projectSource.copying" : "projectSource.copy")}
+        </Button>
+        {!mine && <InfoTip content={t("projectSource.snapshotHint")} />}
+      </div>
     </div>
   ) : null;
   return (
@@ -534,13 +535,15 @@ function CommonAssets({
   };
   const list = (
     <div className="flex h-full min-w-0 flex-1 flex-col gap-2 p-3">
-      <p className="text-xs text-[var(--text-mut)]">{t("resources.common.hint")}</p>
-      <Input
-        aria-label={t("resources.search")}
-        placeholder={t("resources.search")}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="flex items-center gap-1.5">
+        <Input
+          aria-label={t("resources.search")}
+          placeholder={t("resources.search")}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <InfoTip content={t("resources.common.hint")} />
+      </div>
       {filtered.length === 0 ? (
         <output className="block py-8 text-center text-sm text-[var(--text-mut)]">
           {t("resources.noResults")}
@@ -611,8 +614,14 @@ function CommonAssets({
           </ul>
         )}
       </div>
-      {onOpen && <Button onClick={open}>{t("resources.common.open")}</Button>}
-      <p className="text-[11px] text-[var(--text-faint)]">{t("resources.common.followHint")}</p>
+      <div className="flex items-center gap-1.5">
+        {onOpen && (
+          <Button className="flex-1" onClick={open}>
+            {t("resources.common.open")}
+          </Button>
+        )}
+        <InfoTip content={t("resources.common.followHint")} />
+      </div>
     </div>
   ) : null;
   return (
