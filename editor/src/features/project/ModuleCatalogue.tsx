@@ -4,8 +4,8 @@ import { docKey } from "@/domain/documents";
 import type { Project } from "@/domain/types";
 import { kindAppearance } from "@/lib/documentKindAppearance";
 import { useUiStore } from "@/state/uiStore";
-import { LayoutGrid, List, Plus, Puzzle, Search, Settings } from "lucide-react";
-import { useState } from "react";
+import { LayoutGrid, List, type LucideIcon, Plus, Puzzle, Search } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CataloguePreview } from "./CataloguePreview";
 import { originLabelOf, typeLabel, useOriginOf } from "./ProjectDocumentTree";
@@ -25,12 +25,13 @@ export function ModuleCatalogue({
   serverId,
   collections = [],
   onCreate,
-  screens = [],
-  onOpenScreen,
+  places = [],
 }: {
-  /** The module's settings screens: entries of the catalogue like Documents, under the kind `settings`. */
-  screens?: { id: string; label: string }[];
-  onOpenScreen?: (screenId: string) => void;
+  /**
+   * What the module holds that is not a Document (its settings screens, its data sources):
+   * entries of the catalogue all the same, one filter and one heading each (`?kind=<kind>`).
+   */
+  places?: CataloguePlace[];
   project: Project;
   /** Kinds kept in the catalogue even with no Document yet (the module's collections), with whether each may be created here. */
   collections?: { kind: string; creatable: boolean }[];
@@ -69,11 +70,14 @@ export function ModuleCatalogue({
       ),
     }))
     .filter((g) => g.items.length > 0 || (!needle && kept.has(g.type)));
-  const shownScreens = screens.filter(
-    (sc) =>
-      (!kind || kind === SETTINGS_KIND) && (!needle || sc.label.toLowerCase().includes(needle)),
-  );
-  if (groups.length === 0 && screens.length === 0) return null;
+  const shownPlaces = places
+    .filter((pl) => !kind || kind === pl.kind)
+    .map((pl) => ({
+      ...pl,
+      items: pl.items.filter((it) => !needle || it.label.toLowerCase().includes(needle)),
+    }))
+    .filter((pl) => pl.items.length > 0);
+  if (groups.length === 0 && places.length === 0) return null;
   return (
     <section
       data-testid="module-catalogue"
@@ -138,17 +142,18 @@ export function ModuleCatalogue({
         >
           {t("moduleCatalogue.all")}
         </button>
-        {screens.length > 0 && (
+        {places.map((pl) => (
           <button
+            key={pl.kind}
             type="button"
-            data-testid={`catalogue-kind-${SETTINGS_KIND}`}
-            className={`chip ${kind === SETTINGS_KIND ? "is-active" : ""}`}
-            aria-pressed={kind === SETTINGS_KIND}
-            onClick={() => onKind(kind === SETTINGS_KIND ? undefined : SETTINGS_KIND)}
+            data-testid={`catalogue-kind-${pl.kind}`}
+            className={`chip ${kind === pl.kind ? "is-active" : ""}`}
+            aria-pressed={kind === pl.kind}
+            onClick={() => onKind(kind === pl.kind ? undefined : pl.kind)}
           >
-            {t("moduleCatalogue.settings")} {screens.length}
+            {pl.label} {pl.items.length}
           </button>
-        )}
+        ))}
         {groups.map((g) => (
           <button
             key={g.type}
@@ -162,7 +167,7 @@ export function ModuleCatalogue({
           </button>
         ))}
       </div>
-      {shown.length === 0 && shownScreens.length === 0 ? (
+      {shown.length === 0 && shownPlaces.length === 0 ? (
         <p className="text-[13px] text-[var(--text-mut)]">{t("moduleCatalogue.none")}</p>
       ) : (
         shown.map((g) => {
@@ -262,45 +267,55 @@ export function ModuleCatalogue({
           );
         })
       )}
-      {shownScreens.length > 0 && (
-        <div className="flex flex-col gap-2">
+      {shownPlaces.map((pl) => (
+        <div key={pl.kind} className="flex flex-col gap-2">
           <h3 className="text-[12px] font-medium text-[var(--text-mut)]">
-            {t("moduleCatalogue.settings")} · {shownScreens.length}
+            {pl.label} · {pl.items.length}
           </h3>
           <ul
-            aria-label={t("moduleCatalogue.settings")}
+            aria-label={pl.label}
             className="grid gap-2"
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(14rem, 1fr))" }}
           >
-            {shownScreens.map((sc) => (
-              <li key={sc.id}>
+            {pl.items.map((it) => (
+              <li key={it.id}>
                 <button
                   type="button"
-                  data-testid={`catalogue-screen-${sc.id}`}
-                  onClick={() => onOpenScreen?.(sc.id)}
+                  data-testid={`catalogue-${pl.kind}-${it.id}`}
+                  onClick={() => pl.onOpen(it.id)}
                   className="card flex w-full items-center gap-2 p-2.5 text-left hover:border-[var(--border-strong)]"
                 >
-                  <IconTile
-                    icon={Settings}
-                    fg="var(--text-mut)"
-                    soft="var(--surface-raised-2)"
-                    size="sm"
-                  />
+                  {it.visual ?? (
+                    <IconTile
+                      icon={pl.icon}
+                      fg="var(--text-mut)"
+                      soft="var(--surface-raised-2)"
+                      size="sm"
+                    />
+                  )}
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-                    {sc.label}
+                    {it.label}
                   </span>
                 </button>
               </li>
             ))}
           </ul>
         </div>
-      )}
+      ))}
     </section>
   );
 }
 
-/** The catalogue's `?kind=` for the module's settings screens, which are not a Document kind. */
-const SETTINGS_KIND = "settings";
+/** A place of the module that is not a Document kind: its entries, listed like Documents. */
+export interface CataloguePlace {
+  /** The `?kind=` of its filter. */
+  kind: string;
+  label: string;
+  icon: LucideIcon;
+  /** `visual` replaces the place's icon on an entry (a captured item's picture). */
+  items: { id: string; label: string; visual?: ReactNode }[];
+  onOpen: (id: string) => void;
+}
 
 type Layout = "list" | "grid";
 const LAYOUT_KEY = "artisan.catalogue.layout";

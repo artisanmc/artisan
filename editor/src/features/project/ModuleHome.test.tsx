@@ -118,7 +118,7 @@ describe("ModuleHome", () => {
   it("lists the settings screens in the catalogue, not under Content", () => {
     render(<ModuleHome project={project()} />);
     expect(screen.queryByTestId("module-home-settings")).toBeNull();
-    expect(screen.getByTestId("catalogue-screen-conversations:speakers")).toHaveTextContent(
+    expect(screen.getByTestId("catalogue-settings-conversations:speakers")).toHaveTextContent(
       "Speakers",
     );
   });
@@ -208,12 +208,14 @@ describe("ModuleHome", () => {
       ],
     });
     render(<ModuleHome project={project()} />);
-    expect(screen.queryByTestId("catalogue-screen-conversations:speakers")).toBeNull();
+    expect(screen.queryByTestId("catalogue-settings-conversations:speakers")).toBeNull();
   });
 
-  it("leads to the captured items when the module has some", () => {
+  it("offers the captured items tool always, and lists the items in the catalogue when there are some", () => {
     const { rerender } = render(<ModuleHome project={project()} />);
-    expect(screen.queryByTestId("module-home-captured")).toBeNull();
+    // Empty or not, the header chip is how a module learns to capture an item.
+    expect(screen.getByTestId("module-home-tool-items")).toBeInTheDocument();
+    expect(screen.queryByTestId("catalogue-kind-items")).toBeNull();
     useProjectsStore.setState({
       openProjects: {
         projects: [
@@ -226,15 +228,9 @@ describe("ModuleHome", () => {
       },
     } as never);
     rerender(<ModuleHome project={project()} />);
-    // The block shows the items, not only a link.
-    expect(
-      within(screen.getByTestId("module-home-captured-list")).getByText("Key"),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      within(screen.getByTestId("module-home-captured")).getByRole("button", {
-        name: "Voir les items capturés",
-      }),
-    );
+    expect(screen.getByTestId("catalogue-items-ci_1")).toHaveTextContent("Key");
+    expect(screen.getByTestId("module-home-tool-items")).toHaveTextContent("1");
+    fireEvent.click(screen.getByTestId("catalogue-items-ci_1"));
     expect(navigate).toHaveBeenCalledOnce();
   });
 });

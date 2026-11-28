@@ -1,6 +1,6 @@
+import { Tooltip } from "@/components/ui/tooltip";
 import type { Asset } from "@/domain/asset";
 import { assetPreviewUrl } from "@/domain/asset";
-import { Tooltip } from "@/components/ui/tooltip";
 import { cx } from "@/lib/cx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight } from "lucide-react";
